@@ -138,7 +138,7 @@ public class SOCServer extends Server
     /**
      * So we can get random numbers.
      */
-    Random rand;
+    private Random rand = new Random();
 
     /**
      * The TCP port we listen on.
@@ -246,7 +246,6 @@ public class SOCServer extends Server
         }
 
         port = p;
-        rand = new Random();
         startTime = System.currentTimeMillis();
         numberOfGamesStarted = 0;
         numberOfGamesFinished = 0;
@@ -578,12 +577,11 @@ public class SOCServer extends Server
 
                         for (int j = 0; j < 3; j++)
                         {
-                            for (int i = 0; i < robots.size(); i++)
+                            for (int i = 0; i < robotIndexes.length; i++) //
                             {
-                                int idx;
-                                int tmp;
-                                idx = (int) Math.round(rand.nextFloat() * ((robots.size() - i) - 1));
-                                tmp = robotIndexes[idx];
+                                // Swap a random card below the ith robot with the ith robot
+                                int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
+                                int tmp = robotIndexes[idx];
                                 robotIndexes[idx] = robotIndexes[i];
                                 robotIndexes[i] = tmp;
                             }
@@ -2860,13 +2858,10 @@ public class SOCServer extends Server
 
                                     for (int j = 0; j < 3; j++)
                                     {
-                                        for (int i = 0; i < robots.size();
-                                                i++)
+                                        for (int i = 0; i < robotIndexes.length; i++)
                                         {
-                                            int idx;
-                                            int tmp;
-                                            idx = (int) Math.round(rand.nextFloat() * ((robots.size() - i) - 1));
-                                            tmp = robotIndexes[idx];
+                                            int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
+                                            int tmp = robotIndexes[idx];
                                             robotIndexes[idx] = robotIndexes[i];
                                             robotIndexes[i] = tmp;
                                         }

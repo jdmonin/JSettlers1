@@ -110,7 +110,7 @@ public class SOCRobotBrain extends Thread
     /**
      * Random number generator
      */
-    protected Random rand;
+    protected Random rand = new Random();
 
     /**
      * The client we are hooked up to
@@ -388,7 +388,6 @@ public class SOCRobotBrain extends Thread
         robotParameters = params;
         game = ga;
         gameEventQ = mq;
-        rand = new Random();
         alive = true;
         counter = 0;
         expectSTART1A = true;
@@ -1221,7 +1220,7 @@ public class SOCRobotBrain extends Thread
 
                             if (ourResponseToOffer >= 0)
                             {
-                                int delayLength = (int) Math.round(rand.nextFloat() * 500) + 3500;
+                                int delayLength = Math.abs(rand.nextInt() % 500) + 3500;
                                 pause(delayLength);
 
                                 switch (ourResponseToOffer)
@@ -3666,7 +3665,7 @@ public class SOCRobotBrain extends Thread
          */
         while ((bestHex == robberHex) && (ourPlayerData.getNumbers().getNumberResourcePairsForHex(hexes[bestHex]).isEmpty()))
         {
-            bestHex = hexes[(int) Math.round(rand.nextFloat() * 18)];
+            bestHex = hexes[Math.abs(rand.nextInt() % hexes.length)];
             D.ebugPrintln("%%% random pick = " + Integer.toHexString(bestHex));
         }
 
@@ -3854,7 +3853,7 @@ public class SOCRobotBrain extends Thread
             for (; numDiscards > 0; numDiscards--)
             {
                 // System.err.println("numDiscards="+numDiscards+"|hand.size="+hand.size());
-                int idx = (int) Math.round(rand.nextFloat() * (hand.size() - 1));
+                int idx = Math.abs(rand.nextInt() % hand.size());
 
                 // System.err.println("idx="+idx);
                 discards.add(1, ((Integer) hand.elementAt(idx)).intValue());
@@ -3905,7 +3904,7 @@ public class SOCRobotBrain extends Thread
          * choose victim at random
          *
            do {
-           choice = (int)Math.round(rand.nextFloat() * (SOCGame.MAXPLAYERS-1));
+           choice = Math.abs(rand.nextInt() % SOCGame.MAXPLAYERS);
            } while (!choices[choice]);
          */
         client.choosePlayer(game, choice);

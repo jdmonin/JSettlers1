@@ -235,7 +235,7 @@ public class SOCBoard implements Serializable, Cloneable
     /**
      * random number generator
      */
-    Random rand;
+    private Random rand = new Random();
 
     /**
      * a list of nodes on the board
@@ -253,11 +253,6 @@ public class SOCBoard implements Serializable, Cloneable
          * generic counter
          */
         int i;
-
-        /**
-         * initialize the random number generator
-         */
-        rand = new Random();
 
         /**
          * initialize the pieces vectors
@@ -356,11 +351,7 @@ public class SOCBoard implements Serializable, Cloneable
         int[] landHex = { 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5 };
         int[] portHex = { 0, 0, 0, 0, 1, 2, 3, 4, 5 };
         int[] number = { 3, 0, 4, 1, 5, 7, 6, 9, 8, 2, 5, 7, 6, 2, 3, 4, 1, 8 };
-        int[] numPath = 
-        {
-            29, 30, 31, 26, 20, 13, 7, 6, 5, 10, 16, 23, 24, 25, 19, 12, 11, 17,
-            18
-        };
+        int[] numPath = { 29, 30, 31, 26, 20, 13, 7, 6, 5, 10, 16, 23, 24, 25, 19, 12, 11, 17, 18 };
         int i;
         int j;
         int idx;
@@ -369,10 +360,10 @@ public class SOCBoard implements Serializable, Cloneable
         // shuffle the land hexes
         for (j = 0; j < 10; j++)
         {
-            for (i = 0; i < 19; i++)
+            for (i = 0; i < landHex.length; i++)
             {
                 // Swap a random card below the ith card with the ith card
-                idx = (int) Math.round(rand.nextFloat() * ((19 - i) - 1));
+                idx = Math.abs(rand.nextInt() % (landHex.length - i));
                 tmp = landHex[idx];
                 landHex[idx] = landHex[i];
                 landHex[i] = tmp;
@@ -381,7 +372,7 @@ public class SOCBoard implements Serializable, Cloneable
 
         int cnt = 0;
 
-        for (i = 0; i < 19; i++)
+        for (i = 0; i < landHex.length; i++)
         {
             // place the land hexes
             hexLayout[numPath[i]] = landHex[i];
@@ -403,10 +394,10 @@ public class SOCBoard implements Serializable, Cloneable
         // shuffle the ports
         for (j = 0; j < 10; j++)
         {
-            for (i = 0; i < 9; i++)
+            for (i = 1; i < portHex.length; i++) // don't swap 0 with 0!
             {
                 // Swap a random card below the ith card with the ith card
-                idx = (int) Math.round(rand.nextFloat() * ((9 - i) - 1));
+                idx = Math.abs(rand.nextInt() % (portHex.length - i));
                 tmp = portHex[idx];
                 portHex[idx] = portHex[i];
                 portHex[i] = tmp;

@@ -190,7 +190,7 @@ public class SOCGame implements Serializable, Cloneable
     /**
      * used to generate random numbers
      */
-    Random rand;
+    private Random rand = new Random();
 
     /**
      * used to track if there were any player subs
@@ -241,7 +241,6 @@ public class SOCGame implements Serializable, Cloneable
         playerWithLongestRoad = -1;
         numDevCards = 25;
         gameState = NEW;
-        rand = new Random();
         oldPlayerWithLongestRoad = new Stack();
         startTime = new Date();
     }
@@ -274,7 +273,6 @@ public class SOCGame implements Serializable, Cloneable
         playerWithLongestRoad = -1;
         numDevCards = 25;
         gameState = NEW;
-        rand = new Random();
         oldPlayerWithLongestRoad = new Stack();
     }
 
@@ -1087,19 +1085,11 @@ public class SOCGame implements Serializable, Cloneable
 
         for (j = 0; j < 10; j++)
         {
-            for (i = 0; i < 25; i++)
+            for (i = 1; i < devCardDeck.length; i++) // don't swap 0 with 0!
             {
-                /**
-                 * Swap a random card below the ith card with the ith card
-                 */
-                int idx;
-
-                /**
-                 * Swap a random card below the ith card with the ith card
-                 */
-                int tmp;
-                idx = (int) Math.round(rand.nextFloat() * ((25 - i) - 1));
-                tmp = devCardDeck[idx];
+                // Swap a random card below the ith card with the ith card
+                int idx = Math.abs(rand.nextInt() % (devCardDeck.length - 1));
+                int tmp = devCardDeck[idx];
                 devCardDeck[idx] = devCardDeck[i];
                 devCardDeck[i] = tmp;
             }
@@ -1111,7 +1101,7 @@ public class SOCGame implements Serializable, Cloneable
         /**
          * choose to goes first
          */
-        currentPlayerNumber = (int) Math.round(rand.nextFloat() * (MAXPLAYERS - 1));
+        currentPlayerNumber = Math.abs(rand.nextInt() % MAXPLAYERS);
         setFirstPlayer(currentPlayerNumber);
     }
 
@@ -1198,8 +1188,8 @@ public class SOCGame implements Serializable, Cloneable
      */
     public IntPair rollDice()
     {
-        int die1 = (int) (Math.round((Math.random() * 6.0) + 0.5));
-        int die2 = (int) (Math.round((Math.random() * 6.0) + 0.5));
+        int die1 = Math.abs(rand.nextInt() % 6) + 1;
+        int die2 = Math.abs(rand.nextInt() % 6) + 1;
 
         currentDice = die1 + die2;
 
@@ -1803,7 +1793,7 @@ public class SOCGame implements Serializable, Cloneable
             }
         }
 
-        int pick = (int) Math.round(rand.nextFloat() * (cnt - 1));
+        int pick = Math.abs(rand.nextInt() % cnt);
 
         /**
          * and transfer it to the current player
