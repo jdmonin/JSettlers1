@@ -238,11 +238,13 @@ public class SOCServer extends Server
         try
         {
             SOCDBHelper.initialize(databaseUserName, databasePassword);
+            System.err.println("User database initialized.");
         }
         catch (SQLException x) // just a warning
         {
-            System.err.println("Warning: failed to initialize database: " +
+            System.err.println("No user database available: " +
                                x.getMessage());
+            System.err.println("Users will not be authenticated.");
         }
 
         port = p;
@@ -1513,7 +1515,12 @@ public class SOCServer extends Server
                         }
                         else if (gameTextMsgMes.getText().startsWith("*STOP*"))
                         {
-                            SOCDBHelper.cleanup();
+                            try
+                            {
+                                SOCDBHelper.cleanup();
+                            }
+                            catch (SQLException x) { }
+
                             stopServer();
                             System.exit(0);
                         }
@@ -1898,16 +1905,9 @@ public class SOCServer extends Server
         }
         catch (SQLException sqle)
         {
-            try
-            {
-                SOCDBHelper.reconnect(databaseUserName, databasePassword);
-            }
-            catch (SQLException e)
-            {
-                c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
-
-                return false;
-            }
+            // Indicates a db problem: don't authenticate empty password
+            c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
+            return false;
         }
 
         if (userPassword != null)
@@ -2089,8 +2089,7 @@ public class SOCServer extends Server
     {
         if (c != null)
         {
-            boolean useDefault = false;
-			SOCRobotParameters params = null;
+            SOCRobotParameters params = null;
             //
             // send the current robot parameters
             //
@@ -2098,31 +2097,18 @@ public class SOCServer extends Server
             {
                 params = SOCDBHelper.retrieveRobotParams(mes.getNickname());
                 D.ebugPrintln("*** Robot Parameters for " + mes.getNickname() + " = " + params);
-
-                if (params == null)
-                {
-                    useDefault = true;
-                }
             }
             catch (SQLException sqle)
             {
-                try
-                {
-                    SOCDBHelper.reconnect(databaseUserName, databasePassword);
-                }
-                catch (SQLException e)
-                {
-                    useDefault = true;
-                }
+                System.err.println("Error retrieving robot parameters from db: Using defaults.");
             }
 
-            if (useDefault)
+            if (params == null)
             {
-                System.out.println("Problem connecting to db.  Using default robot parameters.");
-
                 params = new SOCRobotParameters(120, 35, 0.13f, 1.0f, 1.0f, 3.0f, 1.0f, 1, 1);
-                c.put(SOCUpdateRobotParams.toCmd(params));
             }
+
+            c.put(SOCUpdateRobotParams.toCmd(params));
 
             //
             // add this connection to the robot list
@@ -4247,14 +4233,9 @@ public class SOCServer extends Server
         }
         catch (SQLException sqle)
         {
-            try
-            {
-                SOCDBHelper.reconnect(databaseUserName, databasePassword);
-            }
-            catch (SQLException e)
-            {
-                c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
-            }
+            // Indicates a db problem: don't continue
+            c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
+            return;
         }
 
         if (userPassword != null)
@@ -4277,14 +4258,7 @@ public class SOCServer extends Server
         }
         catch (SQLException sqle)
         {
-            try
-            {
-                SOCDBHelper.reconnect(databaseUserName, databasePassword);
-            }
-            catch (SQLException e)
-            {
-                c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
-            }
+            System.err.println("Error creating account in db.");
         }
 
         if (success)
@@ -5341,14 +5315,7 @@ public class SOCServer extends Server
                 }
                 catch (SQLException sqle)
                 {
-                    try
-                    {
-                        SOCDBHelper.reconnect(databaseUserName, databasePassword);
-                    }
-                    catch (SQLException e)
-                    {
-                        System.out.println("Problem with db in save scores.");
-                    }
+                    System.err.println("Error saving game scores in db.");
                 }
             }
         }

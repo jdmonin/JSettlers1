@@ -55,6 +55,19 @@ import java.util.Calendar;
 public class SOCDBHelper
 {
     private static Connection connection = null;
+
+    /**
+     * This flag indicates that the connection should be valid, yet the last
+     * operation failed. Methods will attempt to reconnect prior to their
+     * operation if this is set.
+     */
+    private static boolean errorCondition = false;
+
+    /** Cached username used when reconnecting on error */
+    private static String userName;
+
+    /** Cached password used when reconnecting on error */
+    private static String password;
     
     private static String CREATE_ACCOUNT_COMMAND = "INSERT INTO users VALUES (?,?,?,?,?);";
     private static String RECORD_LOGIN_COMMAND = "INSERT INTO logins VALUES (?,?,?);";
@@ -73,24 +86,12 @@ public class SOCDBHelper
     private static PreparedStatement robotParamsQuery = null;
 
     /**
-     * Closes the current conection to the database, opens a new one,
-     * and initializes the prepared statements.
-     *
-     * @param user  the user name for accessing the database
-     * @param pswd  the password for the user
-     */
-    public static void reconnect(String user, String pswd) throws SQLException
-    {
-        cleanup();
-        prepareStatements(user, pswd);
-    }
-
-    /**
      * This makes a connection to the database
      * and initializes the prepared statements.
      *
      * @param user  the user name for accessing the database
      * @param pswd  the password for the user
+     * @return true if the database was initialized
      * @throws SQLException if an SQL command fails, or the db couldn't be
      * initialied
      */
@@ -100,11 +101,13 @@ public class SOCDBHelper
         {
             // Load the mysql driver. Revisit exceptions when /any/ JDBC allowed
             Class.forName("org.gjt.mm.mysql.Driver").newInstance();
+
+            connect(user, pswd);
         }
         catch (ClassNotFoundException x)
         {
             SQLException sx =
-                new SQLException("MySQL driver (required) is unavailable");
+                new SQLException("MySQL driver is unavailable");
             sx.initCause(x);
             throw sx;
         }
@@ -113,24 +116,43 @@ public class SOCDBHelper
             // InstantiationException & IllegalAccessException
             // should not be possible  for org.gjt.mm.mysql.Driver
             // ClassNotFound
-            SQLException sx = new SQLException("Unable to initialize MySQL");
+            SQLException sx = new SQLException("Unable to initialize user database");
             sx.initCause(x);
             throw sx;
         }
-
-        prepareStatements(user, pswd);
     }
 
     /**
-     * Reconnect and connect use this to get ready.
+     * Checks if connection is supposed to be present and attempts to reconnect
+     * if there was previously an error.  Reconnecting closes the current
+     * conection, opens a new one, and re-initializes the prepared statements.
+     *
+     * @return true if the connection is established upon return
      */
-    private static void prepareStatements(String user, String pswd)
+    private static boolean checkConnection() throws SQLException
+    {
+        if (connection != null)
+        {
+            return (! errorCondition) || connect(userName, password);
+        }
+
+        return false;
+    }
+
+    /**
+     * initialize and checkConnection use this to get ready.
+     */
+    private static boolean connect(String user, String pswd)
         throws SQLException
     {
         String url = "jdbc:mysql://localhost/socdata";
 
         connection = DriverManager.getConnection(url, user, pswd);
 
+        errorCondition = false;
+        userName = user;
+        password = pswd;
+        
         // prepare PreparedStatements for queries
         createAccountCommand = connection.prepareStatement(CREATE_ACCOUNT_COMMAND);
         recordLoginCommand = connection.prepareStatement(RECORD_LOGIN_COMMAND);
@@ -139,6 +161,8 @@ public class SOCDBHelper
         lastloginUpdate = connection.prepareStatement(LASTLOGIN_UPDATE);
         saveGameCommand = connection.prepareStatement(SAVE_GAME_COMMAND);
         robotParamsQuery = connection.prepareStatement(ROBOT_PARAMS_QUERY);
+
+        return true;
     }
     
     /**
@@ -146,7 +170,7 @@ public class SOCDBHelper
      *
      * @param sUserName DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return null if user account doesn't exist
      *
      * @throws SQLException DOCUMENT ME!
      */
@@ -155,35 +179,30 @@ public class SOCDBHelper
         String password = null;
 
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return password;
-        }
-
-        try
-        {
-            // fill in the data values to the Prepared statement
-            userPasswordQuery.setString(1, sUserName);
-
-            // execute the Query
-            ResultSet resultSet = userPasswordQuery.executeQuery();
-
-            if (!resultSet.next())
+            try
             {
-                // the database has no results - therefore the user is not authenticated
+                // fill in the data values to the Prepared statement
+                userPasswordQuery.setString(1, sUserName);
+
+                // execute the Query
+                ResultSet resultSet = userPasswordQuery.executeQuery();
+
+                // if no results, user is not authenticated
+                if (resultSet.next())
+                {
+                    password = resultSet.getString(1);
+                }
+
                 resultSet.close();
-
-                return password;
             }
-
-            // retrieve the resultset
-            password = resultSet.getString(1);
-            resultSet.close();
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
         return password;
@@ -194,7 +213,7 @@ public class SOCDBHelper
      *
      * @param host DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return  null if user is not authenticated
      *
      * @throws SQLException DOCUMENT ME!
      */
@@ -203,35 +222,30 @@ public class SOCDBHelper
         String nickname = null;
 
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return nickname;
-        }
-
-        try
-        {
-            // fill in the data values to the Prepared statement
-            hostQuery.setString(1, host);
-
-            // execute the Query
-            ResultSet resultSet = hostQuery.executeQuery();
-
-            if (!resultSet.next())
+            try
             {
-                // the database has no results - therefore the user is not authenticated
+                // fill in the data values to the Prepared statement
+                hostQuery.setString(1, host);
+
+                // execute the Query
+                ResultSet resultSet = hostQuery.executeQuery();
+
+                // if no results, user is not authenticated
+                if (resultSet.next())
+                {
+                    nickname = resultSet.getString(1);
+                }
+
                 resultSet.close();
-
-                return nickname;
             }
-
-            // retrieve the resultset
-            nickname = resultSet.getString(1);
-            resultSet.close();
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
         return nickname;
@@ -246,40 +260,41 @@ public class SOCDBHelper
      * @param email DOCUMENT ME!
      * @param time DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return true if the account was created
      *
      * @throws SQLException DOCUMENT ME!
      */
     public static boolean createAccount(String userName, String host, String password, String email, long time) throws SQLException
     {
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return false;
+            try
+            {
+                java.sql.Date sqlDate = new java.sql.Date(time);
+                Calendar cal = Calendar.getInstance();
+
+                // fill in the data values to the Prepared statement
+                createAccountCommand.setString(1, userName);
+                createAccountCommand.setString(2, host);
+                createAccountCommand.setString(3, password);
+                createAccountCommand.setString(4, email);
+                createAccountCommand.setDate(5, sqlDate, cal);
+
+                // execute the Command
+                createAccountCommand.executeUpdate();
+
+                return true;
+            }
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
-        try
-        {
-            java.sql.Date sqlDate = new java.sql.Date(time);
-            Calendar cal = Calendar.getInstance();
-
-            // fill in the data values to the Prepared statement
-            createAccountCommand.setString(1, userName);
-            createAccountCommand.setString(2, host);
-            createAccountCommand.setString(3, password);
-            createAccountCommand.setString(4, email);
-            createAccountCommand.setDate(5, sqlDate, cal);
-
-            // execute the Command
-            createAccountCommand.executeQuery();
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
-        }
-
-        return true;
+        return false;
     }
 
     /**
@@ -289,38 +304,39 @@ public class SOCDBHelper
      * @param host DOCUMENT ME!
      * @param time DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return true if the login was recorded
      *
      * @throws SQLException DOCUMENT ME!
      */
     public static boolean recordLogin(String userName, String host, long time) throws SQLException
     {
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return false;
+            try
+            {
+                java.sql.Date sqlDate = new java.sql.Date(time);
+                Calendar cal = Calendar.getInstance();
+
+                // fill in the data values to the Prepared statement
+                recordLoginCommand.setString(1, userName);
+                recordLoginCommand.setString(2, host);
+                recordLoginCommand.setDate(3, sqlDate, cal);
+
+                // execute the Command
+                recordLoginCommand.executeUpdate();
+
+                return true;
+            }
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
-        try
-        {
-            java.sql.Date sqlDate = new java.sql.Date(time);
-            Calendar cal = Calendar.getInstance();
-
-            // fill in the data values to the Prepared statement
-            recordLoginCommand.setString(1, userName);
-            recordLoginCommand.setString(2, host);
-            recordLoginCommand.setDate(3, sqlDate, cal);
-
-            // execute the Command
-            recordLoginCommand.executeQuery();
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
-        }
-
-        return true;
+        return false;
     }
 
     /**
@@ -329,37 +345,38 @@ public class SOCDBHelper
      * @param userName DOCUMENT ME!
      * @param time DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return true if the save succeeded
      *
      * @throws SQLException DOCUMENT ME!
      */
     public static boolean updateLastlogin(String userName, long time) throws SQLException
     {
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return true;
+            try
+            {
+                java.sql.Date sqlDate = new java.sql.Date(time);
+                Calendar cal = Calendar.getInstance();
+
+                // fill in the data values to the Prepared statement
+                lastloginUpdate.setDate(1, sqlDate, cal);
+                lastloginUpdate.setString(2, userName);
+
+                // execute the Command
+                lastloginUpdate.executeUpdate();
+
+                return true;
+            }
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
-        try
-        {
-            java.sql.Date sqlDate = new java.sql.Date(time);
-            Calendar cal = Calendar.getInstance();
-
-            // fill in the data values to the Prepared statement
-            lastloginUpdate.setDate(1, sqlDate, cal);
-            lastloginUpdate.setString(2, userName);
-
-            // execute the Command
-            lastloginUpdate.executeQuery();
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
-        }
-
-        return true;
+        return false;
     }
 
     /**
@@ -376,42 +393,43 @@ public class SOCDBHelper
      * @param score4 DOCUMENT ME!
      * @param startTime DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return true if the save succeeded
      *
      * @throws SQLException DOCUMENT ME!
      */
     public static boolean saveGameScores(String gameName, String player1, String player2, String player3, String player4, short score1, short score2, short score3, short score4, java.util.Date startTime) throws SQLException
     {
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return false;
+            try
+            {
+                // fill in the data values to the Prepared statement
+                saveGameCommand.setString(1, gameName);
+                saveGameCommand.setString(2, player1);
+                saveGameCommand.setString(3, player2);
+                saveGameCommand.setString(4, player3);
+                saveGameCommand.setString(5, player4);
+                saveGameCommand.setShort(6, score1);
+                saveGameCommand.setShort(7, score2);
+                saveGameCommand.setShort(8, score3);
+                saveGameCommand.setShort(9, score4);
+                saveGameCommand.setTimestamp(10, new Timestamp(startTime.getTime()));
+
+                // execute the Command
+                saveGameCommand.executeUpdate();
+
+                return true;
+            }
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
-        try
-        {
-            // fill in the data values to the Prepared statement
-            saveGameCommand.setString(1, gameName);
-            saveGameCommand.setString(2, player1);
-            saveGameCommand.setString(3, player2);
-            saveGameCommand.setString(4, player3);
-            saveGameCommand.setString(5, player4);
-            saveGameCommand.setShort(6, score1);
-            saveGameCommand.setShort(7, score2);
-            saveGameCommand.setShort(8, score3);
-            saveGameCommand.setShort(9, score4);
-            saveGameCommand.setTimestamp(10, new Timestamp(startTime.getTime()));
-
-            // execute the Command
-            saveGameCommand.executeQuery();
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
-        }
-
-        return true;
+        return false;
     }
 
     /**
@@ -419,7 +437,7 @@ public class SOCDBHelper
      *
      * @param robotName DOCUMENT ME!
      *
-     * @return DOCUMENT ME!
+     * @return null if robotName not in database
      *
      * @throws SQLException DOCUMENT ME!
      */
@@ -428,44 +446,40 @@ public class SOCDBHelper
         SOCRobotParameters robotParams = null;
 
         // ensure that the JDBC connection is still valid
-        if (connection == null)
+        if (checkConnection())
         {
-            return robotParams;
-        }
-
-        try
-        {
-            // fill in the data values to the Prepared statement
-            robotParamsQuery.setString(1, robotName);
-
-            // execute the Query
-            ResultSet resultSet = robotParamsQuery.executeQuery();
-
-            if (!resultSet.next())
+            try
             {
-                // the database has no results - therefore the user is not authenticated
+                // fill in the data values to the Prepared statement
+                robotParamsQuery.setString(1, robotName);
+
+                // execute the Query
+                ResultSet resultSet = robotParamsQuery.executeQuery();
+
+                // if no results, user is not authenticated
+                if (resultSet.next())
+                {
+                    // retrieve the resultset
+                    int mgl = resultSet.getInt(2);
+                    int me = resultSet.getInt(3);
+                    float ebf = resultSet.getFloat(4);
+                    float af = resultSet.getFloat(5);
+                    float laf = resultSet.getFloat(6);
+                    float dcm = resultSet.getFloat(7);
+                    float tm = resultSet.getFloat(8);
+                    int st = resultSet.getInt(9);
+                    int tf = resultSet.getInt(14);
+                    robotParams = new SOCRobotParameters(mgl, me, ebf, af, laf, dcm, tm, st, tf);
+                }
+                
                 resultSet.close();
-
-                return robotParams;
             }
-
-            // retrieve the resultset
-            int mgl = resultSet.getInt(2);
-            int me = resultSet.getInt(3);
-            float ebf = resultSet.getFloat(4);
-            float af = resultSet.getFloat(5);
-            float laf = resultSet.getFloat(6);
-            float dcm = resultSet.getFloat(7);
-            float tm = resultSet.getFloat(8);
-            int st = resultSet.getInt(9);
-            int tf = resultSet.getInt(14);
-            resultSet.close();
-            robotParams = new SOCRobotParameters(mgl, me, ebf, af, laf, dcm, tm, st, tf);
-        }
-        catch (SQLException sqlE)
-        {
-            sqlE.printStackTrace();
-            throw sqlE;
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
         }
 
         return robotParams;
@@ -474,26 +488,27 @@ public class SOCDBHelper
     /**
      * DOCUMENT ME!
      */
-    public static void cleanup()
+    public static void cleanup() throws SQLException
     {
-    	try
-    	{
-	        try
-	        {
-	            createAccountCommand.close();
-	            userPasswordQuery.close();
-	            hostQuery.close();
-	            lastloginUpdate.close();
-	            saveGameCommand.close();
-	            robotParamsQuery.close();
-	            connection.close();
-	        }
-	        catch (SQLException sqlE)
-	        {
-	            sqlE.printStackTrace();
-	        }
-    	}
-    	catch (Exception e) {}
+        if (checkConnection())
+        {
+            try
+            {
+                createAccountCommand.close();
+                userPasswordQuery.close();
+                hostQuery.close();
+                lastloginUpdate.close();
+                saveGameCommand.close();
+                robotParamsQuery.close();
+                connection.close();
+            }
+            catch (SQLException sqlE)
+            {
+                errorCondition = true;
+                sqlE.printStackTrace();
+                throw sqlE;
+            }
+        }
     }
 
     //-------------------------------------------------------------------
@@ -506,8 +521,7 @@ public class SOCDBHelper
 
         int i;
 
-        // Get the ResultSetMetaData.  This will be used for
-        // the column headings
+        // used for the column headings
         ResultSetMetaData rsmd = rs.getMetaData();
 
         // Get the number of columns in the result set
@@ -527,6 +541,7 @@ public class SOCDBHelper
         System.out.println("");
 
         // Display data, fetching until end of the result set
+
         boolean more = rs.next();
 
         while (more)

@@ -5,6 +5,11 @@
 - Fixed the same PORT property error in the Account client
 - Fixed bug which could allow modified clients to invoke admin
   commands (*STOP*, *KILLCHANNEL*, etc) (Lasse Vartiainen)
+- Fixed 920375, 1022157: mysql-connector-3.x fails: version 2.x works
+  (Mezryn)
+- Fixed 1060651: Bots crash if database backend is used (Jack Twilley)
+- Moved more SQL error handling and reconnecting from SOCServer to
+  SOCDBHelper correcting potential errors like 1060651
 
     > 1.0.5 (build 2004-06-12)
 
