@@ -305,6 +305,7 @@
       <copy todir="${dist.src.tmp}" preservelastmodified="true">
         <fileset refid="readme.files" />
         <fileset dir=".">
+          <include name="README.developer" />
           <include name="build.xml" />
           <include name="build.properties" />
           <include name="${src}/" />
