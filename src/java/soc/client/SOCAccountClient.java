@@ -284,42 +284,32 @@ public class SOCAccountClient extends Applet implements Runnable, ActionListener
                            ", " + Version.copyright());
         System.out.println("Network layer based on code by Cristian Bogdan.");
 
-        try // getting applet environment
-        {
-            ac = getAppletContext(); // throws exception, if not on web page
-            String param = null;
-            int intValue;
+        String param = null;
+        int intValue;
             
-            intValue = getHexParameter("background"); 
-            if (intValue != -1)
-            {
-               setBackground(new Color(intValue));
-            }
+        intValue = getHexParameter("background"); 
+        if (intValue != -1)
+            setBackground(new Color(intValue));
 
-            intValue = getHexParameter("foreground");
-            if (intValue != -1)
-            {
-                setForeground(new Color(intValue));
-            }
-
-            System.out.println("Getting host...");
-            host = getCodeBase().getHost();
-            if (host.equals(""))
-                host = null;  // localhost
-
-            try {
-                param = getParameter("PORT");
-                if (param != null)
-                    port = Integer.parseInt(param, 16);
-            }
-            catch (Exception e)
-            {
-                System.err.println("Invalid port: " + param);
-            }
-        }
-        catch (Exception exc) {}
+        intValue = getHexParameter("foreground");
+        if (intValue != -1)
+            setForeground(new Color(intValue));
 
         initVisualElements(); // after the background is set
+
+        System.out.println("Getting host...");
+        host = getCodeBase().getHost();
+        if (host.equals(""))
+            host = null;  // localhost
+
+        try {
+            param = getParameter("PORT");
+            if (param != null)
+                port = Integer.parseInt(param);
+        }
+        catch (Exception e) {
+            System.err.println("Invalid port: " + param);
+        }
 
         connect();
     }
