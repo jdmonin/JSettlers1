@@ -50,8 +50,8 @@
 
   <!-- packaging -->
   <property name="client.jar" value="${Name}.jar" />
-  <property name="server.jar" value="JSettled.jar" />
-  <property name="test.jar"   value="${Name}-Test.jar" />
+  <property name="server.jar" value="${Name}Server.jar" />
+  <property name="test.jar"   value="${Name}Test.jar" />
 
   <property name="dist.name"     value="${name}-${version}" />
   <property name="dist.src.name" value="${dist.name}-src" />

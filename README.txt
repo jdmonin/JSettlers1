@@ -75,7 +75,7 @@ directory which contains both JSettlers.jar, settlers-server.jar and the
 "lib" directory.  Start the server with the following command
 (server requires Java 1.4):
 
-  java -jar JSettled.jar 8880 10 dbUser dbPass
+  java -jar JSettlersServer.jar 8880 10 dbUser dbPass
 
 If MySQL is not installed and running (See "Database Setup"), you will
 see a warning with the appropriate explanation:
@@ -118,11 +118,11 @@ must be "debug" in order to use the administrative commands.
 Now you can add some robot players.  Enter the following commands in
 separate command line windows:
 
-  java -cp JSettled.jar soc.robot.SOCRobotClient localhost 8880 robot1 passwd
+  java -cp JSettlersServer.jar soc.robot.SOCRobotClient localhost 8880 robot1 passwd
 
-  java -cp JSettled.jar soc.robot.SOCRobotClient localhost 8880 robot2 passwd
+  java -cp JSettlersServer.jar soc.robot.SOCRobotClient localhost 8880 robot2 passwd
 
-  java -cp JSettled.jar soc.robot.SOCRobotClient localhost 8880 robot3 passwd
+  java -cp JSettlersServer.jar soc.robot.SOCRobotClient localhost 8880 robot3 passwd
 
 Now click on the "Sit Here" button and press "Start Game".  The robot
 players should automatically join the game and start playing.
