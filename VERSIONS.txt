@@ -1,5 +1,11 @@
 [ The list of the different public versions of JSettlers ]
 
+    > 1.0.6 (build 2004-xx-xx)
+
+- Fixed the same PORT property error in the Account client
+- Fixed bug which could allow modified clients to invoke admin
+  commands (*STOP*, *KILLCHANNEL*, etc) (Lasse Vartiainen)
+
     > 1.0.5 (build 2004-06-12)
 
 - Fixed an error introduced into the applet initialization which kept
