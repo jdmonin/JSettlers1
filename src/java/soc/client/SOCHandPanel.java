@@ -524,7 +524,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             item = cardList.getSelectedItem();
             itemNum = cardList.getSelectedIndex();
 
-            if (item.length() == 0)
+            if (item == null || item.length() == 0)
             {
                 return;
             }
