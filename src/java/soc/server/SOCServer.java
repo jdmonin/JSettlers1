@@ -1349,7 +1349,7 @@ public class SOCServer extends Server
 
                     SOCTextMsg textMsgMes = (SOCTextMsg) mes;
 
-                    if (textMsgMes.getNickname().equals("debug"))
+                    if (c.data.equals("debug"))
                     {
                         if (textMsgMes.getText().startsWith("*KILLCHANNEL*"))
                         {
@@ -1461,7 +1461,7 @@ public class SOCServer extends Server
                     //
                     // useful for debuging 
                     //
-                    if (gameTextMsgMes.getNickname().equals("debug"))
+                    if (c.data.equals("debug"))
                     {
                         if (gameTextMsgMes.getText().startsWith("rsrcs:"))
                         {
