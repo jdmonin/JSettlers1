@@ -1,15 +1,15 @@
 [ The list of the different public versions of JSettlers ]
 
-    > 1.0.4 (build 2004-xx-xx)
+    > 1.0.4 (build 2004-06-10)
 
 - build.xml file added for Ant builds
 - soc.util.Version class added so both build files and source code get
   version and copyright info from build.xml. Clients and server updated
 - Build process creates two jar files: one for client, one for server
-- README updated for jar file invocation, with additional secions for
+- README updated for jar file invocation, with additional sections for
   intro, requirements, hosting a server, and development
 - Fix for inconsistent game state when players leave a game.
-- Divider in chat window cannot be moved offscreen
+- Divider in chat window cannot be moved off-screen
 - Text of game chat now correctly scrolls to bottom of text.
 - Rewrite of much of the display code to address continuing display
   issues. Methods which directly manipulate GUI components can cause
