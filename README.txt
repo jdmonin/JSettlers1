@@ -216,15 +216,16 @@ USE socdata;
 CREATE TABLE users (nickname VARCHAR(20), host VARCHAR(50), password VARCHAR(20), email VARCHAR(50), lastlogin DATE);
 
 CREATE TABLE logins (nickname VARCHAR(20), host VARCHAR(50), lastlogin DATE);
+
 CREATE TABLE games (gamename VARCHAR(20), player1 VARCHAR(20), player2 VARCHAR(20), player3 VARCHAR(20), player4 VARCHAR(20), score1 TINYINT, score2 TINYINT, score3 TINYINT, score4 TINYINT, starttime TIMESTAMP);
 
 CREATE TABLE robotparams (robotname VARCHAR(20), maxgamelength INT, maxeta INT, etabonusfactor FLOAT, adversarialfactor FLOAT, leaderadversarialfactor FLOAT, devcardmultiplier FLOAT, threatmultiplier FLOAT, strategytype INT, starttime TIMESTAMP, endtime TIMESTAMP, gameswon INT, gameslost INT, tradeFlag BOOL);
 
 
-To create accounts, run the simpler account creation client with the
+To create accounts, run the simple account creation client with the
 following command:
 
-  java soc.client.SOCAccountClient localhost 8880
+  java -jar JSettlers.jar soc.client.SOCAccountClient localhost 8880
 
 
 Development and Compiling
