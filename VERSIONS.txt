@@ -1,5 +1,10 @@
 [ The list of the different public versions of JSettlers ]
 
+    > 1.0.5 (build 2004-06-12)
+
+- Fixed an error introduced into the applet initialization which kept
+  the PORT property from being read properly
+
     > 1.0.4 (build 2004-06-10)
 
 - build.xml file added for Ant builds
