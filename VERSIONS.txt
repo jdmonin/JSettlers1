@@ -1,6 +1,6 @@
 [ The list of the different public versions of JSettlers ]
 
-    > 1.0.6 (build 2004-xx-xx)
+    > 1.0.6 (build 2004-11-17)
 
 - Fixed the same PORT property error in the Account client
 - Fixed bug which could allow modified clients to invoke admin
