@@ -21,7 +21,7 @@ Then merge the changes into the HEAD, commit, and move the
 jsettlers-x-y-merged tag. This way, the merge into the HEAD will always
 look like the following:
 
- ~/jsettlers-HEAD > cvs up -j jsettlers-x-y-merged -j branch-x-y $files
+ ~/jsettlers-HEAD > cvs up -j jsettlers-x-y-merged -j jsettlers-x-y-branch $files
  ~/jsettlers-HEAD > cvs com -m "merged branch x.y into HEAD" $files
  ~/jsettlers-HEAD > cvs tag -F -r jsettlers-x-y-branch jsettlers-x-y-merged $files
 
