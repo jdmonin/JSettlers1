@@ -15,7 +15,7 @@
   <property name="name"      value="jsettlers" />
   <property name="Name"      value="JSettlers" />
   <!-- version under development, e.g. 1.1, 1.2-RC2, 2.0-SNAPSHOT -->
-  <property name="version"   value="1.0.4-SNAPSHOT" />
+  <property name="version"   value="1.0.4" />
   <property name="copyright" value="2001-2004 Robb Thomas" />
   <property name="url"       value="http://sourceforge.net/projects/jsettlers" />
 
@@ -313,8 +313,6 @@
       </copy>
 
       <tar destfile="${dist.src.tgz}" compression="gzip"
-           basedir="${dist}" includes="${dist.src.name}/" />
-      <zip destfile="${dist.src.zip}"
            basedir="${dist}" includes="${dist.src.name}/" />
 
       <!-- clean up -->
