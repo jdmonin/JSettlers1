@@ -772,9 +772,10 @@ public class SOCRobotNegotiator
         ///
         if (!match)
         {
+            int opn = ourPlayerData.getPlayerNumber();
             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
-                if (i != ourPlayerData.getPlayerNumber())
+                if (i != opn)
                 {
                     SOCTradeOffer outsideOffer = game.getPlayer(i).getCurrentOffer();
 
@@ -799,11 +800,12 @@ public class SOCRobotNegotiator
 
             int numOfferedTo = 0;
             boolean[] offeredTo = new boolean[SOCGame.MAXPLAYERS];
+            int opn = ourPlayerData.getPlayerNumber();
 
             ///
             /// if it's our turn
             ///			
-            if (game.getCurrentPlayerNumber() == ourPlayerData.getPlayerNumber())
+            if (game.getCurrentPlayerNumber() == opn)
             {
                 ///
                 /// only offer to players that are selling what we're asking for
@@ -813,7 +815,7 @@ public class SOCRobotNegotiator
                 {
                     D.ebugPrintln("** isSellingResource[" + i + "][" + neededResource + "] = " + isSellingResource[i][neededResource]);
 
-                    if ((i != ourPlayerData.getPlayerNumber()) && isSellingResource[i][neededResource] && (game.getPlayer(i).getResources().getTotal() >= getResourceSet.getTotal()))
+                    if ((i != opn) && isSellingResource[i][neededResource] && (game.getPlayer(i).getResources().getTotal() >= getResourceSet.getTotal()))
                     {
                         SOCPlayerTracker tracker = (SOCPlayerTracker) playerTrackers.get(new Integer(i));
 

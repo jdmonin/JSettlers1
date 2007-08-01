@@ -559,12 +559,13 @@ public class SOCRobotBrain extends Thread
     {
         ourPlayerData = game.getPlayer(client.getNickname());
         ourPlayerTracker = new SOCPlayerTracker(ourPlayerData, this);
+        int opn = ourPlayerData.getPlayerNumber();
         playerTrackers = new HashMap();
-        playerTrackers.put(new Integer(ourPlayerData.getPlayerNumber()), ourPlayerTracker);
+        playerTrackers.put(new Integer(opn), ourPlayerTracker);
 
         for (int pn = 0; pn < SOCGame.MAXPLAYERS; pn++)
         {
-            if (pn != ourPlayerData.getPlayerNumber())
+            if (pn != opn)
             {
                 SOCPlayerTracker tracker = new SOCPlayerTracker(game.getPlayer(pn), this);
                 playerTrackers.put(new Integer(pn), tracker);

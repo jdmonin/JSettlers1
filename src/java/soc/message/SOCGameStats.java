@@ -120,7 +120,7 @@ public class SOCGameStats extends SOCMessage
     }
 
     /**
-     * Parse the command String into a GameStatss message
+     * Parse the command String into a GameStats message
      *
      * @param s   the String to parse
      * @return    a GameStats message, or null of the data is garbled
