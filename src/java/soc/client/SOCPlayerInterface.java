@@ -133,7 +133,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public SOCPlayerInterface(String title, SOCPlayerClient cl, SOCGame ga)
     {
-        super("Settlers of Catan Game: " + title);
+        super("Settlers of Catan Game: " + title + " [" + cl.getNickname() + "]");
         setResizable(true);
 
         client = cl;
@@ -143,6 +143,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
          * initialize the player colors
          */
         playerColors = new Color[4];
+        // FIXME assumes game.MAXPLAYERS==4
         playerColors[0] = new Color(153, 204, 255); // blue
         playerColors[1] = new Color(255, 153, 255); // pink
         playerColors[2] = new Color(153, 255, 153); // green
@@ -575,6 +576,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         if (SOCGame.MAXPLAYERS > 1)
         {
+            /* FIXME: Assumes MAXPLAYERS == 4 for layout */ 
             hands[1].setBounds(i.left + hw + bw + 12, i.top + 4, hw, hh);
             hands[2].setBounds(i.left + hw + bw + 12, i.top + hh + 8, hw, hh);
             hands[3].setBounds(i.left + 4, i.top + hh + 8, hw, hh);
@@ -589,11 +591,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         npix = textDisplay.getPreferredSize().width;
         ncols = (int) ((((float) bw) * 100.0) / ((float) npix)) - 2;
 
-        FontMetrics fm = this.getFontMetrics(textDisplay.getFont());
-        int nrows = (tdh / fm.getHeight()) - 1;
+        //FontMetrics fm = this.getFontMetrics(textDisplay.getFont());
+        //int nrows = (tdh / fm.getHeight()) - 1;
 
         //textDisplay.setMaximumLines(nrows);
-        nrows = (cdh / fm.getHeight()) - 1;
+        //nrows = (cdh / fm.getHeight()) - 1;
 
         //chatDisplay.setMaximumLines(nrows);
         boardPanel.doLayout();
