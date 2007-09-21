@@ -60,13 +60,19 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
     /** initialize the connection data */
     Connection(Socket so, Server sve)
-    {
+    {        
         hst = so.getInetAddress().getHostName();
 
         sv = sve;
         s = so;
         reader = null;
         data = null;
+        
+        /* JM - Thread name for debugging */
+        if (hst != null)
+            setName ("connection-" + hst);
+        else
+            setName ("connection-(null)");
     }
 
     /**
@@ -284,6 +290,13 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         {
             con = c;
             D.ebugPrintln("NEW PUTTER CREATED FOR " + data);
+            
+            /* JM: thread name for debug */
+            String cn = c.host();
+            if (cn != null)
+                setName("putter-" + cn);
+            else
+                setName("putter-(null)");
         }
 
         public void run()

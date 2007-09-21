@@ -70,6 +70,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             System.err.println("Could not listen to port " + port + ": " + e);
             error = e;
         }
+        
+        setName("server-" + port);  // JM: Thread name for debugging
     }
 
     protected Enumeration getConnections()
@@ -164,7 +166,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     protected void leaveConnection(Connection c) {}
 
     /** The server is being stopped, disconnect all the connections.
-     * Currently nobody calls this.
+     * Currently nobody calls this, except the debug command "*STOP*".
      */
     public synchronized void stopServer()
     {
@@ -236,6 +238,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         public Treater(Server s)
         {
             svr = s;
+            setName("treater");  // JM: Thread name for debug
         }
 
         public void run()
