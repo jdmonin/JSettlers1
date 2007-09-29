@@ -34,7 +34,9 @@ import java.util.Vector;
 
 
 /**
- * A class for holding and manipulating game data
+ * A class for holding and manipulating game data.
+ * 
+ * putPiece updates the game state.
  *
  * @author Robert S. Thomas
  */
@@ -75,6 +77,13 @@ public class SOCGame implements Serializable, Cloneable
      * maximum number of players in a game
      */
     public static final int MAXPLAYERS = 4;
+
+    /**
+     * minimum number of players in a game (was assumed ==MAXPLAYERS in standard 1.0.6).
+     * In an under-maxplayers game, use isSeatVacant(i) to determine if a player is present;
+     * players[i] may be non-null although no player is there.
+     */
+    public static final int MINPLAYERS = 2;
 
     /**
      * the set of resources a player needs to build a settlement
@@ -434,7 +443,7 @@ public class SOCGame implements Serializable, Cloneable
         {
             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
-                if (nn.equals(players[i].getName()))
+                if ((nn.equals(players[i].getName())) && ! isSeatVacant(i))
                 {
                     return players[i];
                 }
@@ -627,7 +636,8 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * advance the turn to the next player
+     * advance the turn to the previous player,
+     * used during initial placement
      */
     protected void advanceTurnBackwards()
     {
@@ -637,6 +647,14 @@ public class SOCGame implements Serializable, Cloneable
         if (currentPlayerNumber < 0)
         {
             currentPlayerNumber = MAXPLAYERS - 1;
+        }
+        while (isSeatVacant (currentPlayerNumber))
+        {
+            --currentPlayerNumber;
+            if (currentPlayerNumber < 0)
+            {
+                currentPlayerNumber = MAXPLAYERS - 1;
+            }
         }
     }
 
@@ -652,10 +670,18 @@ public class SOCGame implements Serializable, Cloneable
         {
             currentPlayerNumber = 0;
         }
+        while (isSeatVacant (currentPlayerNumber))
+        {
+            ++currentPlayerNumber;
+            if (currentPlayerNumber == MAXPLAYERS)
+            {
+                currentPlayerNumber = 0;
+            }
+        }
     }
 
     /**
-     * a piece has been put on the board
+     * put this piece on the board and update game state
      *
      * @param pp the piece to put on the board
      */
@@ -829,6 +855,14 @@ public class SOCGame implements Serializable, Cloneable
                 {
                     tmpCPN = 0;
                 }
+                while (isSeatVacant (tmpCPN))
+                {
+                    ++tmpCPN;
+                    if (tmpCPN >= MAXPLAYERS)
+                    {
+                        tmpCPN = 0;
+                    }
+                }
 
                 if (tmpCPN == firstPlayerNumber)
                 {
@@ -855,6 +889,14 @@ public class SOCGame implements Serializable, Cloneable
                 if (tmpCPN < 0)
                 {
                     tmpCPN = MAXPLAYERS - 1;
+                }
+                while (isSeatVacant (tmpCPN))
+                {
+                    --tmpCPN;
+                    if (tmpCPN < 0)
+                    {
+                        tmpCPN = MAXPLAYERS - 1;
+                    }
                 }
 
                 if (tmpCPN == lastPlayerNumber)
@@ -1101,7 +1143,10 @@ public class SOCGame implements Serializable, Cloneable
         /**
          * choose to goes first
          */
-        currentPlayerNumber = Math.abs(rand.nextInt() % MAXPLAYERS);
+        do
+        {
+            currentPlayerNumber = Math.abs(rand.nextInt() % MAXPLAYERS);
+        } while (isSeatVacant(currentPlayerNumber));
         setFirstPlayer(currentPlayerNumber);
     }
 
@@ -1118,6 +1163,21 @@ public class SOCGame implements Serializable, Cloneable
         if (lastPlayerNumber < 0)
         {
             lastPlayerNumber = MAXPLAYERS - 1;
+        }
+        while (isSeatVacant (lastPlayerNumber))
+        {
+            --lastPlayerNumber;
+            if (lastPlayerNumber < 0)
+            {
+                lastPlayerNumber = MAXPLAYERS - 1;
+            }
+            if (lastPlayerNumber == firstPlayerNumber)
+            {
+                // Should not happen: All seats blank                    
+                D.ebugPrintln("** setFirstPlayer: Should not happen: All seats blank");
+                lastPlayerNumber = -1;
+                break;
+            }
         }
     }
 

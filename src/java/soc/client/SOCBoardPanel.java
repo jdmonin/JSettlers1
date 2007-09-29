@@ -805,7 +805,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * draw the arrow that shows whos turn it is
+     * draw the arrow that shows whose turn it is
      */
     private final void drawArrow(Graphics g, int pnum, int diceResult)
     {

@@ -565,7 +565,7 @@ public class SOCRobotBrain extends Thread
 
         for (int pn = 0; pn < SOCGame.MAXPLAYERS; pn++)
         {
-            if (pn != opn)
+            if ((pn != opn) && ! game.isSeatVacant(pn))
             {
                 SOCPlayerTracker tracker = new SOCPlayerTracker(game.getPlayer(pn), this);
                 playerTrackers.put(new Integer(pn), tracker);
@@ -3608,17 +3608,23 @@ public class SOCRobotBrain extends Thread
 
         for (int pnum = 0; pnum < SOCGame.MAXPLAYERS; pnum++)
         {
-            if ((victimNum < 0) && (pnum != ourPlayerData.getPlayerNumber()))
+            if (! game.isSeatVacant(pnum))
             {
-                D.ebugPrintln("Picking a robber victim: pnum=" + pnum);
-                victimNum = pnum;
-            }
-            else if ((pnum != ourPlayerData.getPlayerNumber()) && (winGameETAs[pnum] < winGameETAs[victimNum]))
-            {
-                D.ebugPrintln("Picking a robber victim: pnum=" + pnum);
-                victimNum = pnum;
+                if ((victimNum < 0) && (pnum != ourPlayerData.getPlayerNumber()))
+                {
+                    // The first pick
+                    D.ebugPrintln("Picking a robber victim: pnum=" + pnum);
+                    victimNum = pnum;
+                }
+                else if ((pnum != ourPlayerData.getPlayerNumber()) && (winGameETAs[pnum] < winGameETAs[victimNum]))
+                {
+                    // A better pick
+                    D.ebugPrintln("Picking a robber victim: pnum=" + pnum);
+                    victimNum = pnum;
+                }
             }
         }
+        // Postcondition: victimNum != -1 due to "First pick" in loop.
 
         /**
          * figure out the best way to thwart that player
@@ -3881,21 +3887,24 @@ public class SOCRobotBrain extends Thread
          */
         for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
-            if (choices[i])
+            if (! game.isSeatVacant (i))
             {
-                if (choice == -1)
+                if (choices[i])
                 {
-                    choice = i;
-                }
-                else
-                {
-                    SOCPlayerTracker tracker1 = (SOCPlayerTracker) playerTrackers.get(new Integer(i));
-                    SOCPlayerTracker tracker2 = (SOCPlayerTracker) playerTrackers.get(new Integer(choice));
-
-                    if ((tracker1 != null) && (tracker2 != null) && (tracker1.getWinGameETA() < tracker2.getWinGameETA()))
+                    if (choice == -1)
                     {
-                        //D.ebugPrintln("Picking a robber victim: pnum="+i+" VP="+game.getPlayer(i).getPublicVP());
                         choice = i;
+                    }
+                    else
+                    {
+                        SOCPlayerTracker tracker1 = (SOCPlayerTracker) playerTrackers.get(new Integer(i));
+                        SOCPlayerTracker tracker2 = (SOCPlayerTracker) playerTrackers.get(new Integer(choice));
+    
+                        if ((tracker1 != null) && (tracker2 != null) && (tracker1.getWinGameETA() < tracker2.getWinGameETA()))
+                        {
+                            //D.ebugPrintln("Picking a robber victim: pnum="+i+" VP="+game.getPlayer(i).getPublicVP());
+                            choice = i;
+                        }
                     }
                 }
             }
@@ -3937,7 +3946,7 @@ public class SOCRobotBrain extends Thread
                     pNum = 0;
                 }
 
-                if (pNum != game.getFirstPlayer())
+                if ((pNum != game.getFirstPlayer()) && ! game.isSeatVacant (pNum))
                 {
                     numberOfBuilds++;
                 }
@@ -3960,7 +3969,7 @@ public class SOCRobotBrain extends Thread
                 pNum = SOCGame.MAXPLAYERS - 1;
             }
 
-            if (pNum != game.getCurrentPlayerNumber())
+            if ((pNum != game.getCurrentPlayerNumber()) && ! game.isSeatVacant (pNum))
             {
                 numberOfBuilds++;
             }
