@@ -51,6 +51,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
     Label discThese;
     SOCPlayerInterface playerInterface;
     int numDiscards;
+    int numChosen;  // JM
 
     /**
      * Creates a new SOCDiscardDialog object.
@@ -64,6 +65,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
 
         playerInterface = pi;
         numDiscards = rnum;
+        numChosen = 0;
         setBackground(new Color(255, 230, 162));
         setForeground(Color.black);
         setFont(new Font("Geneva", Font.PLAIN, 12));
@@ -83,6 +85,8 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
 
         add(discardBut);
         discardBut.addActionListener(this);
+        if (numDiscards > 0)
+            discardBut.disable();  // JM - Count first
 
         keep = new ColorSquare[5];
         keep[0] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.CLAY);
@@ -259,11 +263,19 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
             {
                 keep[i].addValue(1);
                 disc[i].subtractValue(1);
+                --numChosen;
+                if (numChosen == (numDiscards-1))
+                    discardBut.disable();  // JM - Count un-reached
+                break;
             }
             else if ((target == disc[i]) && (keep[i].getIntValue() > 0))
             {
                 keep[i].subtractValue(1);
                 disc[i].addValue(1);
+                ++numChosen;
+                if (numChosen >= numDiscards)
+                    discardBut.enable();  // JM - Count reached
+                break;
             }
         }
     }
