@@ -61,8 +61,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
      */
     public SOCDiscardDialog(SOCPlayerInterface pi, int rnum)
     {
-        super(pi, "Discard", true);
-
+        super(pi, "Discard [" + pi.getClient().getNickname() + "]", true);
         playerInterface = pi;
         numDiscards = rnum;
         numChosen = 0;
@@ -265,7 +264,15 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
                 disc[i].subtractValue(1);
                 --numChosen;
                 if (numChosen == (numDiscards-1))
-                    discardBut.disable();  // JM - Count un-reached
+                {
+                    discardBut.disable();  // JM - Count un-reached (too few)
+                    discardBut.repaint();
+                }
+                else if (numChosen == numDiscards)
+                {
+                    discardBut.enable();   // JM - Exact count reached
+                    discardBut.repaint();
+                }
                 break;
             }
             else if ((target == disc[i]) && (keep[i].getIntValue() > 0))
@@ -273,8 +280,16 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
                 keep[i].subtractValue(1);
                 disc[i].addValue(1);
                 ++numChosen;
-                if (numChosen >= numDiscards)
-                    discardBut.enable();  // JM - Count reached
+                if (numChosen == numDiscards)
+                {
+                    discardBut.enable();  // JM - Exact count reached
+                    discardBut.repaint();
+                }
+                else if (numChosen == (numDiscards+1))
+                {
+                    discardBut.disable();  // JM - Count un-reached (too many)
+                    discardBut.repaint();
+                }
                 break;
             }
         }
