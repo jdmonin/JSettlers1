@@ -736,6 +736,16 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     {
         return devCards;
     }
+    
+    /**
+     * @return whether this player has any unplayed dev cards
+     * 
+     * @see #getDevCards()
+     */     
+    public boolean hasUnplayedDevCards()  // hasUnplayedDevCards
+    {
+        return (0 < devCards.getNumUnplayed());
+    }
 
     /**
      * @return the number of knights in play

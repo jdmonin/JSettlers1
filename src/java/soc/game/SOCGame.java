@@ -901,6 +901,7 @@ public class SOCGame implements Serializable, Cloneable
 
                 if (tmpCPN == lastPlayerNumber)
                 {
+                    // player number is unchanged.
                     gameState = PLAY;
                 }
                 else
@@ -1511,7 +1512,11 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * move the robber
+     * move the robber.
+     *
+     * If no victims (players to possibly steal from): State becomes oldGameState.
+     * If just one victim: call stealFromPlayer, State becomes oldGameState.
+     * If multiple possible victims: Player must choose a victim; State becomes WAITING_FOR_CHOICE.
      *
      * @param pn  the number of the player that is moving the robber
      * @param co  the coordinates
@@ -1829,7 +1834,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * the current player has choosen a victim to rob.
-     * perform the robbery.
+     * perform the robbery.  Set gameState back to oldGameState.
      *
      * @param pn  the number of the player being robbed
      * @return the type of resource that was stolen

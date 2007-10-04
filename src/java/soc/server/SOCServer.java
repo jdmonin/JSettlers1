@@ -36,72 +36,7 @@ import soc.game.SOCRoad;
 import soc.game.SOCSettlement;
 import soc.game.SOCTradeOffer;
 
-import soc.message.SOCAcceptOffer;
-import soc.message.SOCAdminPing;
-import soc.message.SOCAdminReset;
-import soc.message.SOCBCastTextMsg;
-import soc.message.SOCBankTrade;
-import soc.message.SOCBoardLayout;
-import soc.message.SOCBuildRequest;
-import soc.message.SOCBuyCardRequest;
-import soc.message.SOCCancelBuildRequest;
-import soc.message.SOCChangeFace;
-import soc.message.SOCChannels;
-import soc.message.SOCChoosePlayer;
-import soc.message.SOCChoosePlayerRequest;
-import soc.message.SOCClearOffer;
-import soc.message.SOCClearTradeMsg;
-import soc.message.SOCCreateAccount;
-import soc.message.SOCDeleteChannel;
-import soc.message.SOCDeleteGame;
-import soc.message.SOCDevCard;
-import soc.message.SOCDevCardCount;
-import soc.message.SOCDiceResult;
-import soc.message.SOCDiscard;
-import soc.message.SOCDiscardRequest;
-import soc.message.SOCDiscoveryPick;
-import soc.message.SOCEndTurn;
-import soc.message.SOCFirstPlayer;
-import soc.message.SOCGameMembers;
-import soc.message.SOCGameState;
-import soc.message.SOCGameTextMsg;
-import soc.message.SOCGames;
-import soc.message.SOCImARobot;
-import soc.message.SOCJoin;
-import soc.message.SOCJoinAuth;
-import soc.message.SOCJoinGame;
-import soc.message.SOCJoinGameAuth;
-import soc.message.SOCJoinGameRequest;
-import soc.message.SOCLargestArmy;
-import soc.message.SOCLastSettlement;
-import soc.message.SOCLeave;
-import soc.message.SOCLeaveGame;
-import soc.message.SOCLongestRoad;
-import soc.message.SOCMakeOffer;
-import soc.message.SOCMembers;
-import soc.message.SOCMessage;
-import soc.message.SOCMonopolyPick;
-import soc.message.SOCMoveRobber;
-import soc.message.SOCNewChannel;
-import soc.message.SOCNewGame;
-import soc.message.SOCPlayDevCardRequest;
-import soc.message.SOCPlayerElement;
-import soc.message.SOCPotentialSettlements;
-import soc.message.SOCPutPiece;
-import soc.message.SOCRejectConnection;
-import soc.message.SOCRejectOffer;
-import soc.message.SOCResourceCount;
-import soc.message.SOCRobotDismiss;
-import soc.message.SOCRollDice;
-import soc.message.SOCSetPlayedDevCard;
-import soc.message.SOCSetSeatLock;
-import soc.message.SOCSetTurn;
-import soc.message.SOCSitDown;
-import soc.message.SOCStartGame;
-import soc.message.SOCStatusMessage;
-import soc.message.SOCTextMsg;
-import soc.message.SOCTurn;
-import soc.message.SOCUpdateRobotParams;
+import soc.message.*;
 
 import soc.server.database.SOCDBHelper;
 
@@ -2587,7 +2522,7 @@ public class SOCServer extends Server
                             {
                                 if (player.isPotentialRoad(mes.getCoordinates()))
                                 {
-                                    ga.putPiece(rd);
+                                    ga.putPiece(rd);  // Changes state and sometimes player
 
                                     /*
                                        if (D.ebugOn) {
@@ -2605,11 +2540,19 @@ public class SOCServer extends Server
                                     messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.data + " built a road."));
                                     messageToGame(ga.getName(), new SOCPutPiece(mes.getGame(), player.getPlayerNumber(), SOCPlayingPiece.ROAD, mes.getCoordinates()));
                                     broadcastGameStats(ga);
-                                    sendGameState(ga);
+                                    boolean toldRoll = sendGameState(ga, false);
 
                                     if (!checkTurn(c, ga))
+                                    {                                        
+                                        // Player changed (or play started), announce new player.
+                                        sendTurn(ga, true);
+                                    }
+                                    else if (toldRoll)
                                     {
-                                        sendTurn(ga);
+                                        // When play starts, or after placing 2nd free road,
+                                        // announce even though player unchanged,
+                                        // to trigger auto-roll for the player.
+                                        messageToGame(ga.getName(), new SOCRollDicePrompt (ga.getName(), player.getPlayerNumber()));
                                     }
                                 }
                                 else
@@ -2633,7 +2576,7 @@ public class SOCServer extends Server
                             {
                                 if (player.isPotentialSettlement(mes.getCoordinates()))
                                 {
-                                    ga.putPiece(se);
+                                    ga.putPiece(se);   // Changes game state and player
                                     messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.data + " built a settlement."));
                                     messageToGame(ga.getName(), new SOCPutPiece(mes.getGame(), player.getPlayerNumber(), SOCPlayingPiece.SETTLEMENT, mes.getCoordinates()));
                                     broadcastGameStats(ga);
@@ -2641,7 +2584,7 @@ public class SOCServer extends Server
 
                                     if (!checkTurn(c, ga))
                                     {
-                                        sendTurn(ga);
+                                        sendTurn(ga, false);  // Announce new current player.
                                     }
                                 }
                                 else
@@ -2664,7 +2607,7 @@ public class SOCServer extends Server
                             {
                                 if (player.isPotentialCity(mes.getCoordinates()))
                                 {
-                                    ga.putPiece(ci);
+                                    ga.putPiece(ci);  // changes game state and maybe player
                                     messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.data + " built a city."));
                                     messageToGame(ga.getName(), new SOCPutPiece(mes.getGame(), player.getPlayerNumber(), SOCPlayingPiece.CITY, mes.getCoordinates()));
                                     broadcastGameStats(ga);
@@ -2672,7 +2615,7 @@ public class SOCServer extends Server
 
                                     if (!checkTurn(c, ga))
                                     {
-                                        sendTurn(ga);
+                                        sendTurn(ga, false);  // announce new current player
                                     }
                                 }
                                 else
@@ -2686,7 +2629,9 @@ public class SOCServer extends Server
                             }
 
                             break;
-                        }
+                        
+                        }  // switch (mes.getPieceType())
+                        
                     }
                     else
                     {
@@ -3256,6 +3201,7 @@ public class SOCServer extends Server
 
             if (ga != null)
             {
+                String gname = ga.getName();               
                 ga.takeMonitor();
 
                 try
@@ -3265,29 +3211,29 @@ public class SOCServer extends Server
                         if (ga.canEndTurn(ga.getPlayer((String) c.data).getPlayerNumber()))
                         {
                             ga.endTurn();
-                            sendGameState(ga);
-
+                            boolean wantsRollPrompt = sendGameState(ga, false);
+                            
                             /**
                              * clear any trade offers
                              */
                             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
                             {
-                                messageToGame(ga.getName(), new SOCClearOffer(ga.getName(), i));
+                                messageToGame(gname, new SOCClearOffer(gname, i));
                             }
 
                             /**
-                             * send who's turn it is
+                             * send whose turn it is
                              */
-                            sendTurn(ga);
+                            sendTurn(ga, wantsRollPrompt);
                         }
                         else
                         {
-                            c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't end your turn yet."));
+                            c.put(SOCGameTextMsg.toCmd(gname, SERVERNAME, "You can't end your turn yet."));
                         }
                     }
                     else
                     {
-                        c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "It's not your turn."));
+                        c.put(SOCGameTextMsg.toCmd(gname, SERVERNAME, "It's not your turn."));
                     }
                 }
                 catch (Exception e)
@@ -3302,7 +3248,7 @@ public class SOCServer extends Server
     }
 
     /**
-     * handle "choose player" message
+     * handle "choose player" message during robbery
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -3961,7 +3907,7 @@ public class SOCServer extends Server
     }
 
     /**
-     * handle "discovery pick" message
+     * handle "discovery pick" message (while playing Discovery card)
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -4483,7 +4429,7 @@ public class SOCServer extends Server
                 }
 
                 /**
-                 * send game state info like requests for discards
+                 * send game state info such as requests for discards
                  */
                 sendGameState(ga);
 
@@ -4617,211 +4563,243 @@ public class SOCServer extends Server
     }
 
     /**
-     * send the current state of the game with a message
+     * send the current state of the game with a message.
+     * Assumes current player does not change during this state.
+     * If we send a text message to prompt the new player to roll,
+     * also sends a RollDicePrompt data message.
      *
      * @param ga  the game
+     * 
+     * @see #sendGameState(SOCGame, boolean)
      */
     protected void sendGameState(SOCGame ga)
     {
-        if (ga != null)
+        sendGameState (ga, true);
+    }
+    
+    /**
+     * send the current state of the game with a message.
+     * Note that the current (or new) player number is not sent here.
+     * 
+     * @see #sendTurn(SOCGame, boolean)
+     * @see #sendGameState(SOCGame)
+     *
+     * @param ga  the game
+     * @param sendRollPrompt  If true, and if we send a text message to prompt
+     *    the player to roll, send a RollDicePrompt data message.
+     *    
+     * @return    did we send a text message to prompt the player to roll?
+     *    If so, sendTurn can also send a RollDicePrompt data message.  
+     */
+    protected boolean sendGameState(SOCGame ga, boolean sendRollPrompt)
+    {
+        if (ga == null)
+            return false;
+        
+        boolean promptedRoll = false;
+        String gname = ga.getName();
+        messageToGame(gname, new SOCGameState(gname, ga.getGameState()));
+
+        SOCPlayer player = null;
+
+        if (ga.getCurrentPlayerNumber() != -1)
         {
-            messageToGame(ga.getName(), new SOCGameState(ga.getName(), ga.getGameState()));
+            player = ga.getPlayer(ga.getCurrentPlayerNumber());
+        }
 
-            SOCPlayer player = null;
+        switch (ga.getGameState())
+        {
+        case SOCGame.START1A:
+        case SOCGame.START2A:
+            messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, "It's " + player.getName() + "'s turn to build a settlement."));
 
-            if (ga.getCurrentPlayerNumber() != -1)
+            break;
+
+        case SOCGame.START1B:
+        case SOCGame.START2B:
+            messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, "It's " + player.getName() + "'s turn to build a road."));
+
+            break;
+
+        case SOCGame.PLAY:
+            messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, "It's " + player.getName() + "'s turn to roll the dice."));
+            promptedRoll = true;
+            if (sendRollPrompt)
+                messageToGame(gname, new SOCRollDicePrompt (gname, player.getPlayerNumber()));
+                
+            break;
+
+        case SOCGame.WAITING_FOR_DISCARDS:
+
+            int count = 0;
+            String message = "error at sendGameState()";
+            String[] names = new String[SOCGame.MAXPLAYERS];
+
+            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
-                player = ga.getPlayer(ga.getCurrentPlayerNumber());
+                if (ga.getPlayer(i).getNeedToDiscard())
+                {
+                    names[count] = ga.getPlayer(i).getName();
+                    count++;
+                }
             }
 
-            switch (ga.getGameState())
+            if (count == 1)
             {
-            case SOCGame.START1A:
-            case SOCGame.START2A:
-                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, "It's " + player.getName() + "'s turn to build a settlement."));
+                message = names[0] + " needs to discard.";
+            }
+            else if (count == 2)
+            {
+                message = names[0] + " and " + names[1] + " need to discard.";
+            }
+            else if (count > 2)
+            {
+                message = names[0];
 
-                break;
-
-            case SOCGame.START1B:
-            case SOCGame.START2B:
-                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, "It's " + player.getName() + "'s turn to build a road."));
-
-                break;
-
-            case SOCGame.PLAY:
-                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, "It's " + player.getName() + "'s turn to roll the dice."));
-
-                break;
-
-            case SOCGame.WAITING_FOR_DISCARDS:
-
-                int count = 0;
-                String message = "error at sendGameState()";
-                String[] names = new String[SOCGame.MAXPLAYERS];
-
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+                for (int i = 1; i < (count - 1); i++)
                 {
-                    if (ga.getPlayer(i).getNeedToDiscard())
+                    message += (", " + names[i]);
+                }
+
+                message += (" and " + names[count - 1] + " need to discard.");
+            }
+
+            messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, message));
+
+            break;
+
+        case SOCGame.PLACING_ROBBER:
+            messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, player.getName() + " will move the robber."));
+
+            break;
+
+        case SOCGame.WAITING_FOR_CHOICE:
+
+            /**
+             * get the choices from the game
+             */
+            boolean[] choices = new boolean[SOCGame.MAXPLAYERS];
+
+            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+            {
+                choices[i] = false;
+            }
+
+            Enumeration plEnum = ga.getPossibleVictims().elements();
+
+            while (plEnum.hasMoreElements())
+            {
+                SOCPlayer pl = (SOCPlayer) plEnum.nextElement();
+                choices[pl.getPlayerNumber()] = true;
+            }
+
+            /**
+             * ask the current player to choose a player to steal from
+             */
+            String n = ga.getPlayer(ga.getCurrentPlayerNumber()).getName();
+            Enumeration connsEnum = getConnections();
+
+            while (connsEnum.hasMoreElements())
+            {
+                Connection con = (Connection) connsEnum.nextElement();
+
+                if (n.equals((String) con.data))
+                {
+                    con.put(SOCChoosePlayerRequest.toCmd(gname, choices));
+
+                    break;
+                }
+            }
+
+            break;
+
+        case SOCGame.OVER:
+
+            SOCPlayer pl;
+
+            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+            {
+                pl = ga.getPlayer(i);
+
+                if (pl.getTotalVP() >= 10)
+                {
+                    String msg;
+                    msg = pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
+                    messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
+
+                    ///
+                    /// send a message saying what VP cards the player has
+                    ///
+                    SOCDevCardSet devCards = pl.getDevCards();
+
+                    if (devCards.getNumVPCards() > 0)
                     {
-                        names[count] = ga.getPlayer(i).getName();
-                        count++;
-                    }
-                }
+                        msg = pl.getName() + " has";
 
-                if (count == 1)
-                {
-                    message = names[0] + " needs to discard.";
-                }
-                else if (count == 2)
-                {
-                    message = names[0] + " and " + names[1] + " need to discard.";
-                }
-                else if (count > 2)
-                {
-                    message = names[0];
+                        int vpCardCount = 0;
 
-                    for (int i = 1; i < (count - 1); i++)
-                    {
-                        message += (", " + names[i]);
-                    }
-
-                    message += (" and " + names[count - 1] + " need to discard.");
-                }
-
-                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, message));
-
-                break;
-
-            case SOCGame.PLACING_ROBBER:
-                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " will move the robber."));
-
-                break;
-
-            case SOCGame.WAITING_FOR_CHOICE:
-
-                /**
-                 * get the choices from the game
-                 */
-                boolean[] choices = new boolean[SOCGame.MAXPLAYERS];
-
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                {
-                    choices[i] = false;
-                }
-
-                Enumeration plEnum = ga.getPossibleVictims().elements();
-
-                while (plEnum.hasMoreElements())
-                {
-                    SOCPlayer pl = (SOCPlayer) plEnum.nextElement();
-                    choices[pl.getPlayerNumber()] = true;
-                }
-
-                /**
-                 * ask the current player to choose a player to steal from
-                 */
-                String n = ga.getPlayer(ga.getCurrentPlayerNumber()).getName();
-                Enumeration connsEnum = getConnections();
-
-                while (connsEnum.hasMoreElements())
-                {
-                    Connection con = (Connection) connsEnum.nextElement();
-
-                    if (n.equals((String) con.data))
-                    {
-                        con.put(SOCChoosePlayerRequest.toCmd(ga.getName(), choices));
-
-                        break;
-                    }
-                }
-
-                break;
-
-            case SOCGame.OVER:
-
-                SOCPlayer pl;
-
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                {
-                    pl = ga.getPlayer(i);
-
-                    if (pl.getTotalVP() >= 10)
-                    {
-                        String msg;
-                        msg = pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
-                        messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, msg));
-
-                        ///
-                        /// send a message saying what VP cards the player has
-                        ///
-                        SOCDevCardSet devCards = pl.getDevCards();
-
-                        if (devCards.getNumVPCards() > 0)
+                        for (int devCardType = SOCDevCardConstants.CAP;
+                                devCardType < SOCDevCardConstants.UNKNOWN;
+                                devCardType++)
                         {
-                            msg = pl.getName() + " has";
-
-                            int vpCardCount = 0;
-
-                            for (int devCardType = SOCDevCardConstants.CAP;
-                                    devCardType < SOCDevCardConstants.UNKNOWN;
-                                    devCardType++)
+                            if ((devCards.getAmount(SOCDevCardSet.OLD, devCardType) > 0) || (devCards.getAmount(SOCDevCardSet.NEW, devCardType) > 0))
                             {
-                                if ((devCards.getAmount(SOCDevCardSet.OLD, devCardType) > 0) || (devCards.getAmount(SOCDevCardSet.NEW, devCardType) > 0))
+                                if (vpCardCount > 0)
                                 {
-                                    if (vpCardCount > 0)
+                                    if ((devCards.getNumVPCards() - vpCardCount) == 1)
                                     {
-                                        if ((devCards.getNumVPCards() - vpCardCount) == 1)
-                                        {
-                                            msg += " and";
-                                        }
-                                        else if ((devCards.getNumVPCards() - vpCardCount) > 0)
-                                        {
-                                            msg += ",";
-                                        }
+                                        msg += " and";
                                     }
-
-                                    vpCardCount++;
-
-                                    switch (devCardType)
+                                    else if ((devCards.getNumVPCards() - vpCardCount) > 0)
                                     {
-                                    case SOCDevCardConstants.CAP:
-                                        msg += " a Capitol (+1VP)";
-
-                                        break;
-
-                                    case SOCDevCardConstants.LIB:
-                                        msg += " a Library (+1VP)";
-
-                                        break;
-
-                                    case SOCDevCardConstants.UNIV:
-                                        msg += " a University (+1VP)";
-
-                                        break;
-
-                                    case SOCDevCardConstants.TEMP:
-                                        msg += " a Temple (+1VP)";
-
-                                        break;
-
-                                    case SOCDevCardConstants.TOW:
-                                        msg += " a Tower (+1VP)";
-
-                                        break;
+                                        msg += ",";
                                     }
                                 }
-                            }
 
-                            messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, msg));
+                                vpCardCount++;
+
+                                switch (devCardType)
+                                {
+                                case SOCDevCardConstants.CAP:
+                                    msg += " a Capitol (+1VP)";
+
+                                    break;
+
+                                case SOCDevCardConstants.LIB:
+                                    msg += " a Library (+1VP)";
+
+                                    break;
+
+                                case SOCDevCardConstants.UNIV:
+                                    msg += " a University (+1VP)";
+
+                                    break;
+
+                                case SOCDevCardConstants.TEMP:
+                                    msg += " a Temple (+1VP)";
+
+                                    break;
+
+                                case SOCDevCardConstants.TOW:
+                                    msg += " a Tower (+1VP)";
+
+                                    break;
+                                }
+                            }
                         }
 
-                        break;
+                        messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
                     }
-                }
 
-                break;
-            }
-        }
+                    break;
+                }
+            }  // case OVER, for each player
+
+            break;
+            
+        }  // switch ga.getGameState
+        
+        return promptedRoll; 
     }
 
     /**
@@ -5199,7 +5177,7 @@ public class SOCServer extends Server
             /**
              * send the game state
              */
-            sendGameState(ga);
+            sendGameState(ga, false);
 
             /**
              * start the game
@@ -5207,26 +5185,33 @@ public class SOCServer extends Server
             messageToGame(ga.getName(), new SOCStartGame(ga.getName()));
 
             /**
-             * send who's turn it is
+             * send whose turn it is
              */
-            sendTurn(ga);
+            sendTurn(ga, false);
         }
     }
 
     /**
-     * send who's turn it is
+     * send whose turn it is. Optionally also send a prompt to roll. 
      *
      * @param ga  the game
+     * @param sendRollPrompt  whether to send a RollDicePrompt message afterwards
      */
-    private void sendTurn(SOCGame ga)
+    private void sendTurn(SOCGame ga, boolean sendRollPrompt)
     {
         if (ga != null)
         {
-            messageToGame(ga.getName(), new SOCSetPlayedDevCard(ga.getName(), ga.getCurrentPlayerNumber(), false));
+            String gname = ga.getName();
+            int pn = ga.getCurrentPlayerNumber();   
 
-            SOCTurn turnMessage = new SOCTurn(ga.getName(), ga.getCurrentPlayerNumber());
-            messageToGame(ga.getName(), turnMessage);
-            recordGameEvent(ga.getName(), turnMessage.toCmd());
+            messageToGame(gname, new SOCSetPlayedDevCard(gname, pn, false));
+
+            SOCTurn turnMessage = new SOCTurn(gname, pn);
+            messageToGame(gname, turnMessage);
+            recordGameEvent(gname, turnMessage.toCmd());
+            
+            if (sendRollPrompt)
+                messageToGame(gname, new SOCRollDicePrompt(gname, pn));
         }
     }
 

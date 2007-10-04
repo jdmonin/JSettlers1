@@ -174,6 +174,30 @@ public class SOCDevCardSet implements Serializable, Cloneable
 
         return sum;
     }
+    
+    /**
+     * Some card types stay in your hand after being played.
+     * Count only the unplayed ones (old or new). 
+     * 
+     * @return the number of unplayed cards in this set
+     */
+    public int getNumUnplayed()
+    {
+        int sum = 0;
+
+        sum += devCards[OLD][SOCDevCardConstants.KNIGHT];
+        sum += devCards[OLD][SOCDevCardConstants.ROADS];
+        sum += devCards[OLD][SOCDevCardConstants.DISC];
+        sum += devCards[OLD][SOCDevCardConstants.MONO];
+        sum += devCards[OLD][SOCDevCardConstants.UNKNOWN];
+        sum += devCards[NEW][SOCDevCardConstants.KNIGHT];
+        sum += devCards[NEW][SOCDevCardConstants.ROADS];
+        sum += devCards[NEW][SOCDevCardConstants.DISC];
+        sum += devCards[NEW][SOCDevCardConstants.MONO];
+        sum += devCards[NEW][SOCDevCardConstants.UNKNOWN];
+        
+        return sum;
+    }
 
     /**
      * change all the new cards to old ones

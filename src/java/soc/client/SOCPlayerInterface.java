@@ -78,6 +78,13 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * the display for the players' hands
      */
     protected SOCHandPanel[] hands;
+    
+    /** 
+     * Tracks our own hand within hands[], if we are
+     * active in a game.  Null otherwise.
+     * Set by SOCHandPanel's removePlayer() and addPlayer() methods.
+     */
+    protected SOCHandPanel clientHand;
 
     /**
      * the player colors
@@ -138,6 +145,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         client = cl;
         game = ga;
+        clientHand = null;
 
         /**
          * initialize the player colors
@@ -277,6 +285,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * @return a player's hand panel
      *
      * @param pn  the player's seat number
+     * 
+     * @see #getClientHand()
      */
     public SOCHandPanel getPlayerHandPanel(int pn)
     {
@@ -297,6 +307,36 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     public SOCBuildingPanel getBuildingPanel()
     {
         return buildingPanel;
+    }
+    
+    /** The client player's SOCHandPanel interface, if active in a game.
+     * 
+     * @return our player's hand interface, or null if not in a game.
+     */ 
+    public SOCHandPanel getClientHand()
+    {
+        return clientHand; 
+    }
+    
+    /** Update the client player's SOCHandPanel interface, for joining
+     *  or leaving a game.
+     *  
+     *  Set by SOCHandPanel's removePlayer() and addPlayer() methods.
+     *  
+     * @param h  The SOCHandPanel for us, or null if none (leaving).
+     */ 
+    public void setClientHand(SOCHandPanel h)
+    {
+        clientHand = h;
+    }
+    
+    /** Is the client player active in this game, and the current player? */
+    public boolean clientIsCurrentPlayer()
+    {
+        if (clientHand == null)
+            return false;
+        else
+            return clientHand.isClientAndCurrentPlayer();
     }
 
     /**

@@ -27,8 +27,26 @@ import java.util.StringTokenizer;
 
 
 /**
- * Messages used for chatting on a channel
+ * Messages used for game data, events, and chatting on a channel.
+ * 
+ * No objects, only strings and integers, are to be sent over the network
+ * between servers and clients! 
+ * 
+ * Text announcements (SOCGameTextMsg) are often sent along with
+ * data messages.
+ * 
+ * The message data is sent over the network as type ID + data strings
+ * built by each SOCMessage subclass's toCmd() method.  
  *
+ * On the remote end, it's reconstructed to a new instance of the
+ * appropriate SOCMessage subclass, by the subclass' required method
+ * static SOCMessageSubclass parseDataStr(String).
+ *
+ * To create a new message type, choose a message type ID (add to the end of
+ * the list in this class) and add it to the switch in toMsg().
+ * Extend the SOCMessage class, including the required parseDataStr method.
+ * (SOCDiceResult and SOCSetTurn are good example subclasses.)
+ * 
  * @author Robert S Thomas
  */
 public abstract class SOCMessage implements Serializable, Cloneable
@@ -106,6 +124,7 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public static final int STATUSMESSAGE = 1069;
     public static final int CREATEACCOUNT = 1070;
     public static final int UPDATEROBOTPARAMS = 1071;
+    public static final int ROLLDICEPROMPT = 1072;
     public static final int SERVERPING = 9999;
 
     /**
@@ -131,8 +150,15 @@ public abstract class SOCMessage implements Serializable, Cloneable
      * Converts the contents of this message into
      * a String that can be transferred by a client
      * or server.
+     * Your class' required method
+     * static SOCMessageSubclass parseDataStr(String)
+     * must be able to turn this String
+     * back into an instance of the message class.
      */
     public abstract String toCmd();
+
+    /** Simple human-readable representation, used for debug purposes. */
+    public abstract String toString();
 
     /**
      * Convert a string into a SOCMessage
@@ -383,6 +409,9 @@ public abstract class SOCMessage implements Serializable, Cloneable
 
             case SERVERPING:
                 return SOCServerPing.parseDataStr(data);
+                
+            case ROLLDICEPROMPT:
+                return SOCRollDicePrompt.parseDataStr(data);
 
             default:
                 return null;
