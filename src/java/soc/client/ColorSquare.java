@@ -60,6 +60,7 @@ public class ColorSquare extends Canvas implements MouseListener
     int upperBound;
     int lowerBound;
     boolean interactive;
+    SquaresPanel sqparent;
 
     /**
      * Creates a new ColorSquare object without a visible value.
@@ -133,6 +134,7 @@ public class ColorSquare extends Canvas implements MouseListener
         setBackground(c);
         kind = k;
         interactive = in;
+        sqparent = null;
 
         switch (k)
         {
@@ -280,6 +282,8 @@ public class ColorSquare extends Canvas implements MouseListener
     {
         intValue += v;
         repaint();
+        if (sqparent != null)
+            sqparent.squareChanged(this, v);
     }
 
     /**
@@ -291,6 +295,8 @@ public class ColorSquare extends Canvas implements MouseListener
     {
         intValue -= v;
         repaint();
+        if (sqparent != null)
+            sqparent.squareChanged(this, v);
     }
 
     /**
@@ -300,8 +306,11 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public void setIntValue(int v)
     {
+        boolean chg = (intValue != v);
         intValue = v;
         repaint();
+        if (chg && (sqparent != null))
+            sqparent.squareChanged(this, v);
     }
 
     /**
@@ -333,6 +342,24 @@ public class ColorSquare extends Canvas implements MouseListener
     public boolean getBoolValue()
     {
         return boolValue;
+    }
+    
+    /** 
+     * A SquaresPanel can be associated with it.
+     * @return square parent panel, or null.
+     */
+    public SquaresPanel getSquaresPanel()
+    {
+        return sqparent;
+    }
+
+    /** 
+     * A SquaresPanel can be associated with it.
+     * @return square parent panel, or null.
+     */
+    public void setSquaresPanel(SquaresPanel sp)
+    {
+        sqparent = sp;
     }
 
     /**
@@ -384,6 +411,8 @@ public class ColorSquare extends Canvas implements MouseListener
     {
         if (interactive)
         {
+            int oldval = intValue;
+
             switch (kind)
             {
             case YES_NO:
@@ -417,6 +446,8 @@ public class ColorSquare extends Canvas implements MouseListener
             }
 
             repaint();
+            if ((oldval != intValue) && (sqparent != null))
+                sqparent.squareChanged(this, intValue);
         }
     }
 }

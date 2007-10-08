@@ -681,7 +681,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void run()
     {
-        Thread.currentThread().setName("cli-netread");  // JM: Thread name for debug
+        Thread.currentThread().setName("cli-netread");  // Thread name for debug
         try
         {
             while (connected)
@@ -1565,14 +1565,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             {
                 if (ourPlayerData.getPlayerNumber() == ga.getCurrentPlayerNumber())
                 {
-                    if (mes.getState() == SOCGame.WAITING_FOR_DISCOVERY)
+                    int st = mes.getState();
+                    if (st == SOCGame.WAITING_FOR_DISCOVERY)
                     {
                         pi.showDiscoveryDialog();
                     }
-
-                    if (mes.getState() == SOCGame.WAITING_FOR_MONOPOLY)
+                    else if (st == SOCGame.WAITING_FOR_MONOPOLY)
                     {
                         pi.showMonopolyDialog();
+                    }
+                    else if (st == SOCGame.PLAY1)
+                    {
+                        pi.updateAtPlay1();
                     }
                 }
             }
@@ -2321,8 +2325,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 //if (true) {
                 if (mes.getPlayerNumber() == ourPlayerData.getPlayerNumber())
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateDevCards();
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.VICTORYPOINTS);
+                    SOCHandPanel hp = pi.getClientHand();
+                    hp.updateDevCards();
+                    hp.updateValue(SOCHandPanel.VICTORYPOINTS);
                 }
                 else
                 {

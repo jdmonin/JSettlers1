@@ -71,7 +71,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             error = e;
         }
         
-        setName("server-" + port);  // JM: Thread name for debugging
+        setName("server-" + port);  // Thread name for debugging
     }
 
     protected Enumeration getConnections()
@@ -238,7 +238,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         public Treater(Server s)
         {
             svr = s;
-            setName("treater");  // JM: Thread name for debug
+            setName("treater");  // Thread name for debug
         }
 
         public void run()

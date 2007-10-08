@@ -40,7 +40,7 @@ public class SOCGameTimeoutChecker extends Thread
     {
         server = srv;
         alive = true;
-        setName ("timeoutChecker");  // JM: Thread name for debug
+        setName ("timeoutChecker");  // Thread name for debug
     }
 
     /**

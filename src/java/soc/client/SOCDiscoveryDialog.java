@@ -31,6 +31,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 
+/**
+ * Dialog asking player to pick two resources
+ * when playing a discovery card.
+ */
 class SOCDiscoveryDialog extends Dialog implements ActionListener
 {
     Button doneBut;
@@ -42,7 +46,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
     /**
      * Creates a new SOCDiscoveryDialog object.
      *
-     * @param pi DOCUMENT ME!
+     * @param pi  the interface that this panel is a part of
      */
     public SOCDiscoveryDialog(SOCPlayerInterface pi)
     {
@@ -65,9 +69,11 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         add(doneBut);
         doneBut.addActionListener(this);
+        // doneBut.disable();  // Since nothing picked yet
 
         add(clearBut);
         clearBut.addActionListener(this);
+        // clearBut.disable();        
 
         rsrc = new ColorSquare[5];
         rsrc[0] = new ColorSquare(ColorSquare.BOUNDED_INC, true, ColorSquare.CLAY, 2, 0);
@@ -83,9 +89,9 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * When dialog becomes visible, set focus to the "Done" button.
      *
-     * @param b DOCUMENT ME!
+     * @param b Visible?
      */
     public void setVisible(boolean b)
     {
@@ -98,7 +104,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Custom layout for this dialog
      */
     public void doLayout()
     {

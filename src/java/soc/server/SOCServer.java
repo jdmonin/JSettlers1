@@ -4574,7 +4574,7 @@ public class SOCServer extends Server
      */
     protected void sendGameState(SOCGame ga)
     {
-        sendGameState (ga, true);
+        sendGameState(ga, true);
     }
     
     /**

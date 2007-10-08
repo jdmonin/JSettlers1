@@ -577,6 +577,18 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         monopolyDialog = new SOCMonopolyDialog(this);
         monopolyDialog.setVisible(true);
     }
+    
+    /** 
+     * Client is current player; state changed from PLAY to PLAY1.
+     * (Dice has been rolled, or card played.)
+     * Update interface accordingly.
+     */
+    public void updateAtPlay1()
+    {
+        if (clientHand != null)
+            clientHand.updateAtPlay1();
+    }
+
 
     /**
      * set the face icon for a player

@@ -54,6 +54,7 @@ public class SOCRobotPinger extends Thread
      */
     public void run()
     {
+        Thread.currentThread().setName("robotPinger");  // Thread name for debug
         while (alive)
         {
             try

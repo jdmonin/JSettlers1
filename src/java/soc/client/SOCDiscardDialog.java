@@ -51,17 +51,18 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
     Label discThese;
     SOCPlayerInterface playerInterface;
     int numDiscards;
-    int numChosen;  // JM
+    int numChosen;  // Button disabled unless proper number of resources are chosen
 
     /**
      * Creates a new SOCDiscardDialog object.
      *
-     * @param pi DOCUMENT ME!
-     * @param rnum DOCUMENT ME!
+     * @param pi   Client's player interface
+     * @param rnum Player must dicard this many resources
      */
     public SOCDiscardDialog(SOCPlayerInterface pi, int rnum)
     {
         super(pi, "Discard [" + pi.getClient().getNickname() + "]", true);
+
         playerInterface = pi;
         numDiscards = rnum;
         numChosen = 0;
@@ -85,7 +86,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
         add(discardBut);
         discardBut.addActionListener(this);
         if (numDiscards > 0)
-            discardBut.disable();  // JM - Count first
+            discardBut.disable();  // Must choose that many first
 
         keep = new ColorSquare[5];
         keep[0] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.CLAY);
@@ -265,12 +266,12 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
                 --numChosen;
                 if (numChosen == (numDiscards-1))
                 {
-                    discardBut.disable();  // JM - Count un-reached (too few)
+                    discardBut.disable();  // Count un-reached (too few)
                     discardBut.repaint();
                 }
                 else if (numChosen == numDiscards)
                 {
-                    discardBut.enable();   // JM - Exact count reached
+                    discardBut.enable();   // Exact count reached
                     discardBut.repaint();
                 }
                 break;
@@ -282,12 +283,12 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
                 ++numChosen;
                 if (numChosen == numDiscards)
                 {
-                    discardBut.enable();  // JM - Exact count reached
+                    discardBut.enable();  // Exact count reached
                     discardBut.repaint();
                 }
                 else if (numChosen == (numDiscards+1))
                 {
-                    discardBut.disable();  // JM - Count un-reached (too many)
+                    discardBut.disable();  // Count un-reached (too many)
                     discardBut.repaint();
                 }
                 break;

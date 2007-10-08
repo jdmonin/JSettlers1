@@ -51,7 +51,7 @@ public class SOCGame implements Serializable, Cloneable
     public static final int START1B = 6; // Players place 1st road
     public static final int START2A = 10; // Players place 2nd stlmt
     public static final int START2B = 11; // Players place 2nd road
-    public static final int PLAY = 15; // Play cotinues normally
+    public static final int PLAY = 15; // Play continues normally; time to roll or play card
     public static final int PLAY1 = 20; // Done rolling
     public static final int PLACING_ROAD = 30;
     public static final int PLACING_SETTLEMENT = 31;

@@ -143,8 +143,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     /** displays auto-roll countdown, or prompts to roll/play card.
      * @see #setRollPrompt(String) 
      */
-    protected boolean rollPromptInUse; 
     protected Label rollPromptCountdownLab;
+    protected boolean rollPromptInUse; 
     protected Timer autoRollTimer;  // Created just once
     protected TimerTask autoRollTimerTask;  // Created every turn when countdown needed
     protected Button rollBut;
@@ -331,7 +331,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         getLab = new Label(GET);
         add(getLab);
 
-        sqPanel = new SquaresPanel(interactive);
+        sqPanel = new SquaresPanel(interactive, this);
         add(sqPanel);
         sqPanel.setVisible(false); // else it's visible in all (dunno why?)
         
@@ -465,14 +465,12 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if (target == ROLL)
         {
-            if (rollPromptInUse)
-                setRollPrompt(null);  // Clear it
             if (autoRollTimerTask != null)
             {
                 autoRollTimerTask.cancel();
                 autoRollTimerTask = null;
             }
-            client.rollDice(game);
+            clickRollButton();
         }
         else if (target == QUIT)
         {
@@ -486,6 +484,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         else if (target == CLEAR)
         {
             sqPanel.setValues(zero, zero);
+            clearBut.disable();
+            sendBut.disable();
 
             if (game.getGameState() == SOCGame.PLAY1)
             {
@@ -572,7 +572,16 @@ public class SOCHandPanel extends Panel implements ActionListener
 
             if (item == null || item.length() == 0)
             {
-                return;
+                if (cardList.getItemCount() == 1)
+                {
+                    // No card selected, but only one to choose from
+                    item = cardList.getItem(0);
+                    itemNum = 0;
+                    if (item.length() == 0)
+                        return;
+                } else {
+                    return;
+                }
             }
 
             setRollPrompt(null);  // Clear prompt if Play Card clicked (vs Roll)
@@ -609,6 +618,17 @@ public class SOCHandPanel extends Panel implements ActionListener
                 }
             }
         }
+    }
+    
+    /** Handle a click on the roll button.
+     *  Called from actionPerformed() and the auto-roll timer task.
+     */ 
+    public void clickRollButton()
+    {
+        if (rollPromptInUse)
+            setRollPrompt(null);  // Clear it
+        client.rollDice(game);
+        rollBut.setEnabled(false);  // Only one roll per turn        
     }
 
     /**
@@ -790,6 +810,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         knightsLab.setVisible(true);
         knightsSq.setVisible(true);
 
+        playerIsCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
+
         if (player.getName().equals(client.getNickname()))
         {
             D.ebugPrintln("SOCHandPanel.addPlayer: This is our hand");
@@ -846,6 +868,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                 playerInterface.getPlayerHandPanel(i).removeSitBut();
                 playerInterface.getPlayerHandPanel(i).removeTakeOverBut();
             }
+
+            updateButtonsAtAdd();  // Enable,disable the proper buttons
         }
         else
         {
@@ -921,11 +945,23 @@ public class SOCHandPanel extends Panel implements ActionListener
     {        
         playerIsCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
         if (playerIsCurrent)
+        {
             pname.setForeground(COLOR_FORE_CURRENTPLAYER);
+            updateRollButton();
+        }
         else
             pname.setForeground(COLOR_FOREGROUND);
         updateTakeOverButton();
-        
+        if (playerIsClient)
+        {
+            int gs = game.getGameState();
+            boolean normalTurnStarting =
+                (playerIsCurrent && (gs == SOCGame.PLAY || gs == SOCGame.PLAY1));
+            doneBut.setEnabled(normalTurnStarting);
+            playCardBut.setEnabled(normalTurnStarting && (cardList.getItemCount() > 0));
+            bankBut.disable();  // enabled by updateAtPlay1()
+        }
+                            
         // Although this method is called at the start of our turn,
         // the call to autoRollOrPromptPlayer() is not made here.
         // That call is made when the server says it's our turn to
@@ -935,7 +971,52 @@ public class SOCHandPanel extends Panel implements ActionListener
         // the server sends such messages at other times (states)
         // besides start-of-turn.
     }
+    
+    /**
+     * Client is current player; state changed from PLAY to PLAY1.
+     * (Dice has been rolled, or card played.)
+     * Update interface accordingly.
+     * Should not be called except for client's handpanel.
+     */
+    public void updateAtPlay1()
+    {
+       if (! playerIsClient)
+           return;
+       
+       bankBut.enable();
+    }
 
+    /** Enable,disable the proper buttons
+     * when the client (player) is added to a game.
+     */
+    public void updateButtonsAtAdd()
+    {
+        if (playerIsCurrent)
+        {
+            updateRollButton();
+            bankBut.setEnabled(game.getGameState() == SOCGame.PLAY1);
+        }
+        else
+        {
+            rollBut.disable();
+            doneBut.disable();
+            playCardBut.disable();
+            bankBut.disable();  // enabled by updateAtPlay1()
+        }
+        
+        clearBut.disable();  // No trade offer has been set yet
+        sendBut.disable();
+    }
+
+    /** If enable/disable buttons accordingly. */
+    public void sqPanelZerosChange(boolean notAllZero)
+    {
+        int gs = game.getGameState();
+        clearBut.setEnabled(notAllZero);
+        sendBut.setEnabled
+            (notAllZero && ((gs == SOCGame.PLAY) || (gs == SOCGame.PLAY1)));
+    }
+    
     /** 
      * If the player (client) has no playable
      * cards, begin auto-roll countdown,
@@ -950,6 +1031,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void autoRollOrPromptPlayer()
     {
+        updateAtTurn();  // Game state may have changed
         if (player.hasUnplayedDevCards()
                 && ! player.hasPlayedDevCard())
             setRollPrompt(ROLL_OR_PLAY_CARD);
@@ -982,6 +1064,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                               "Temple (1VP)",
                               "Tower (1VP)",
                               "University (1VP)"};
+        boolean hasCards = false;
 
         synchronized (cardList.getTreeLock())
         {
@@ -992,6 +1075,8 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 int numOld = cards.getAmount(SOCDevCardSet.OLD, cardTypes[i]);
                 int numNew = cards.getAmount(SOCDevCardSet.NEW, cardTypes[i]);
+                if ((numOld > 0) || (numNew > 0))
+                    hasCards = true;
 
                 for (int j = 0; j < numOld; j++)
                 {
@@ -1002,9 +1087,11 @@ public class SOCHandPanel extends Panel implements ActionListener
                     // VP cards (starting at 4) are valid immidiately
                     String prefix = (i < 4) ? "*NEW* " : "";
                     cardList.add(prefix + cardNames[i]);
-                }
+                }                                
             }
         }
+        
+        playCardBut.setEnabled (hasCards && playerIsCurrent); 
     }
 
     /**
@@ -1112,6 +1199,9 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 playerSend[i].setBoolValue(true);
             }
+            
+            clearBut.disable();
+            sendBut.disable();
         }
         validate();
         repaint();
@@ -1132,6 +1222,14 @@ public class SOCHandPanel extends Panel implements ActionListener
         {
             takeOverBut.setLabel("* Seat Locked *");
         }
+    }
+    
+    /** Client is current player, turn has just begun.
+     * Enable any previously disabled buttons.
+     */
+    public void updateRollButton()
+    {
+        rollBut.setEnabled(game.getGameState() == SOCGame.PLAY);
     }
 
     /**
@@ -1475,8 +1573,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 setRollPrompt(AUTOROLL_COUNTDOWN + Integer.toString(timeRemain));
             } else {
-                setRollPrompt(null);
-                client.rollDice(game);
+                clickRollButton();  // Clear prompt, click Roll
                 cancel();  // End of countdown for this timer
             }
             

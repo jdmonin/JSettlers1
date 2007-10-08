@@ -26,27 +26,46 @@ import java.awt.Panel;
 
 
 /**
- * DOCUMENT ME!
+ * Display grid of give/get resources
+ * for trade and bank/port offers.
  *
- * @author $author$
- * @version $Revision$
+ * @author Robert S Thomas
+ *
+ * @see SOCHandPanel
+ * @see TradeOfferPanel
  */
 public class SquaresPanel extends Panel
 {
+    // Each ColorSquare handles its own mouse events.
     private ColorSquare[] give;
     private ColorSquare[] get;
     boolean interactive;
+    boolean notAllZero;
+    SOCHandPanel parentHand;
 
     /**
      * Creates a new SquaresPanel object.
      *
-     * @param in DOCUMENT ME!
+     * @param in Interactive?
      */
     public SquaresPanel(boolean in)
+    {
+        this (in, null);        
+    }
+    
+    /**
+     * Creates a new SquaresPanel object, as part of a SOCHandPanel.
+     *
+     * @param in Interactive?
+     * @param hand HandPanel containing this SquaresPanel
+     */
+    public SquaresPanel(boolean in, SOCHandPanel hand)
     {
         super(null);
 
         interactive = in;
+        notAllZero = false;
+        parentHand = hand;
 
         setFont(new Font("Helvetica", Font.PLAIN, 10));
 
@@ -68,6 +87,8 @@ public class SquaresPanel extends Panel
         {
             add(get[i]);
             add(give[i]);
+            get[i].setSquaresPanel(this);
+            give[i].setSquaresPanel(this);
         }
 
         int lineH = ColorSquare.HEIGHT - 1;
@@ -105,11 +126,15 @@ public class SquaresPanel extends Panel
      */
     public void setValues(int[] give, int[] get)
     {
+        boolean notAllZ = false;
         for (int i = 0; i < 5; i++)
         {
             this.give[i].setIntValue(give[i]);
             this.get[i].setIntValue(get[i]);
+            if ((give[i]!=0) || (get[i]!=0))
+                notAllZ = true;
         }
+        notAllZero = notAllZ;
     }
 
     /**
@@ -126,4 +151,45 @@ public class SquaresPanel extends Panel
             get[i] = this.get[i].getIntValue();
         }
     }
+ 
+    /** Does any grid square contain a non-zero value? */
+    public boolean containsNonZero()
+    {
+        return notAllZero;
+    }
+    
+    /** Called by colorsquare when clicked; if we're part of a HandPanel,
+     *  could enable/disable its buttons based on new value.
+     */
+    public void squareChanged(ColorSquare sq, int newValue)
+    {
+        boolean wasNotZero = notAllZero;
+        
+        if (newValue != 0)
+            notAllZero = true;
+        else
+        {
+            // A square became zero; how are the others?
+            boolean notAllZ = false;
+            for (int i = 0; i < 5; i++)
+            {
+                if (0 != this.give[i].getIntValue())
+                {
+                    notAllZ = true;
+                    break;
+                }
+                if (0 != this.get[i].getIntValue())
+                {
+                    notAllZ = true;
+                    break;
+                }
+            }
+            
+            notAllZero = notAllZ;
+        }
+        
+        if ((parentHand != null) && (wasNotZero != notAllZero))
+            parentHand.sqPanelZerosChange(notAllZero);
+    }
+
 }

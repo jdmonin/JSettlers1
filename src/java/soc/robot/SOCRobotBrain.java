@@ -582,6 +582,7 @@ public class SOCRobotBrain extends Thread
      */
     public void run()
     {
+        Thread.currentThread().setName("robotBrain");  // Thread name for debug
         if (pinger != null)
         {
             pinger.start();
