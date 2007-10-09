@@ -538,6 +538,25 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
+     * Game is over; server has sent us the revealed scores
+     * for each player.  Refresh the display.
+     *
+     * @param finalScores Final score for each player position
+     */
+    public void updateAtOver(int[] finalScores)
+    {
+        if (game.getGameState() != SOCGame.OVER)
+            return;
+        
+        for (int i = 0; i < finalScores.length; ++i)
+        {
+            game.getPlayer(i).forceFinalVP(finalScores[i]);
+            hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);
+        }        
+        repaint();
+    }
+
+    /**
      * show the discard dialog
      *
      * @param nd  the number of discards

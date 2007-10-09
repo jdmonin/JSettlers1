@@ -4715,92 +4715,120 @@ public class SOCServer extends Server
 
         case SOCGame.OVER:
 
-            SOCPlayer pl;
-
-            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-            {
-                pl = ga.getPlayer(i);
-
-                if (pl.getTotalVP() >= 10)
-                {
-                    String msg;
-                    msg = pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
-                    messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
-
-                    ///
-                    /// send a message saying what VP cards the player has
-                    ///
-                    SOCDevCardSet devCards = pl.getDevCards();
-
-                    if (devCards.getNumVPCards() > 0)
-                    {
-                        msg = pl.getName() + " has";
-
-                        int vpCardCount = 0;
-
-                        for (int devCardType = SOCDevCardConstants.CAP;
-                                devCardType < SOCDevCardConstants.UNKNOWN;
-                                devCardType++)
-                        {
-                            if ((devCards.getAmount(SOCDevCardSet.OLD, devCardType) > 0) || (devCards.getAmount(SOCDevCardSet.NEW, devCardType) > 0))
-                            {
-                                if (vpCardCount > 0)
-                                {
-                                    if ((devCards.getNumVPCards() - vpCardCount) == 1)
-                                    {
-                                        msg += " and";
-                                    }
-                                    else if ((devCards.getNumVPCards() - vpCardCount) > 0)
-                                    {
-                                        msg += ",";
-                                    }
-                                }
-
-                                vpCardCount++;
-
-                                switch (devCardType)
-                                {
-                                case SOCDevCardConstants.CAP:
-                                    msg += " a Capitol (+1VP)";
-
-                                    break;
-
-                                case SOCDevCardConstants.LIB:
-                                    msg += " a Library (+1VP)";
-
-                                    break;
-
-                                case SOCDevCardConstants.UNIV:
-                                    msg += " a University (+1VP)";
-
-                                    break;
-
-                                case SOCDevCardConstants.TEMP:
-                                    msg += " a Temple (+1VP)";
-
-                                    break;
-
-                                case SOCDevCardConstants.TOW:
-                                    msg += " a Tower (+1VP)";
-
-                                    break;
-                                }
-                            }
-                        }
-
-                        messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
-                    }
-
-                    break;
-                }
-            }  // case OVER, for each player
-
+            sendGameStateOVER(ga);
+            
             break;
             
         }  // switch ga.getGameState
         
         return promptedRoll; 
     }
+    
+    /** If game is OVER, send messages reporting winner, final score,
+     *  and each player's victory-point cards.
+     *  
+     * @param ga This game is over; state should be OVER
+     */
+    protected void sendGameStateOVER(SOCGame ga)
+    {
+        String gname = ga.getName();
+        
+        // Find and announce the winner
+        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+        {
+            SOCPlayer pl = ga.getPlayer(i);
+
+            if (pl.getTotalVP() >= 10)
+            {
+                String msg;
+                msg = pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
+                messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
+
+                break;
+            }
+        }
+        
+        /// send a message with the revealed final scores
+        {
+            int[] scores = new int[SOCGame.MAXPLAYERS];
+            boolean[] isRobot = new boolean[SOCGame.MAXPLAYERS];
+            for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
+            {
+                scores[i] = ga.getPlayer(i).getTotalVP();
+                isRobot[i] = ga.getPlayer(i).isRobot();
+            }
+            messageToGame(gname, new SOCGameStats(gname, scores, isRobot));                        
+        }
+        
+        ///
+        /// send a message saying what VP cards each player has
+        ///
+        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+        {
+            SOCPlayer pl = ga.getPlayer(i);
+            SOCDevCardSet devCards = pl.getDevCards();
+
+            if (devCards.getNumVPCards() > 0)
+            {
+                String msg = pl.getName() + " has";
+                int vpCardCount = 0;
+
+                for (int devCardType = SOCDevCardConstants.CAP;
+                        devCardType < SOCDevCardConstants.UNKNOWN;
+                        devCardType++)
+                {
+                    if ((devCards.getAmount(SOCDevCardSet.OLD, devCardType) > 0) || (devCards.getAmount(SOCDevCardSet.NEW, devCardType) > 0))
+                    {
+                        if (vpCardCount > 0)
+                        {
+                            if ((devCards.getNumVPCards() - vpCardCount) == 1)
+                            {
+                                msg += " and";
+                            }
+                            else if ((devCards.getNumVPCards() - vpCardCount) > 0)
+                            {
+                                msg += ",";
+                            }
+                        }
+
+                        vpCardCount++;
+
+                        switch (devCardType)
+                        {
+                        case SOCDevCardConstants.CAP:
+                            msg += " a Capitol (+1VP)";
+
+                            break;
+
+                        case SOCDevCardConstants.LIB:
+                            msg += " a Library (+1VP)";
+
+                            break;
+
+                        case SOCDevCardConstants.UNIV:
+                            msg += " a University (+1VP)";
+
+                            break;
+
+                        case SOCDevCardConstants.TEMP:
+                            msg += " a Temple (+1VP)";
+
+                            break;
+
+                        case SOCDevCardConstants.TOW:
+                            msg += " a Tower (+1VP)";
+
+                            break;
+                        }
+                    }
+                }  // for each devcard type
+
+                messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
+
+            }  // if devcards
+        }  // for each player
+        
+    }    
 
     /**
      * report a trade that has taken place

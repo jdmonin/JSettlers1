@@ -123,6 +123,14 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
      * the number of development card victory points
      */
     private int devCardVP;
+    
+    /**
+     * the final total score (pushed from server at end of game),
+     * or 0 if no score has been forced.
+     * 
+     * @see #forceFinalScore(int)
+     */
+    private int finalTotalVP;
 
     /**
      * this flag is true if the player needs to discard
@@ -236,6 +244,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
         numKnights = player.numKnights;
         buildingVP = player.buildingVP;
         devCardVP = player.devCardVP;
+        finalTotalVP = 0;
         playedDevCard = player.playedDevCard;
         needToDiscard = player.needToDiscard;
         robotFlag = player.robotFlag;
@@ -808,6 +817,9 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
      */
     public int getPublicVP()
     {
+        if (finalTotalVP > 0)
+            return finalTotalVP;
+        
         int vp = buildingVP;
 
         /**
@@ -834,10 +846,29 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
      */
     public int getTotalVP()
     {
+        if (finalTotalVP > 0)
+            return finalTotalVP;
+
         int vp = getPublicVP();
         vp += devCards.getNumVPCards();
 
         return vp;
+    }
+
+    /**
+     * If game is over, server can push the final score for
+     * each player to the client.  During play, true scores aren't
+     * known, because of hidden victory-point cards.
+     * getTotalVP() and getPublicVP() will report this, if set.
+     * 
+     * @param score Total score for the player, or 0 for no forced total.
+     */
+    public void forceFinalVP(int score)
+    {
+        if (game.getGameState() != SOCGame.OVER)
+            return;  // Consider throw IllegalStateException
+        
+        finalTotalVP = score;
     }
 
     /**

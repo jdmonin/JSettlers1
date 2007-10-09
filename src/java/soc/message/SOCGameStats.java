@@ -28,6 +28,7 @@ import java.util.StringTokenizer;
 /**
  * This message contains the scores for the people at a game.
  * Used for displaying games in the player client list.
+ * Also used at end of game to display true scores (with VP cards).
  *
  * @author Robert S. Thomas
  */

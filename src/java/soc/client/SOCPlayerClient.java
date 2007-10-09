@@ -1398,7 +1398,16 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     protected void handleGAMESTATS(SOCGameStats mes)
     {
-        updateGameStats(mes.getGame(), mes.getScores(), mes.getRobotSeats());
+        String ga = mes.getGame();
+        int[] scores = mes.getScores();
+        
+        // Update game list (initial window)
+        updateGameStats(ga, scores, mes.getRobotSeats());
+        
+        // If we're playing in a game, update the scores. (SOCPlayerInterface)
+        // This is used to show the true scores, including hidden
+        // victory-point cards, at the game's end.
+        updateGameEndStats(ga, scores);
     }
 
     /**
@@ -2505,14 +2514,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * add a new game
+     * add a new game to the initial window's list of games
      *
-     * @param thing  the thing to add to the list
+     * @param gameName  the game name to add to the list
      */
-    public void addToGameList(String thing)
+    public void addToGameList(String gameName)
     {
         // String gameName = thing + STATSPREFEX + "-- -- -- --]";
-        String gameName = thing;
 
         if (gmlist.getItem(0).equals(" "))
         {
@@ -2555,11 +2563,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Update this game's stats in the game list display.
      *
-     * @param gameName DOCUMENT ME!
-     * @param scores DOCUMENT ME!
-     * @param robots DOCUMENT ME!
+     * @param gameName Name of game to update
+     * @param scores Each player position's score
+     * @param robots Is this position a robot?
+     * 
+     * @see soc.message.SOCGameStats
      */
     public void updateGameStats(String gameName, int[] scores, boolean[] robots)
     {
@@ -2616,6 +2626,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 break;
             }
         }
+    }
+    
+    /** If we're playing in a game that's just finished, update the scores.
+     *  This is used to show the true scores, including hidden
+     *  victory-point cards, at the game's end.
+     */
+    public void updateGameEndStats(String game, int[] scores)
+    {
+        SOCGame ga = (SOCGame) games.get(game);
+        if (ga == null)
+            return;  // Not playing in that game
+        if (ga.getGameState() != SOCGame.OVER)
+            return;  // Should not have been sent; game is not yet over.
+        
+        SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(game);
+        pi.updateAtOver(scores);
     }
 
     /**
