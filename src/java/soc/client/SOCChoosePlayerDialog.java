@@ -134,6 +134,7 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
      */
     public void actionPerformed(ActionEvent e)
     {
+        try {
         Object target = e.getSource();
 
         for (int i = 0; i < number; i++)
@@ -145,6 +146,9 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
 
                 break;
             }
+        }
+        } catch (Throwable th) {
+            pi.chatPrintStackTrace(th);
         }
     }
 }

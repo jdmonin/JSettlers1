@@ -40,12 +40,22 @@ import java.awt.event.MouseListener;
  */
 public class ColorSquare extends Canvas implements MouseListener
 {
+    /**
+     * The color constants are used by ColorSquare,
+     * and also used for the robber's "ghost" when
+     * moving the robber. Specifying the color here is
+     * simpler than trying to read it at runtime from the
+     * hex graphics, which may have a texture.
+     * 
+     * @see soc.client.SOCBoardPanel#drawRobber(Graphics, int, boolean)
+     */
     public final static Color CLAY = new Color(204, 102, 102);
     public final static Color ORE = new Color(153, 153, 153);
     public final static Color SHEEP = new Color(51, 204, 51);
     public final static Color WHEAT = new Color(204, 204, 51);
     public final static Color WOOD = new Color(204, 153, 102);
     public final static Color GREY = new Color(204, 204, 204);
+    public final static Color DESERT = new Color(255, 255, 153);
     public final static int NUMBER = 0;
     public final static int YES_NO = 1;
     public final static int CHECKBOX = 2;
@@ -283,7 +293,7 @@ public class ColorSquare extends Canvas implements MouseListener
         intValue += v;
         repaint();
         if (sqparent != null)
-            sqparent.squareChanged(this, v);
+            sqparent.squareChanged(this, intValue);
     }
 
     /**
@@ -296,7 +306,7 @@ public class ColorSquare extends Canvas implements MouseListener
         intValue -= v;
         repaint();
         if (sqparent != null)
-            sqparent.squareChanged(this, v);
+            sqparent.squareChanged(this, intValue);
     }
 
     /**
@@ -310,7 +320,7 @@ public class ColorSquare extends Canvas implements MouseListener
         intValue = v;
         repaint();
         if (chg && (sqparent != null))
-            sqparent.squareChanged(this, v);
+            sqparent.squareChanged(this, intValue);
     }
 
     /**

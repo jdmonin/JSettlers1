@@ -40,7 +40,7 @@ public class SOCBoard implements Serializable, Cloneable
     public static final int ORE_HEX = 2;
     public static final int SHEEP_HEX = 3;
     public static final int WHEAT_HEX = 4;
-    public static final int WOOD_HEX = 5;
+    public static final int WOOD_HEX = 5;  // Also MAX_ROBBER_HEX
     public static final int WATER_HEX = 6;
     public static final int MISC_PORT_HEX = 7;
     public static final int CLAY_PORT_HEX = 8;
@@ -54,6 +54,9 @@ public class SOCBoard implements Serializable, Cloneable
     public static final int SHEEP_PORT = 3;
     public static final int WHEAT_PORT = 4;
     public static final int WOOD_PORT = 5;
+    
+    /** Highest-numbered hex type which may hold a robber. */ 
+    public static final int MAX_ROBBER_HEX = WOOD_HEX;
 
     /**
      * largest value for a hex

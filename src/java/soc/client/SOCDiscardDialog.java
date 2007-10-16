@@ -194,6 +194,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
      */
     public void actionPerformed(ActionEvent e)
     {
+        try {
         Object target = e.getSource();
 
         if (target == discardBut)
@@ -205,6 +206,9 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
                 playerInterface.getClient().discard(playerInterface.getGame(), rsrcs);
                 dispose();
             }
+        }
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
         }
     }
 
@@ -255,6 +259,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
      */
     public void mousePressed(MouseEvent e)
     {
+        try {
         Object target = e.getSource();
 
         for (int i = 0; i < 5; i++)
@@ -293,6 +298,9 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
                 }
                 break;
             }
+        }
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
         }
     }
 }

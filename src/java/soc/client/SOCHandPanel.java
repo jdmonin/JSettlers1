@@ -167,6 +167,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     protected boolean interactive;
 
+    private boolean chatExcepTested = false;  // For testing with BANK button
+    
     /**
      * make a new hand panel
      *
@@ -434,6 +436,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void actionPerformed(ActionEvent e)
     {
+        try {
         String target = e.getActionCommand();
 
         SOCPlayerClient client = playerInterface.getClient();
@@ -504,6 +507,20 @@ public class SOCHandPanel extends Panel implements ActionListener
                 SOCResourceSet giveSet = new SOCResourceSet(give[0], give[1], give[2], give[3], give[4], 0);
                 SOCResourceSet getSet = new SOCResourceSet(get[0], get[1], get[2], get[3], get[4], 0);
                 client.bankTrade(game, giveSet, getSet);
+            }
+            if (! chatExcepTested)
+            {
+                try
+                {
+                    int z = Color.BLACK.getRed();
+                    int dz = 15 / z; 
+                }
+                catch (Throwable th)
+                {
+                    playerInterface.chatPrint("-- test of stacktrace --\n");
+                    playerInterface.chatPrintStackTrace(th);
+                }
+                chatExcepTested = true;
             }
         }
         else if (target == SEND)
@@ -617,6 +634,9 @@ public class SOCHandPanel extends Panel implements ActionListener
                     }
                 }
             }
+        }
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
         }
     }
     

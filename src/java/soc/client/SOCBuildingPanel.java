@@ -280,6 +280,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
      */
     public void actionPerformed(ActionEvent e)
     {
+        try {
         String target = e.getActionCommand();
         SOCGame game = pi.getGame();
         SOCPlayerClient client = pi.getClient();
@@ -330,6 +331,9 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                     }
                 }
             }
+        }
+        } catch (Throwable th) {
+            pi.chatPrintStackTrace(th);
         }
     }
 

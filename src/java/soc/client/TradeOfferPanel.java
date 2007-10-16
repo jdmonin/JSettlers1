@@ -41,7 +41,7 @@ import java.awt.event.ActionListener;
  * DOCUMENT ME!
  *
  * @author $author$
- * @version $Revision$
+ * @version $Revision: 1.3 $
  */
 public class TradeOfferPanel extends Panel
 {
@@ -411,6 +411,7 @@ public class TradeOfferPanel extends Panel
          */
         public void actionPerformed(ActionEvent e)
         {
+            try {
             String target = e.getActionCommand();
 
             if (target == OFFER)
@@ -489,6 +490,9 @@ public class TradeOfferPanel extends Panel
                 //squares.getValues(tempGive, tempGet);
                 hp.getClient().acceptOffer(hp.getGame(), from);
             }
+            } catch (Throwable th) {
+                pi.chatPrintStackTrace(th);
+            }            
         }
         
         private void setCounterOfferVisible(boolean visible)

@@ -24,7 +24,7 @@ package soc.disableDebug;
  * DOCUMENT ME!
  *
  * @author $author$
- * @version $Revision$
+ * @version $Revision: 1.1 $
  */
 public class D
 {
@@ -42,6 +42,14 @@ public class D
     public static final void ebug_disable() {}
 
     /**
+     * Is debug currently enabled?
+     * */
+    public static final boolean ebugIsEnabled()
+    {
+        return false;
+    }
+
+   /**
      * DOCUMENT ME!
      *
      * @param text DOCUMENT ME!

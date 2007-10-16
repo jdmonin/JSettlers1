@@ -4757,7 +4757,7 @@ public class SOCServer extends Server
                 scores[i] = ga.getPlayer(i).getTotalVP();
                 isRobot[i] = ga.getPlayer(i).isRobot();
             }
-            messageToGame(gname, new SOCGameStats(gname, scores, isRobot));                        
+            messageToGame(gname, new SOCGameStats(gname, scores, isRobot));
         }
         
         ///

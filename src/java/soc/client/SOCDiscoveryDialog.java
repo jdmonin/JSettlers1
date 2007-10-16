@@ -164,6 +164,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
      */
     public void actionPerformed(ActionEvent e)
     {
+        try {
         Object target = e.getSource();
 
         if (target == doneBut)
@@ -191,6 +192,9 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
             {
                 rsrc[i].setIntValue(0);
             }
+        }
+        } catch (Throwable th) {
+            pi.chatPrintStackTrace(th);
         }
     }
 }

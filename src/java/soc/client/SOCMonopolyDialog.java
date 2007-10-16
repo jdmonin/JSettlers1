@@ -127,6 +127,7 @@ class SOCMonopolyDialog extends Dialog implements ActionListener
      */
     public void actionPerformed(ActionEvent e)
     {
+        try {
         Object target = e.getSource();
 
         for (int i = 0; i < 5; i++)
@@ -141,6 +142,9 @@ class SOCMonopolyDialog extends Dialog implements ActionListener
 
                 break;
             }
+        }
+        } catch (Throwable th) {
+            pi.chatPrintStackTrace(th);
         }
     }
 }

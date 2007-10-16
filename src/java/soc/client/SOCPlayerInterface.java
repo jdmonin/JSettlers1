@@ -20,7 +20,7 @@
  **/
 package soc.client;
 
-import soc.disableDebug.D;
+import soc.debug.D;
 
 import soc.game.SOCGame;
 import soc.game.SOCPlayer;
@@ -41,6 +41,8 @@ import java.awt.event.WindowEvent;
 
 import java.util.StringTokenizer;
 
+import java.io.PrintWriter;  // For chatPrintStackTrace
+import java.io.StringWriter;
 
 /**
  * Interface for a player of Settlers of Catan
@@ -618,6 +620,41 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     public void changeFace(int pn, int id)
     {
         hands[pn].changeFace(id);
+    }
+
+    /**
+     * if debug is enabled, print this exception's stack trace in
+     * the chat display.  This eases tracing of exceptions when
+     * our code is called in AWT threads (such as EventDispatch).
+     */
+    public void chatPrintStackTrace(Throwable th)
+    {
+        chatPrintStackTrace(th, false);
+    }
+    
+    private void chatPrintStackTrace(Throwable th, boolean isNested)
+    {
+        if (! D.ebugIsEnabled())
+            return;
+        String excepName = th.getClass().getName();
+        if (! isNested)
+            chatDisplay.append("** Exception occurred **\n");
+        if (th.getMessage() != null)
+            chatPrint(excepName + ": " + th.getMessage());
+        else
+            chatPrint(excepName);
+        StringWriter backstack = new StringWriter();
+        PrintWriter pw = new PrintWriter(backstack);
+        th.printStackTrace(pw);
+        pw.flush();
+        chatPrint (backstack.getBuffer().toString());
+        if (th.getCause() != null)  // JM TODO: is getCause 1.4+ ?
+        {
+            chatDisplay.append("** --> Nested Cause Exception: **\n");
+            chatPrintStackTrace (th.getCause(), true);
+        }        
+        if (! isNested)
+            chatDisplay.append("-- Exception ends: " + excepName + " --\n\n");
     }
 
     /**

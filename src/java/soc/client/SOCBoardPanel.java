@@ -223,6 +223,18 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private SOCPlayerInterface playerInterface;
 
+    /** Cached colors, for use for robber's "ghost"
+     *  (previous position) when moving the robber.
+     *  Values are determined the first time the
+     *  robber is ghosted on that type of tile.
+     *  
+     *  Index ranges from 0 to SOCBoard.MAX_ROBBER_HEX.
+     *  
+     *  @see soc.client.ColorSquare
+     *  @see #drawRobber(Graphics, int, boolean)
+     */
+    protected Color[] robberGhostFill, robberGhostOutline;
+
     /**
      * create a new board panel in an applet
      *
@@ -308,6 +320,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         // Set up mouse listeners
         this.addMouseListener(this);
         this.addMouseMotionListener(this);
+        
+        // Cached colors to be determined later
+        robberGhostFill = new Color [1 + SOCBoard.MAX_ROBBER_HEX];
+        robberGhostOutline = new Color [1 + SOCBoard.MAX_ROBBER_HEX];
 
         // load the static images
         loadImages(this);
@@ -613,6 +629,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public void paint(Graphics g)
     {
+        try {
         if (buffer == null)
         {
             buffer = this.createImage(panelx, panely);
@@ -620,6 +637,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         drawBoard(buffer.getGraphics());
         buffer.flush();
         g.drawImage(buffer, 0, 0, this);
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
+        }
     }
 
     /**
@@ -659,8 +679,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
     /**
      * draw the robber
+     * 
+     * @param g       Graphics context
+     * @param hexID   Board hex encoded position
+     * @param fullNotGhost  Draw normally, not "ghost" of previous position
+     *                (as during PLACE_ROBBER movement)
      */
-    private final void drawRobber(Graphics g, int hexID)
+    private final void drawRobber(Graphics g, int hexID, boolean fullNotGhost)
     {
         int[] tmpX = new int[14];
         int[] tmpY = new int[14];
@@ -671,10 +696,83 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             tmpX[i] = robberX[i] + hexX[hexNum] + 18;
             tmpY[i] = robberY[i] + hexY[hexNum] + 12;
         }
+        
+        Color rFill, rOutline;
+        if (fullNotGhost)
+        {
+            rFill = Color.lightGray;
+            rOutline = Color.black;
+        } else {
+            // Determine "ghost" color, we're moving the robber
+            int hexType = board.getHexLayout()[hexNum];
+            if (hexType >= robberGhostFill.length)
+            {
+                // should not happen
+                rFill = Color.lightGray;
+                rOutline = Color.black;
+            } else if (robberGhostFill[hexType] != null)
+            {
+                // was cached from previous calculation
+                rFill = robberGhostFill[hexType];
+                rOutline = robberGhostOutline[hexType];
+            } else {
+                // find basic color, "ghost" it
+                switch (hexType)
+                {
+                case SOCBoard.DESERT_HEX:
+                    rOutline = ColorSquare.DESERT;
+                    break;
+                case SOCBoard.CLAY_HEX:
+                    rOutline = ColorSquare.CLAY;
+                    break;
+                case SOCBoard.ORE_HEX:
+                    rOutline = ColorSquare.ORE;                
+                    break;
+                case SOCBoard.SHEEP_HEX:
+                    rOutline = ColorSquare.SHEEP;
+                    break;
+                case SOCBoard.WHEAT_HEX:
+                    rOutline = ColorSquare.WHEAT;
+                    break;
+                case SOCBoard.WOOD_HEX:
+                    rOutline = ColorSquare.WOOD;
+                    break;
+                default:
+                    // Should not happen
+                    rOutline = Color.lightGray;
+                }
+                
+                // rFill will be lighter or darker than hex color
+                int fillR, fillG, fillB;
+                int outR, outG, outB;
+                outR = rOutline.getRed();
+                outG = rOutline.getGreen();
+                outB = rOutline.getBlue();
+                if ((outR + outG + outB) > (160 * 3))
+                {
+                    // fill is light, we should be dark. (average with gray)
+                    fillR = (outR + 140) / 2;
+                    fillG = (outG + 140) / 2;
+                    fillB = (outB + 140) / 2;
+                } else {
+                    // fill is dark or midtone, we should be light. (average with white)
+                    fillR = (outR + 255) / 2;
+                    fillG = (outG + 255) / 2;
+                    fillB = (outB + 255) / 2;
+                }
+                rFill = new Color (fillR, fillG, fillB);
+                rOutline = rOutline.darker();  // Always darken the outline
+                
+                // Remember for next time
+                robberGhostFill[hexType] = rFill;
+                robberGhostOutline[hexType] = rOutline;
+                
+            }  // cached ghost color?
+        }  // normal or ghost?
 
-        g.setColor(Color.lightGray);
+        g.setColor(rFill);
         g.fillPolygon(tmpX, tmpY, 13);
-        g.setColor(Color.black);
+        g.setColor(rOutline);
         g.drawPolygon(tmpX, tmpY, 14);
     }
 
@@ -876,9 +974,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             drawHex(g, i);
         }
 
-        if ((mode != PLACE_ROBBER) && (board.getRobberHex() != -1))
+        if (board.getRobberHex() != -1)
         {
-            drawRobber(g, board.getRobberHex());
+            drawRobber(g, board.getRobberHex(), (mode != PLACE_ROBBER));
         }
 
         int pn;
@@ -993,7 +1091,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             if (hilight > 0)
             {
-                drawRobber(g, hilight);
+                drawRobber(g, hilight, true);
             }
 
             break;
@@ -1139,6 +1237,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public void mouseMoved(MouseEvent e)
     {
+        try {
         int x = e.getX();
         int y = e.getY();
 
@@ -1354,6 +1453,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             break;
         }
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
+        }
     }
 
     /**
@@ -1363,6 +1465,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public void mousePressed(MouseEvent evt)
     {
+        try {
         int x = evt.getX();
         int y = evt.getY();
 
@@ -1479,6 +1582,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             mode = NONE;
             hilight = 0;
+        }
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
         }
     }
 
