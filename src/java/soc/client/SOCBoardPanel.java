@@ -1593,7 +1593,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *
      * @param x  x coordinate
      * @param y  y coordinate
-     * @return the coordinates of the edge
+     * @return the coordinates of the edge, or 0 if none
      */
     private final int findEdge(int x, int y)
     {
@@ -1602,7 +1602,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int sector = (x / 18) + ((y / 10) * 15);
 
         // System.out.println("SECTOR = "+sector+" | EDGE = "+edgeMap[sector]);
-        return edgeMap[sector];
+        if ((sector >= 0) && (sector < edgeMap.length))
+            return edgeMap[sector];
+        else
+            return 0;
     }
 
     /**
@@ -1610,7 +1613,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *
      * @param x  x coordinate
      * @param y  y coordinate
-     * @return the coordinates of the node
+     * @return the coordinates of the node, or 0 if none
      */
     private final int findNode(int x, int y)
     {
@@ -1619,7 +1622,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int sector = ((x + 9) / 18) + (((y + 5) / 10) * 15);
 
         // System.out.println("SECTOR = "+sector+" | NODE = "+nodeMap[sector]);
-        return nodeMap[sector];
+        if ((sector >= 0) && (sector < nodeMap.length))
+            return nodeMap[sector];
+        else
+            return 0;
     }
 
     /**
@@ -1627,7 +1633,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *
      * @param x  x coordinate
      * @param y  y coordinate
-     * @return the coordinates of the hex
+     * @return the coordinates of the hex, or 0 if none
      */
     private final int findHex(int x, int y)
     {
@@ -1636,7 +1642,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int sector = (x / 18) + ((y / 10) * 15);
 
         // System.out.println("SECTOR = "+sector+" | HEX = "+hexMap[sector]);
-        return hexMap[sector];
+        if ((sector >= 0) && (sector < hexMap.length))
+            return hexMap[sector];
+        else
+            return 0;
     }
 
     /**
