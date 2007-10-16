@@ -23,7 +23,8 @@ package soc.client;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Panel;
-
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 
 /**
  * Display grid of give/get resources
@@ -34,7 +35,7 @@ import java.awt.Panel;
  * @see SOCHandPanel
  * @see TradeOfferPanel
  */
-public class SquaresPanel extends Panel
+public class SquaresPanel extends Panel implements MouseListener
 {
     // Each ColorSquare handles its own mouse events.
     private ColorSquare[] give;
@@ -89,6 +90,8 @@ public class SquaresPanel extends Panel
             add(give[i]);
             get[i].setSquaresPanel(this);
             give[i].setSquaresPanel(this);
+            get[i].addMouseListener(this);
+            give[i].addMouseListener(this);
         }
 
         int lineH = ColorSquare.HEIGHT - 1;
@@ -115,6 +118,73 @@ public class SquaresPanel extends Panel
             get[i].setSize(sqW + 1, lineH + 1);
             get[i].setLocation(i * sqW, lineH);
             //get[i].draw();
+        }
+    }
+
+    /**
+     * DOCUMENT ME!
+     *
+     * @param e DOCUMENT ME!
+     */
+    public void mouseEntered(MouseEvent e)
+    {
+        ;
+    }
+
+    /**
+     * DOCUMENT ME!
+     *
+     * @param e DOCUMENT ME!
+     */
+    public void mouseExited(MouseEvent e)
+    {
+        ;
+    }
+
+    /**
+     * DOCUMENT ME!
+     *
+     * @param e DOCUMENT ME!
+     */
+    public void mouseClicked(MouseEvent e)
+    {
+        ;
+    }
+
+    /**
+     * DOCUMENT ME!
+     *
+     * @param e DOCUMENT ME!
+     */
+    public void mouseReleased(MouseEvent e)
+    {
+        ;
+    }
+
+    /**
+     * DOCUMENT ME!
+     *
+     * @param e DOCUMENT ME!
+     */
+    public void mousePressed(MouseEvent e)
+    {
+        Object target = e.getSource();
+
+    if ( ! interactive )
+        return;
+
+        for (int i = 0; i < 5; i++)
+        {
+            if ( (target == get[i]) && (give[i].getIntValue() > 0) )
+            {
+                give[i].subtractValue(1);
+                get[i].subtractValue(1);
+            }
+            else if ( (target == give[i]) && (get[i].getIntValue() > 0) )
+            {
+                get[i].subtractValue(1);
+                give[i].subtractValue(1);
+            }
         }
     }
 
