@@ -970,7 +970,10 @@ public class SOCHandPanel extends Panel implements ActionListener
             updateRollButton();
         }
         else
+        {
             pname.setForeground(COLOR_FOREGROUND);
+        }
+        
         updateTakeOverButton();
         if (playerIsClient)
         {

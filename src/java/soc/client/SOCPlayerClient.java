@@ -20,7 +20,7 @@
  **/
 package soc.client;
 
-import soc.disableDebug.D;
+import soc.debug.D;  // JM
 
 import soc.game.SOCBoard;
 import soc.game.SOCCity;
