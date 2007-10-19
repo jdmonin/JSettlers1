@@ -236,10 +236,12 @@ public class SOCHandPanel extends Panel implements ActionListener
         
         larmyLab = new Label("", Label.CENTER);
         larmyLab.setForeground(new Color(142, 45, 10));
+        larmyLab.setFont(new Font("SansSerif", Font.BOLD, 12));
         add(larmyLab);
         
         lroadLab = new Label("", Label.CENTER);
         lroadLab.setForeground(new Color(142, 45, 10));
+        lroadLab.setFont(new Font("SansSerif", Font.BOLD, 12));
         add(lroadLab);
         
         clayLab = new Label("Clay:");
@@ -287,7 +289,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         cityLab = new Label("Cities:");
         add(cityLab);
 
-        knightsLab = new Label("Knights: ");
+        knightsLab = new Label("Soldiers: ");
         add(knightsLab);
         knightsSq = new ColorSquare(ColorSquare.GREY, 0);
         add(knightsSq);
@@ -605,7 +607,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             
             if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
             {
-                if (item.equals("Knight"))
+                if (item.equals("Soldier"))
                 {
                     if (game.canPlayKnight(player.getPlayerNumber()))
                     {
@@ -619,7 +621,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                         client.playDevCard(game, SOCDevCardConstants.ROADS);
                     }
                 }
-                else if (item.equals("Discovery"))
+                else if (item.equals("Year of Plenty"))
                 {
                     if (game.canPlayDiscovery(player.getPlayerNumber()))
                     {
@@ -1078,14 +1080,14 @@ public class SOCHandPanel extends Panel implements ActionListener
                             SOCDevCardConstants.TEMP,
                             SOCDevCardConstants.TOW,
                             SOCDevCardConstants.UNIV };
-        String[] cardNames = {"Discovery",
-                              "Knight",
+        String[] cardNames = {"Year of Plenty",
+                              "Soldier",
                               "Monopoly",
                               "Road Building",
-                              "Capitol (1VP)",
-                              "Library (1VP)",
+                              "Gov. House (1VP)",
+                              "Market (1VP)",
                               "Temple (1VP)",
-                              "Tower (1VP)",
+                              "Chapel (1VP)",
                               "University (1VP)"};
         boolean hasCards = false;
 
@@ -1437,8 +1439,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         {
             FontMetrics fm = this.getFontMetrics(this.getFont());
             int lineH = ColorSquare.HEIGHT;
-            int stlmtsW = fm.stringWidth("Stlmts: ");
-            int knightsW = fm.stringWidth("Knights: ");
+            int stlmtsW = fm.stringWidth("Stlmts:_");     //Bug in stringWidth does not give correct size for ' '
+            int knightsW = fm.stringWidth("Soldiers:_");  //Bug in stringWidth
             int faceW = 40;
             int pnameW = dim.width - (inset + faceW + inset + inset);
 
@@ -1452,11 +1454,11 @@ public class SOCHandPanel extends Panel implements ActionListener
                 //sqPanel.doLayout();
 
                 Dimension sqpDim = sqPanel.getSize();
-                int sheepW = fm.stringWidth("Sheep: ");
-                int pcW = fm.stringWidth(CARD);
-                int giveW = fm.stringWidth(GIVE);
-                int clearW = fm.stringWidth(CLEAR);
-                int bankW = fm.stringWidth(BANK);
+                int sheepW = fm.stringWidth("Sheep:_");           //Bug in stringWidth does not give correct size for ' '
+                int pcW = fm.stringWidth(CARD.replace(' ','_'));  //Bug in stringWidth
+                int giveW = fm.stringWidth(GIVE.replace(' ','_'));
+                int clearW = fm.stringWidth(CLEAR.replace(' ','_'));
+                int bankW = fm.stringWidth(BANK.replace(' ','_'));
                 int cardsH = 5 * (lineH + space);
                 int tradeH = sqpDim.height + space + (2 * (lineH + space));
                 int sectionSpace = (dim.height - (inset + faceW + cardsH + tradeH + lineH + inset)) / 3;
@@ -1466,7 +1468,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 // Always reposition everything
                 startBut.setBounds(inset + faceW + inset, inset + lineH + space, dim.width - (inset + faceW + inset + inset), lineH);
 
-                    int vpW = fm.stringWidth(vpLab.getText());
+                    int vpW = fm.stringWidth(vpLab.getText().replace(' ','_'));  //Bug in stringWidth
                     vpLab.setBounds(inset + faceW + inset, (inset + faceW) - lineH, vpW, lineH);
                     vpSq.setBounds(inset + faceW + inset + vpW + space, (inset + faceW) - lineH, ColorSquare.WIDTH, ColorSquare.WIDTH);
 
@@ -1528,8 +1530,8 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 /* This is another player's hand */
                 int balloonH = dim.height - (inset + (4 * (lineH + space)) + inset);
-                int dcardsW = fm.stringWidth("Dev. Cards: ");
-                int vpW = fm.stringWidth(vpLab.getText());
+                int dcardsW = fm.stringWidth("Dev._Cards:_");                //Bug in stringWidth does not give correct size for ' '
+                int vpW = fm.stringWidth(vpLab.getText().replace(' ','_'));  //Bug in stringWidth
 
                 if (player.isRobot())
                 {

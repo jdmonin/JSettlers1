@@ -154,10 +154,10 @@ public class SOCPlayerInterface extends Frame implements ActionListener
          */
         playerColors = new Color[4];
         // FIXME assumes game.MAXPLAYERS==4
-        playerColors[0] = new Color(153, 204, 255); // blue
-        playerColors[1] = new Color(255, 153, 255); // pink
-        playerColors[2] = new Color(153, 255, 153); // green
-        playerColors[3] = new Color(255, 255, 102); // yellow
+        playerColors[0] = new Color( 10,  63, 172); // blue
+        playerColors[1] = new Color(231,  35,  35); // red
+        playerColors[2] = new Color(244, 238, 206); // green
+        playerColors[3] = new Color(249, 128,  29); // orange
 
         /**
          * initialize the font and the forground, and background colors
@@ -180,7 +180,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
          * more initialization stuff
          */
         setLocation(50, 50);
-        setSize(660, 600);
+        setSize(840, 730);
         validate();
     }
 

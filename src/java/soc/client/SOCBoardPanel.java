@@ -55,23 +55,35 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * size of the whole panel
      */
-    public static final int panelx = 253;
-    public static final int panely = 222;
+    public static final int panelx = 379;
+    public static final int panely = 340;
     
+    private static final int deltaY = 46;     //How many pixels to drop for each row of hexes
+    private static final int deltaX = 54;     //How many pixels to move over for a new hex
+    private static final int halfdeltaX = 27; //Each row only moves a half hex over horizontally
+
     /**
      * hex coordinates for drawing
      */
     private static final int[] hexX = 
     {
-        54, 90, 126, 162, 36, 72, 108, 144, 180, 18, 54, 90, 126, 162, 198, 0,
-        36, 72, 108, 144, 180, 216, 18, 54, 90, 126, 162, 198, 36, 72, 108, 144,
-        180, 54, 90, 126, 162
+        deltaX + halfdeltaX, 2 * deltaX + halfdeltaX, 3 * deltaX + halfdeltaX, 4 * deltaX + halfdeltaX,  // row 1 4 hexes
+        deltaX, 2 * deltaX, 3 * deltaX, 4 * deltaX, 5 * deltaX,                                          // row 2 5 hexes
+        halfdeltaX, deltaX + halfdeltaX, 2 * deltaX + halfdeltaX, 3 * deltaX + halfdeltaX, 4 * deltaX + halfdeltaX, 5 * deltaX + halfdeltaX,  // row 3 6 hexes
+        0, deltaX, 2 * deltaX, 3 * deltaX, 4 * deltaX, 5 * deltaX, 6 * deltaX,                           // row 4 7 hexes
+        halfdeltaX, deltaX + halfdeltaX, 2 * deltaX + halfdeltaX, 3 * deltaX + halfdeltaX, 4 * deltaX + halfdeltaX, 5 * deltaX + halfdeltaX,  // row 5 6 hexes
+        deltaX, 2 * deltaX, 3 * deltaX, 4 * deltaX, 5 * deltaX,                                          // row 6 5 hexes
+        deltaX + halfdeltaX, 2 * deltaX + halfdeltaX, 3 * deltaX + halfdeltaX, 4 * deltaX + halfdeltaX   // row 7 4 hexes
     };
     private static final int[] hexY = 
     {
-        0, 0, 0, 0, 30, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 90, 90, 90, 90,
-        90, 90, 90, 120, 120, 120, 120, 120, 120, 150, 150, 150, 150, 150, 180,
-        180, 180, 180
+        0, 0, 0, 0, 
+        deltaY, deltaY, deltaY, deltaY, deltaY, 
+        2 * deltaY, 2 * deltaY, 2 * deltaY, 2 * deltaY, 2 * deltaY, 2 * deltaY, 
+        3 * deltaY, 3 * deltaY, 3 * deltaY, 3 * deltaY, 3 * deltaY, 3 * deltaY, 3 * deltaY,
+        4 * deltaY, 4 * deltaY, 4 * deltaY, 4 * deltaY, 4 * deltaY, 4 * deltaY, 
+        5 * deltaY, 5 * deltaY, 5 * deltaY, 5 * deltaY, 5 * deltaY,
+        6 * deltaY, 6 * deltaY, 6 * deltaY, 6 * deltaY
     };
 
     /**
@@ -79,28 +91,28 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     /***  road looks like "|"  ***/
     private static final int[] vertRoadX = { -2, 3, 3, -2, -2 };
-    private static final int[] vertRoadY = { 11, 11, 31, 31, 11 };
+    private static final int[] vertRoadY = { 17, 17, 47, 47, 17 };
 
     /***  road looks like "/"  ***/
-    private static final int[] upRoadX = { -1, 17, 20, 2, -1 };
-    private static final int[] upRoadY = { 9, -2, 2, 13, 9 };
+    private static final int[] upRoadX = { -1, 26, 29, 2, -1 };
+    private static final int[] upRoadY = { 15, -2, 2, 19, 15 };
 
     /***  road looks like "\"  ***/
-    private static final int[] downRoadX = { -1, 2, 20, 17, -1 };
-    private static final int[] downRoadY = { 33, 29, 40, 44, 33 };
+    private static final int[] downRoadX = { -1, 2, 29, 26, -1 };
+    private static final int[] downRoadY = { 49, 45, 62, 66, 49 };
 
     /***  settlement  ***/
-    private static final int[] settlementX = { -6, 0, 6, 6, -6, -6, 6 };
-    private static final int[] settlementY = { -6, -12, -6, 4, 4, -6, -6 };
+    private static final int[] settlementX = { -7, 0, 7, 7, -7, -7, 7 };
+    private static final int[] settlementY = { -7, -15, -7, 5, 5, -7, -7 };
 
     /***  city  ***/
     private static final int[] cityX = 
     {
-        -8, -4, 0, 4, 8, 8, -8, -8, 0, 0, 8, 4, -8
+        -10, -4, 2, 2, 10, 10, -10, -10, 0, 0, 10, 5, -10
     };
     private static final int[] cityY = 
     {
-        -6, -12, -6, -6, -2, 4, 4, -6, -6, -2, -2, -6, -6
+        -8, -14, -8, -4, -4, 6, 6, -8, -8, -4, -4, -8, -8
     };
 
     /***  robber  ***/
@@ -129,8 +141,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * hex size
      */
-    private int HEXWIDTH = 37;
-    private int HEXHEIGHT = 42;
+    private int HEXWIDTH = 55;
+    private int HEXHEIGHT = 64;
 
     /**
      * translate hex ID to number to get coords
@@ -673,7 +685,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         if (numberLayout[hexNum] >= 0)
         {
-            g.drawImage(numbers[numberLayout[hexNum]], hexX[hexNum] + 9, hexY[hexNum] + 12, this);
+            g.drawImage(numbers[numberLayout[hexNum]], hexX[hexNum] + 17, hexY[hexNum] + 22, this);
         }
     }
 
@@ -693,8 +705,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         for (int i = 0; i < 14; i++)
         {
-            tmpX[i] = robberX[i] + hexX[hexNum] + 18;
-            tmpY[i] = robberY[i] + hexY[hexNum] + 12;
+            tmpX[i] = robberX[i] + hexX[hexNum] + 19;
+            tmpY[i] = robberY[i] + hexY[hexNum] + 23;
         }
         
         Color rFill, rOutline;
@@ -843,7 +855,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             for (i = 0; i < 7; i++)
             {
                 tmpX[i] = settlementX[i] + hexX[hexNum];
-                tmpY[i] = settlementY[i] + hexY[hexNum] + 11;
+                tmpY[i] = settlementY[i] + hexY[hexNum] + 17;
             }
         }
         else
@@ -852,7 +864,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             for (i = 0; i < 7; i++)
             {
-                tmpX[i] = settlementX[i] + hexX[hexNum] + 18;
+                tmpX[i] = settlementX[i] + hexX[hexNum] + 27;
                 tmpY[i] = settlementY[i] + hexY[hexNum] + 2;
             }
         }
@@ -881,7 +893,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             for (i = 0; i < 13; i++)
             {
                 tmpX[i] = cityX[i] + hexX[hexNum];
-                tmpY[i] = cityY[i] + hexY[hexNum] + 11;
+                tmpY[i] = cityY[i] + hexY[hexNum] + 17;
             }
         }
         else
@@ -890,7 +902,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             for (i = 0; i < 13; i++)
             {
-                tmpX[i] = cityX[i] + hexX[hexNum] + 18;
+                tmpX[i] = cityX[i] + hexX[hexNum] + 27;
                 tmpY[i] = cityY[i] + hexY[hexNum] + 2;
             }
         }
@@ -899,7 +911,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         g.fillPolygon(tmpX, tmpY, 8);
         g.setColor(Color.black);
-        g.drawPolygon(tmpX, tmpY, 13);
+        g.drawPolygon(tmpX, tmpY, 8);
     }
 
     /**
@@ -924,11 +936,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         case 1:
 
             // top right
-            g.drawImage(arrowR, 213, 5, this);
+            g.drawImage(arrowR, 339, 5, this);
 
             if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
             {
-                g.drawImage(dice[diceResult], 213, 10, this);
+                g.drawImage(dice[diceResult], 339, 10, this);
             }
 
             break;
@@ -936,11 +948,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         case 2:
 
             // bottom right
-            g.drawImage(arrowR, 213, 180, this);
+            g.drawImage(arrowR, 339, 298, this);
 
             if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
             {
-                g.drawImage(dice[diceResult], 213, 185, this);
+                g.drawImage(dice[diceResult], 339, 303, this);
             }
 
             break;
@@ -948,11 +960,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         case 3:
 
             // bottom left
-            g.drawImage(arrowL, 3, 180, this);
+            g.drawImage(arrowL, 3, 298, this);
 
             if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
             {
-                g.drawImage(dice[diceResult], 13, 185, this);
+                g.drawImage(dice[diceResult], 13, 303, this);
             }
 
             break;
@@ -1598,8 +1610,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private final int findEdge(int x, int y)
     {
         // find which grid section the pointer is in 
-        // ( 31 is the y-distance between the centers of two hexes )
-        int sector = (x / 18) + ((y / 10) * 15);
+        // ( 46 is the y-distance between the centers of two hexes )
+        //int sector = (x / 18) + ((y / 10) * 15);
+        int sector = (x / 27) + ((y / 15) * 15);
 
         // System.out.println("SECTOR = "+sector+" | EDGE = "+edgeMap[sector]);
         if ((sector >= 0) && (sector < edgeMap.length))
@@ -1618,8 +1631,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private final int findNode(int x, int y)
     {
         // find which grid section the pointer is in 
-        // ( 31 is the y-distance between the centers of two hexes )
-        int sector = ((x + 9) / 18) + (((y + 5) / 10) * 15);
+        // ( 46 is the y-distance between the centers of two hexes )
+        //int sector = ((x + 9) / 18) + (((y + 5) / 10) * 15);
+        int sector = ((x + 13) / 27) + (((y + 7) / 15) * 15);
 
         // System.out.println("SECTOR = "+sector+" | NODE = "+nodeMap[sector]);
         if ((sector >= 0) && (sector < nodeMap.length))
@@ -1638,8 +1652,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private final int findHex(int x, int y)
     {
         // find which grid section the pointer is in 
-        // ( 31 is the y-distance between the centers of two hexes )
-        int sector = (x / 18) + ((y / 10) * 15);
+        // ( 46 is the y-distance between the centers of two hexes )
+        //int sector = (x / 18) + ((y / 10) * 15);
+        int sector = (x / 27) + ((y / 15) * 15);
 
         // System.out.println("SECTOR = "+sector+" | HEX = "+hexMap[sector]);
         if ((sector >= 0) && (sector < hexMap.length))

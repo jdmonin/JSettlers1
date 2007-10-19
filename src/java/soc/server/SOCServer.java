@@ -4796,12 +4796,12 @@ public class SOCServer extends Server
                         switch (devCardType)
                         {
                         case SOCDevCardConstants.CAP:
-                            msg += " a Capitol (+1VP)";
+                            msg += " a Gov.House (+1VP)";
 
                             break;
 
                         case SOCDevCardConstants.LIB:
-                            msg += " a Library (+1VP)";
+                            msg += " a Market (+1VP)";
 
                             break;
 
@@ -4816,7 +4816,7 @@ public class SOCServer extends Server
                             break;
 
                         case SOCDevCardConstants.TOW:
-                            msg += " a Tower (+1VP)";
+                            msg += " a Chapel (+1VP)";
 
                             break;
                         }
