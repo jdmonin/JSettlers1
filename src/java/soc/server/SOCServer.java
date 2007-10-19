@@ -20,7 +20,7 @@
  **/
 package soc.server;
 
-import soc.disableDebug.D;
+import soc.debug.D;  // JM
 
 import soc.game.SOCBoard;
 import soc.game.SOCCity;
@@ -1254,7 +1254,7 @@ public class SOCServer extends Server
         {
             SOCMessage mes = (SOCMessage) SOCMessage.toMsg(s);
 
-            //D.ebugPrintln(c.data+" - "+mes);
+            D.ebugPrintln(c.data+" - "+mes);  // JM: uncommented
             if (mes != null)
             {
                 SOCGame ga;

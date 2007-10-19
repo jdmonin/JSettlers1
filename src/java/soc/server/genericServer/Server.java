@@ -20,7 +20,7 @@
  **/
 package soc.server.genericServer;
 
-import soc.disableDebug.D;
+import soc.debug.D; // JM
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -93,7 +93,6 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     public void run()
     {
         Treater treater = new Treater(this);
-        treater.start();
 
         if (error != null)
         {
@@ -101,6 +100,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
 
         up = true;
+        
+        treater.start();  // Set "up" before starting treater (race condition)
 
         while (isUp())
         {
@@ -141,6 +142,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /** treat a request from the given connection */
     public void treat(String s, Connection c)
     {
+        D.ebugPrintln("IN got: " + s);  // JM
         synchronized (inQueue)
         {
             inQueue.addElement(new Command(s, c));
@@ -289,7 +291,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 }
             }
 
-            //D.ebugPrintln("treater returning; server not up");
+            D.ebugPrintln("treater returning; server not up"); // JM uncommented
         }
     }
 }
