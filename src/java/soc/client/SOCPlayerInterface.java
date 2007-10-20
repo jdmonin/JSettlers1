@@ -20,7 +20,7 @@
  **/
 package soc.client;
 
-import soc.debug.D;
+import soc.debug.D;  // JM
 
 import soc.game.SOCGame;
 import soc.game.SOCPlayer;
@@ -529,13 +529,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * remove the start buttons
+     * Game play is starting. Remove the start buttons and sit-down/robot-lock buttons
      */
     public void startGame()
     {
         for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
             hands[i].removeStartBut();
+            hands[i].removeSitBut();
         }
     }
 

@@ -80,7 +80,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * minimum number of players in a game (was assumed ==MAXPLAYERS in standard 1.0.6).
-     * In an under-maxplayers game, use isSeatVacant(i) to determine if a player is present;
+     * Use isSeatVacant(i) to determine if a player is present;
      * players[i] may be non-null although no player is there.
      */
     public static final int MINPLAYERS = 2;

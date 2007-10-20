@@ -2736,7 +2736,9 @@ public class SOCServer extends Server
                         Vector robotRequests = new Vector();
 
                         boolean seatsFull = true;
+                        boolean anyLocked = false;
                         int numEmpty = 0;
+                        int numPlayers = 0;
 
                         //
                         // count the number of empty seats
@@ -2745,24 +2747,42 @@ public class SOCServer extends Server
                         {
                             if (ga.isSeatVacant(i))
                             {
-                                seatsFull = false;
-                                ++numEmpty;
+                                if (ga.isSeatLocked(i))
+                                {
+                                    anyLocked = true;
+                                }
+                                else
+                                {
+                                    seatsFull = false;
+                                    ++numEmpty;
+                                }
+                            }
+                            else
+                            {
+                                ++numPlayers;
                             }
                         }
-
-                        if (!seatsFull)
+                        
+                        if (seatsFull && (numPlayers < 2))
+                        {
+                            seatsFull = false;
+                            numEmpty = 3;
+                            String m = "Sorry, the only player cannot lock all seats.";
+                            messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, m));
+                        }
+                        else if (!seatsFull)
                         {
                             if (robots.isEmpty()) 
                             {                                
-                                // TODO FIXME: Should be able (user-interface) to run smaller human-only game without 0 robots on server
-                                if (SOCGame.MINPLAYERS > (SOCGame.MAXPLAYERS - numEmpty))
+                                if (numPlayers < SOCGame.MINPLAYERS)
                                 {
-                                    messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, "No robots on this server, please fill all seats before starting. ("
-                                            + SOCGame.MINPLAYERS + " vs " + (SOCGame.MAXPLAYERS - numEmpty) + ")" ));
-                                } else {
-                                    // We have MINPLAYERS.
-                                    // pretend full: go ahead and play with humans only
-                                    seatsFull = true;  
+                                    messageToGame(gn, new SOCGameTextMsg
+                                        (gn, SERVERNAME, "No robots on this server, please fill at least "
+                                         + SOCGame.MINPLAYERS + " seats before starting." ));
+                                }
+                                else
+                                {
+                                    seatsFull = true;  // Enough players to start game.
                                 }
                             }
                             else
@@ -2772,7 +2792,11 @@ public class SOCServer extends Server
                                 //
                                 if (numEmpty > robots.size())
                                 {
-                                    String m = "Sorry, not enough robots to fill all the seats.  Only " + robots.size() + " robots are available.";
+                                    String m;
+                                    if (anyLocked)
+                                        m = "Sorry, not enough robots to fill all the seats.  Only " + robots.size() + " robots are available.";
+                                    else
+                                        m = "Sorry, not enough robots to fill all the seats.  Lock some seats.  Only " + robots.size() + " robots are available.";
                                     messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, m));
                                 }
                                 else
@@ -2780,7 +2804,7 @@ public class SOCServer extends Server
                                     ga.setGameState(SOCGame.READY);
 
                                     /**
-                                     * Fill all the empty seats with robots
+                                     * Fill all the unlocked empty seats with robots
                                      */
 
                                     ///
@@ -2818,7 +2842,7 @@ public class SOCServer extends Server
                                     for (int i = 0; i < SOCGame.MAXPLAYERS;
                                             i++)
                                     {
-                                        if (ga.isSeatVacant(i))
+                                        if (ga.isSeatVacant(i) && ! ga.isSeatLocked(i))
                                         {
                                             /**
                                              * fetch a robot player
