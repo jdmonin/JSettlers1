@@ -30,6 +30,10 @@ import java.util.Vector;
 
 /**
  * This is a representation of the board in Settlers of Catan.
+ * 
+ * Other methods to examine the board:
+ * @see SOCGame.getPlayersOnHex(int)
+ * @see SOCGame.putPiece(SOCPlayingPiece)
  *
  * @author Robert S Thomas
  */
@@ -480,7 +484,7 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * @return where the robber is
+     * @return coordinate where the robber is
      */
     public int getRobberHex()
     {
@@ -568,7 +572,7 @@ public class SOCBoard implements Serializable, Cloneable
     /**
      * set where the robber is
      *
-     * @param rh  the robber hex
+     * @param rh  the robber hex coordinate
      */
     public void setRobberHex(int rh)
     {
@@ -1115,6 +1119,53 @@ public class SOCBoard implements Serializable, Cloneable
         }
 
         return nodes;
+    }
+    
+    /**
+     * If there's a settlement or city at this node, find it.
+     * 
+     * @param nodeCoord Location coordinate (as returned by SOCBoardPanel.findNode)
+     * @return Settlement or city or null
+     */
+    public SOCPlayingPiece settlementAtNode(int nodeCoord)
+    {
+        Enumeration pEnum = pieces.elements();
+
+        while (pEnum.hasMoreElements())
+        {
+            SOCPlayingPiece p = (SOCPlayingPiece) pEnum.nextElement();
+            int typ = p.getType(); 
+
+            if ((nodeCoord == p.getCoordinates()) &&
+                ( (typ == SOCPlayingPiece.SETTLEMENT) || (typ == SOCPlayingPiece.CITY) ))
+            {
+                return p;  // <-- Early return: Found it ---
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * If there's a road placed at this node, find it.
+     * 
+     * @param nodeCoord Location coordinate (as returned by SOCBoardPanel.findEdge) 
+     * @return road or null
+     */
+    public SOCPlayingPiece roadAtEdge(int edgeCoord)
+    {
+        Enumeration pEnum = roads.elements();
+
+        while (pEnum.hasMoreElements())
+        {
+            SOCPlayingPiece p = (SOCPlayingPiece) pEnum.nextElement();
+            if (edgeCoord == p.getCoordinates())
+            {
+                return p;  // <-- Early return: Found it ---
+            }
+        }
+        
+        return null;
     }
 
     /**

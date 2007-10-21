@@ -76,6 +76,11 @@ public class SquaresPanel extends Panel implements MouseListener
         give[2] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
         give[3] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
         give[4] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.WOOD);
+        new AWTToolTip ("Clay", give[0]);
+        new AWTToolTip ("Ore", give[1]);
+        new AWTToolTip ("Sheep", give[2]);
+        new AWTToolTip ("Wheat", give[3]);
+        new AWTToolTip ("Wood", give[4]);
 
         get = new ColorSquare[5];
         get[0] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.CLAY);

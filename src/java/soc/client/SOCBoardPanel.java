@@ -24,6 +24,7 @@ import soc.game.SOCBoard;
 import soc.game.SOCCity;
 import soc.game.SOCGame;
 import soc.game.SOCPlayer;
+import soc.game.SOCPlayingPiece;
 import soc.game.SOCRoad;
 import soc.game.SOCSettlement;
 
@@ -31,6 +32,7 @@ import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.MediaTracker;
@@ -137,6 +139,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     public final static int CONSIDER_LT_SETTLEMENT = 10;
     public final static int CONSIDER_LT_ROAD = 11;
     public final static int CONSIDER_LT_CITY = 12;
+    public final static int GAME_FORMING = 99;
+    
+    /** During robber placement, the tooltip is moved this far over to make room. */
+    public final static int HOVER_OFFSET_X_FOR_ROBBER = 15;
 
     /**
      * hex size
@@ -172,6 +178,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private int ptrOldX;
     private int ptrOldY;
+    
+    /**
+     * (tooltip) Hover text.  Its mode uses boardpanel mode
+     * constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT, or PLACE_ROBBER for hex.
+     */
+    private BoardToolTip hoverTip;
 
     /**
      * Edge or node being pointed to.
@@ -220,7 +232,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private Image buffer;
 
     /**
-     * modes of interaction
+     * modes of interaction; for correlation to game state, see {@see #updateMode()}.
      */
     private int mode;
 
@@ -336,6 +348,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         // Cached colors to be determined later
         robberGhostFill = new Color [1 + SOCBoard.MAX_ROBBER_HEX];
         robberGhostOutline = new Color [1 + SOCBoard.MAX_ROBBER_HEX];
+        
+        // Set up hover tooltip info
+        hoverTip = new BoardToolTip(this);
 
         // load the static images
         loadImages(this);
@@ -647,8 +662,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             buffer = this.createImage(panelx, panely);
         }
         drawBoard(buffer.getGraphics());
+        if (hoverTip.isVisible())
+            hoverTip.paint(buffer.getGraphics());
         buffer.flush();
         g.drawImage(buffer, 0, 0, this);
+
         } catch (Throwable th) {
             playerInterface.chatPrintStackTrace(th);
         }
@@ -753,28 +771,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     // Should not happen
                     rOutline = Color.lightGray;
                 }
-                
-                // rFill will be lighter or darker than hex color
-                int fillR, fillG, fillB;
-                int outR, outG, outB;
-                outR = rOutline.getRed();
-                outG = rOutline.getGreen();
-                outB = rOutline.getBlue();
-                if ((outR + outG + outB) > (160 * 3))
-                {
-                    // fill is light, we should be dark. (average with gray)
-                    fillR = (outR + 140) / 2;
-                    fillG = (outG + 140) / 2;
-                    fillB = (outB + 140) / 2;
-                } else {
-                    // fill is dark or midtone, we should be light. (average with white)
-                    fillR = (outR + 255) / 2;
-                    fillG = (outG + 255) / 2;
-                    fillB = (outB + 255) / 2;
-                }
-                rFill = new Color (fillR, fillG, fillB);
+
+                // If hex is light, robber fill color should be dark. (average with gray)
+                // If hex is dark or midtone, it should be light. (average with white)
+                rFill = SOCPlayerInterface.makeGhostColor(rOutline);
                 rOutline = rOutline.darker();  // Always darken the outline
-                
+
                 // Remember for next time
                 robberGhostFill[hexType] = rFill;
                 robberGhostOutline[hexType] = rOutline;
@@ -1152,7 +1154,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
                 case SOCGame.PLACING_ROBBER:
                     mode = PLACE_ROBBER;
-
+                    
+                    break;
+                    
+                case SOCGame.NEW:
+                case SOCGame.READY:
+                    mode = GAME_FORMING;
+                    
                     break;
 
                 default:
@@ -1170,6 +1178,18 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         {
             mode = NONE;
         }
+                
+        updateHoverTipToMode();
+    }
+    
+    protected void updateHoverTipToMode()
+    {
+        if (mode == NONE)            
+            hoverTip.setOffsetX(0);
+        else if (mode == PLACE_ROBBER)
+            hoverTip.setOffsetX(HOVER_OFFSET_X_FOR_ROBBER);
+        else
+            hoverTip.setHoverText(null);
     }
 
     /**
@@ -1229,17 +1249,25 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * DOCUMENT ME!
+     * Mouse has left the panel; hide tooltip and any hovering piece.
      *
-     * @param e DOCUMENT ME!
+     * @param e MouseEvent
      */
     public void mouseExited(MouseEvent e)
     {
+        boolean wantsRepaint = false;
+        if (hoverTip.isVisible())
+        {
+            hoverTip.setHoverText(null);  // Hide it
+            wantsRepaint = true;
+        }
         if (mode != NONE)
         {
             hilight = 0;
-            repaint();
+            wantsRepaint = true;
         }
+        if (wantsRepaint)
+            repaint();
     }
 
     /**
@@ -1259,9 +1287,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         switch (mode)
         {
-        case NONE:
-            break;
-
         case PLACE_INIT_ROAD:
 
             /**** Code for finding an edge ********/
@@ -1384,7 +1409,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (hilight != hexNum)
                 {
                     hilight = hexNum;
+                    hoverTip.handleHover(x,y);
                     repaint();
+                }
+                else
+                {
+                    hoverTip.positionToMouse(x,y); // calls repaint
                 }
             }
 
@@ -1464,6 +1494,22 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             }
 
             break;
+
+        case NONE:
+            // see hover
+            if ((ptrOldX != x) || (ptrOldY != y))
+            {
+                ptrOldX = x;
+                ptrOldY = y;
+                hoverTip.handleHover(x,y);
+            }
+            
+            break;
+            
+        case GAME_FORMING:
+            // No hover for forming
+            break;
+        
         }
         } catch (Throwable th) {
             playerInterface.chatPrintStackTrace(th);
@@ -1599,7 +1645,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             playerInterface.chatPrintStackTrace(th);
         }
     }
-
+    
     /**
      * given a pixel on the board, find the edge that contains it
      *
@@ -1667,10 +1713,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * set the interaction mode
      *
      * @param m  mode
+     * 
+     * @see #updateMode()
      */
     public void setMode(int m)
     {
         mode = m;
+        updateHoverTipToMode();
     }
 
     /**
@@ -1783,4 +1832,229 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     {
         return panely;
     }
-}
+    
+    
+    protected class BoardToolTip
+    {
+        private SOCBoardPanel bpanel;
+        
+        /** Text to hover-display, or null if nothing to show */
+        private String hoverText;
+        /** Uses mode constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT, or PLACE_ROBBER for hex */
+        private int hoverMode;
+        /** "ID" coord as returned by findNode, findEdge, findHex */
+        private int hoverID;
+        /** Object last pointed at; null for hexes */
+        private SOCPlayingPiece hoverPiece;
+        /** Mouse position */
+        private int mouseX, mouseY;
+        /** Our position (upper-left of tooltip box) */
+        private int boxX, boxY;
+        /** Requested X-offset from mouse pointer (used for robber placement) */
+        private int offsetX;
+        /** Our size */
+        private int boxW, boxH;
+        
+        private final int TEXT_INSET = 3;
+        private final int PADDING_HORIZ = 2 * TEXT_INSET + 2;
+        
+        BoardToolTip(SOCBoardPanel ourBoardPanel)
+        {
+            bpanel = ourBoardPanel;
+            hoverText = null;
+            hoverMode = NONE;
+            hoverID = 0;
+            hoverPiece = null;
+            mouseX = 0;
+            mouseY = 0;
+            offsetX = 0;
+        }
+        
+        /** Currently displayed text.
+         * 
+         * @return Tooltip text, or null if nothing.
+         */
+        public String getHoverText()
+        {
+            return hoverText;
+        }
+        
+        public boolean isVisible()
+        {
+            return (hoverText != null);
+        }
+        
+        public void positionToMouse(int x, int y)
+        {
+            mouseX = x;
+            mouseY = y;
+
+            boxX = mouseX + offsetX;
+            boxY = mouseY;
+            if (SOCBoardPanel.panelx < ( boxX + boxW ))
+            {
+                boxX = SOCBoardPanel.panelx - boxW;
+            }
+            
+            bpanel.repaint();
+            // JM TODO consider repaint(boundingbox).            
+        }
+        
+        public void setOffsetX(int ofsX)
+        {
+            offsetX = ofsX;
+        }
+        
+        public void setHoverText(String t)
+        {
+            hoverText = t;
+            if (t == null)
+            {
+                bpanel.repaint();
+                return;
+            }
+
+            FontMetrics fm = getFontMetrics(bpanel.getFont());           
+            boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
+            boxH = fm.getHeight();
+            positionToMouse(mouseX, mouseY);  // Also calls repaint
+        }
+        
+        /** Draw; Graphics should be the boardpanel's gc, as seen in its paint method. */
+        public void paint(Graphics g)
+        {
+            if (hoverText == null)
+                return;
+            
+            g.setColor(Color.WHITE);
+            g.fillRect(boxX, boxY, boxW - 1, boxH - 1);
+            g.setColor(Color.BLACK);
+            g.drawRect(boxX, boxY, boxW - 1, boxH - 1);
+            g.drawString(hoverText, boxX + TEXT_INSET, boxY + boxH - TEXT_INSET);
+        }
+
+        /**
+         * Mouse is hovering during normal play; look for info for tooltip.
+         * Assumes x or y has changed since last call.
+         * 
+         * @param x Cursor x
+         * @param y Cursor y
+         */
+        private void handleHover(int x, int y)
+        {
+            mouseX = x;
+            mouseY = y;
+            
+            // Previous: hoverMode, hoverID, hoverText
+            int id;
+
+            // Look first for settlements
+            //   - reminder: socboard.getAdjacentHexesToNode
+            id = findNode(x,y);
+            if (id > 0)
+            {
+                // Are we already looking at it?
+                if ((hoverMode == PLACE_SETTLEMENT) && (hoverID == id))
+                {
+                    positionToMouse(x,y);
+                    return;  // <--- Early ret: No work needed ---
+                }
+
+                // Is anything there?
+                SOCPlayingPiece p = board.settlementAtNode(id);
+                if (p != null)
+                {
+                    hoverMode = PLACE_SETTLEMENT;
+                    hoverPiece = p;
+                    hoverID = id;
+                    StringBuffer sb = new StringBuffer();
+                    if (p.getType() == SOCPlayingPiece.CITY)
+                        sb.append("City: ");
+                    else
+                        sb.append("Settlement: ");
+                    sb.append(p.getPlayer().getName());
+                    setHoverText(sb.toString());
+
+                    return;  // <--- Early return: Found settlement/city ---
+                }
+            }
+
+            // If not over a settlement, look for a road
+            id = findEdge(x,y);
+            if (id > 0)
+            {
+                // Are we already looking at it?
+                if ((hoverMode == PLACE_ROAD) && (hoverID == id))
+                {
+                    positionToMouse(x,y);
+                    return;  // <--- Early ret: No work needed ---
+                }
+
+                // Is anything there?
+                SOCPlayingPiece p = board.roadAtEdge(id);
+                if (p != null)
+                {
+                    hoverMode = PLACE_ROAD;
+                    hoverPiece = p;
+                    hoverID = id;
+                    setHoverText("road: " + p.getPlayer().getName());
+                    
+                    return;  // <--- Early return: Found road ---
+                }
+            }
+
+            // If no road, look for a hex
+            //  - reminder: socboard.getHexTypeFromCoord, getNumberOnHexFromCoord, socgame.getPlayersOnHex
+            id = findHex(x,y);
+            if (id > 0)
+            {
+                // Are we already looking at it?
+                if ((hoverMode == PLACE_ROBBER) && (hoverID == id))
+                {
+                    positionToMouse(x,y);
+                    return;  // <--- Early ret: No work needed ---
+                }
+                
+                hoverMode = PLACE_ROBBER;
+                hoverPiece = null;
+                hoverID = id;
+                {
+                    StringBuffer sb = new StringBuffer();
+                    switch (board.getHexTypeFromCoord(id))
+                    {
+                    case SOCBoard.DESERT_HEX:
+                        sb.append("Desert");  break;
+                    case SOCBoard.CLAY_HEX:
+                        sb.append("Clay");    break;
+                    case SOCBoard.ORE_HEX:
+                        sb.append("Ore");     break;
+                    case SOCBoard.SHEEP_HEX:
+                        sb.append("Sheep");   break;
+                    case SOCBoard.WHEAT_HEX:
+                        sb.append("Wheat");   break;
+                    case SOCBoard.WOOD_HEX:                     
+                        sb.append("Wood");    break;
+                    case SOCBoard.WATER_HEX:
+                        sb.append("Water");   break;
+                    default:
+                        sb.append("Hex type ");
+                        sb.append(board.getHexTypeFromCoord(id));
+                    }
+                    if (board.getRobberHex() == id)
+                    {
+                        sb.append(" (ROBBER)");
+                    }
+                    setHoverText(sb.toString());                     
+                }
+                
+                return;  // <--- Early return: Found hex ---
+            }
+            
+            // If no hex, nothing.
+            hoverMode = NONE;
+            setHoverText(null);
+        }
+        
+    }  // inner class BoardToolTip
+    
+}  // class SOCBoardPanel

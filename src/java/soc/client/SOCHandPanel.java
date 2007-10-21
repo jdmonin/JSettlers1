@@ -95,8 +95,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     
     /** Panel text color, and player name color when not current player */
     protected static final Color COLOR_FOREGROUND = Color.BLACK;
-    /** Player name color when current player */
-    protected static final Color COLOR_FORE_CURRENTPLAYER = Color.RED;
+    /** Player name background color when current player (foreground does not change) */
+    protected Color pnameActiveBG;
     
     protected Button sitBut;
     protected Button robotBut;
@@ -226,6 +226,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         pname = new Label();
         pname.setFont(new Font("Serif", Font.PLAIN, 14));
         add(pname);
+        pnameActiveBG = null;  // Will be calculated at first turn
 
         startBut = new Button(START);
         startBut.addActionListener(this);
@@ -992,12 +993,14 @@ public class SOCHandPanel extends Panel implements ActionListener
         playerIsCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
         if (playerIsCurrent)
         {
-            pname.setForeground(COLOR_FORE_CURRENTPLAYER);
+            if (pnameActiveBG == null)
+                pnameCalcColors();            
+            pname.setBackground(pnameActiveBG);
             updateRollButton();
         }
         else
         {
-            pname.setForeground(COLOR_FOREGROUND);
+            pname.setBackground(this.getBackground());
         }
         
         updateTakeOverButton();
@@ -1055,6 +1058,17 @@ public class SOCHandPanel extends Panel implements ActionListener
         
         clearBut.disable();  // No trade offer has been set yet
         sendBut.disable();
+    }
+    
+    /**
+     * During this player's first turn, calculate the player name label's
+     * background color for current player.
+     */
+    protected void pnameCalcColors()
+    {
+        if (pnameActiveBG != null)
+            return;
+        pnameActiveBG =  SOCPlayerInterface.makeGhostColor(this.getBackground());
     }
 
     /** If enable/disable buttons accordingly. */

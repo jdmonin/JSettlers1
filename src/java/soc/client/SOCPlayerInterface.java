@@ -154,7 +154,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
          */
         playerColors = new Color[4];
         // FIXME assumes game.MAXPLAYERS==4
-        playerColors[0] = new Color( 10,  63, 172); // blue
+        //playerColors[0] = new Color( 10,  63, 172); // blue
+        playerColors[0] = new Color(109, 124, 231); // grey-blue
         playerColors[1] = new Color(231,  35,  35); // red
         playerColors[2] = new Color(244, 238, 206); // green
         playerColors[3] = new Color(249, 128,  29); // orange
@@ -658,6 +659,35 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             chatDisplay.append("-- Exception ends: " + excepName + " --\n\n");
     }
 
+    /** 
+     * Calculate a color towards gray for the robber ghost.
+     * If srcColor is light, ghost color is darker. (average with gray)
+     * If it's dark or midtone, ghost should be lighter. (average with white)
+     * 
+     * @param srcColor The color to ghost from
+     * @return Ghost color based on srcColor
+     */
+    public static Color makeGhostColor (Color srcColor)
+    {
+        int outR, outG, outB;
+        outR = srcColor.getRed();
+        outG = srcColor.getGreen();
+        outB = srcColor.getBlue();
+        if ((outR + outG + outB) > (160 * 3))
+        {
+            // src is light, we should be dark. (average with gray)
+            outR = (outR + 140) / 2;
+            outG = (outG + 140) / 2;
+            outB = (outB + 140) / 2;
+        } else {
+            // src is dark or midtone, we should be light. (average with white)
+            outR = (outR + 255) / 2;
+            outG = (outG + 255) / 2;
+            outB = (outB + 255) / 2;
+        }
+        return new Color (outR, outG, outB);
+    }
+    
     /**
      * do the layout
      */
