@@ -2146,7 +2146,7 @@ public class SOCServer extends Server
                     {
                         SOCPlayer pl = gameData.getPlayer(i);
 
-                        if (pl.getName() != null)
+                        if ((pl.getName() != null) && ! gameData.isSeatVacant(i))
                         {
                             Enumeration piecesEnum = pl.getPieces().elements();
 
@@ -3067,7 +3067,8 @@ public class SOCServer extends Server
                              */
                             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
                             {
-                                if (ga.getPlayer(i).getResources().getTotal() > 7)
+                                if (( ! ga.isSeatVacant(i))
+                                    && (ga.getPlayer(i).getResources().getTotal() > 7))
                                 {
                                     Enumeration coEnum = getConnections();
 

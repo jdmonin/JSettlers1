@@ -280,7 +280,7 @@ public class TradeOfferPanel extends Panel
 
             for (; cnt < SOCGame.MAXPLAYERS; cnt++)
             {
-                if (offerList[cnt])
+                if (offerList[cnt] && ! ga.isSeatVacant(cnt))
                 {
                     names1 += ga.getPlayer(cnt).getName();
 
@@ -294,7 +294,7 @@ public class TradeOfferPanel extends Panel
 
             for (; cnt < SOCGame.MAXPLAYERS; cnt++)
             {
-                if (offerList[cnt])
+                if (offerList[cnt] && ! ga.isSeatVacant(cnt))
                 {
                     String name = ga.getPlayer(cnt).getName();
                     len += name.length();

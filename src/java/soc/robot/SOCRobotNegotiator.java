@@ -150,7 +150,8 @@ public class SOCRobotNegotiator
         {
             for (int pn = 0; pn < SOCGame.MAXPLAYERS; pn++)
             {
-                if (game.getPlayer(pn).getResources().getAmount(rsrcType) > 0)
+                if (( ! game.isSeatVacant(pn)) &&
+                    (game.getPlayer(pn).getResources().getAmount(rsrcType) > 0))
                 {
                     isSellingResource[pn][rsrcType] = true;
                 }
@@ -815,7 +816,9 @@ public class SOCRobotNegotiator
                 {
                     D.ebugPrintln("** isSellingResource[" + i + "][" + neededResource + "] = " + isSellingResource[i][neededResource]);
 
-                    if ((i != opn) && isSellingResource[i][neededResource] && (game.getPlayer(i).getResources().getTotal() >= getResourceSet.getTotal()))
+                    if ((i != opn) && isSellingResource[i][neededResource] &&
+                        (! game.isSeatVacant(i)) &&
+                        (game.getPlayer(i).getResources().getTotal() >= getResourceSet.getTotal()))
                     {
                         SOCPlayerTracker tracker = (SOCPlayerTracker) playerTrackers.get(new Integer(i));
 

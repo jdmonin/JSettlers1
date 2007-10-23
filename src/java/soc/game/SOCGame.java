@@ -1289,8 +1289,11 @@ public class SOCGame implements Serializable, Cloneable
              */
             for (int i = 0; i < MAXPLAYERS; i++)
             {
-                SOCResourceSet newResources = getResourcesGainedFromRoll(players[i], currentDice);
-                players[i].getResources().add(newResources);
+                if (! isSeatVacant(i))
+                {
+                    SOCResourceSet newResources = getResourcesGainedFromRoll(players[i], currentDice);
+                    players[i].getResources().add(newResources);
+                }
             }
 
             gameState = PLAY1;
@@ -2457,8 +2460,11 @@ public class SOCGame implements Serializable, Cloneable
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
-            sum += players[i].getResources().getAmount(pick);
-            players[i].getResources().setAmount(0, pick);
+            if (! isSeatVacant(i))
+            {
+                sum += players[i].getResources().getAmount(pick);
+                players[i].getResources().setAmount(0, pick);
+            }
         }
 
         players[currentPlayerNumber].getResources().setAmount(sum, pick);

@@ -566,7 +566,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                     {
                         for (int i = 0; i < (SOCGame.MAXPLAYERS - 1); i++)
                         {
-                            if (playerSend[i].getBoolValue())
+                            if (playerSend[i].getBoolValue() && ! game.isSeatVacant(playerSendMap[i]))
                             {
                                 to[playerSendMap[i]] = true;
                             }
@@ -895,9 +895,10 @@ public class SOCHandPanel extends Panel implements ActionListener
             bankBut.setVisible(true);
 
             for (int i = 0; i < (SOCGame.MAXPLAYERS - 1); i++)
-            {
+            {                
                 playerSend[i].setBoolValue(true);
-                playerSend[i].setVisible(true);
+                playerSend[i].setEnabled(true);
+                playerSend[i].setVisible(true);                
             }
             rollBut.setVisible(true);
             doneBut.setVisible(true);
@@ -1192,6 +1193,15 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
     
     /**
+     * Remove the lockout-robot button, only if currently "lockout".
+     */
+    public void removeSitLockoutBut()
+    {
+        if (sitButIsLock)
+            removeSitBut();
+    }
+    
+    /**
      * If game is still forming (state NEW), and player has
      * just chosen a seat, can lock empty seats for a game
      * with fewer players/robots. This uses the same server-interface as
@@ -1226,6 +1236,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
     /**
      * Internal mechanism to remove start button (if visible) and add VP label.
+     * Also refreshes status of "send-offer" checkboxes vs vacant seats.
      */
     public void removeStartBut()
     {
@@ -1233,6 +1244,13 @@ public class SOCHandPanel extends Panel implements ActionListener
         vpSq.setVisible(true);
 
         startBut.setVisible(false);
+        
+        for (int i = 0; i < (SOCGame.MAXPLAYERS - 1); i++)
+        {                
+            boolean seatTaken = ! game.isSeatVacant(playerSendMap[i]);
+            playerSend[i].setBoolValue(seatTaken);
+            playerSend[i].setEnabled(seatTaken);
+        }
     }
     
     /**
@@ -1295,7 +1313,9 @@ public class SOCHandPanel extends Panel implements ActionListener
             // reset the send squares
             for (int i = 0; i < 3; i++)
             {
-                playerSend[i].setBoolValue(true);
+                boolean makeInter = ! game.isSeatVacant(playerSendMap[i]);
+                playerSend[i].setBoolValue(makeInter);
+                playerSend[i].setEnabled(makeInter);
             }
             
             clearBut.disable();

@@ -530,14 +530,16 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * Game play is starting. Remove the start buttons and sit-down/robot-lock buttons
+     * Game play is starting. Remove the start buttons and robot-lockout buttons.
      */
     public void startGame()
     {
         for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
             hands[i].removeStartBut();
-            hands[i].removeSitBut();
+            // If client joined and then started a game, remove it (as robot lockout).
+            // If we're joining a game in progress, keep it (as "sit here").
+            hands[i].removeSitLockoutBut();
         }
     }
 
