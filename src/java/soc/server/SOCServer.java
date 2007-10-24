@@ -2146,7 +2146,8 @@ public class SOCServer extends Server
                     {
                         SOCPlayer pl = gameData.getPlayer(i);
 
-                        if ((pl.getName() != null) && ! gameData.isSeatVacant(i))
+                        // Send piece info even if player has left the game
+                        if (pl.getName() != null)
                         {
                             Enumeration piecesEnum = pl.getPieces().elements();
 
