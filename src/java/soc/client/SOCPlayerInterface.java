@@ -87,11 +87,17 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Set by SOCHandPanel's removePlayer() and addPlayer() methods.
      */
     protected SOCHandPanel clientHand;
+    
+    /**
+     * Player ID of clientHand, or -1.
+     * Set by SOCHandPanel's removePlayer() and addPlayer() methods.
+     */
+    private int clientHandPlayerNum;
 
     /**
      * the player colors
      */
-    protected Color[] playerColors;
+    protected Color[] playerColors, playerColorsGhost;
 
     /**
      * the client that spawned us
@@ -148,17 +154,23 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         client = cl;
         game = ga;
         clientHand = null;
+        clientHandPlayerNum = -1;
 
         /**
          * initialize the player colors
          */
         playerColors = new Color[4];
+        playerColorsGhost = new Color[4];
         // FIXME assumes game.MAXPLAYERS==4
         //playerColors[0] = new Color( 10,  63, 172); // blue
         playerColors[0] = new Color(109, 124, 231); // grey-blue
         playerColors[1] = new Color(231,  35,  35); // red
         playerColors[2] = new Color(244, 238, 206); // green
         playerColors[3] = new Color(249, 128,  29); // orange
+        for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
+        {
+            playerColorsGhost[i] = this.makeGhostColor(playerColors[i]);
+        }
 
         /**
          * initialize the font and the forground, and background colors
@@ -281,9 +293,21 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public Color getPlayerColor(int pn)
     {
-        return playerColors[pn];
+        return getPlayerColor(pn, false);
     }
 
+    /**
+     * @return the "ghosted" color of a player
+     * @param pn  the player number
+     */
+    public Color getPlayerColor(int pn, boolean isGhost)
+    {
+        if (isGhost)
+            return playerColorsGhost[pn];
+        else
+            return playerColors[pn];
+    }
+    
     /**
      * @return a player's hand panel
      *
@@ -331,6 +355,10 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     public void setClientHand(SOCHandPanel h)
     {
         clientHand = h;
+        if (h != null)
+            clientHandPlayerNum = h.getPlayer().getPlayerNumber();
+        else
+            clientHandPlayerNum = -1;
     }
     
     /** Is the client player active in this game, and the current player? */
@@ -340,6 +368,15 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             return false;
         else
             return clientHand.isClientAndCurrentPlayer();
+    }
+    
+    /** If client player is active in game, their player number.
+     * 
+     * @return client's player ID, or -1.
+     */
+    public int getClientPlayerNumber()
+    {
+        return clientHandPlayerNum;
     }
 
     /**
@@ -537,6 +574,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
             hands[i].removeStartBut();
+            // This button has two functions (and two labels).
             // If client joined and then started a game, remove it (as robot lockout).
             // If we're joining a game in progress, keep it (as "sit here").
             hands[i].removeSitLockoutBut();

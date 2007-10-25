@@ -297,7 +297,7 @@ public class TradeOfferPanel extends Panel
                 if (offerList[cnt] && ! ga.isSeatVacant(cnt))
                 {
                     String name = ga.getPlayer(cnt).getName();
-                    len += name.length();
+                    len += name.length();  // May be null if vacant
                     
                     if (len < 25)
                     {

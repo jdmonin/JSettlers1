@@ -290,51 +290,68 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         {
             if (game.getCurrentPlayerNumber() == ourPlayerData.getPlayerNumber())
             {
-                if (target == ROAD)
-                {
-                    if ((game.getGameState() == SOCGame.PLAY1) && (roadBut.getLabel().equals("Buy")))
-                    {
-                        client.buildRequest(game, SOCPlayingPiece.ROAD);
-                    }
-                    else if (roadBut.getLabel().equals("Cancel"))
-                    {
-                        client.cancelBuildRequest(game, SOCPlayingPiece.ROAD);
-                    }
-                }
-                else if (target == STLMT)
-                {
-                    if ((game.getGameState() == SOCGame.PLAY1) && (settlementBut.getLabel().equals("Buy")))
-                    {
-                        client.buildRequest(game, SOCPlayingPiece.SETTLEMENT);
-                    }
-                    else if (settlementBut.getLabel().equals("Cancel"))
-                    {
-                        client.cancelBuildRequest(game, SOCPlayingPiece.SETTLEMENT);
-                    }
-                }
-                else if (target == CITY)
-                {
-                    if ((game.getGameState() == SOCGame.PLAY1) && (cityBut.getLabel().equals("Buy")))
-                    {
-                        client.buildRequest(game, SOCPlayingPiece.CITY);
-                    }
-                    else if (cityBut.getLabel().equals("Cancel"))
-                    {
-                        client.cancelBuildRequest(game, SOCPlayingPiece.CITY);
-                    }
-                }
-                else if (target == CARD)
-                {
-                    if ((game.getGameState() == SOCGame.PLAY1) && (cardBut.getLabel().equals("Buy")))
-                    {
-                        client.buyDevCard(game);
-                    }
-                }
+                clickBuildingButton(game, client, target, false);
             }
         }
         } catch (Throwable th) {
             pi.chatPrintStackTrace(th);
         }
+    }
+    
+    /** Handle a click on a building-panel button.
+     * 
+     * @param game   The game, for status
+     * @param client The client, for sending build or cancel request
+     * @param target Button clicked, as returned by ActionEvent.getActionCommand
+     * @param doNotClearPopup Do not call SOCBoardPanel.popupClearBuildRequest()
+     * 
+     * @see SOCBoardPanel.popupClearBuildRequest()
+     */
+    public void clickBuildingButton(SOCGame game, SOCPlayerClient client, String target, boolean doNotClearPopup)
+    {
+        if (! doNotClearPopup)
+            pi.getBoardPanel().popupClearBuildRequest();  // Just in case
+        
+        if (target == ROAD)
+        {
+            if ((game.getGameState() == SOCGame.PLAY1) && (roadBut.getLabel().equals("Buy")))
+            {
+                client.buildRequest(game, SOCPlayingPiece.ROAD);
+            }
+            else if (roadBut.getLabel().equals("Cancel"))
+            {
+                client.cancelBuildRequest(game, SOCPlayingPiece.ROAD);
+            }
+        }
+        else if (target == STLMT)
+        {
+            if ((game.getGameState() == SOCGame.PLAY1) && (settlementBut.getLabel().equals("Buy")))
+            {
+                client.buildRequest(game, SOCPlayingPiece.SETTLEMENT);
+            }
+            else if (settlementBut.getLabel().equals("Cancel"))
+            {
+                client.cancelBuildRequest(game, SOCPlayingPiece.SETTLEMENT);
+            }
+        }
+        else if (target == CITY)
+        {
+            if ((game.getGameState() == SOCGame.PLAY1) && (cityBut.getLabel().equals("Buy")))
+            {
+                client.buildRequest(game, SOCPlayingPiece.CITY);
+            }
+            else if (cityBut.getLabel().equals("Cancel"))
+            {
+                client.cancelBuildRequest(game, SOCPlayingPiece.CITY);
+            }
+        }
+        else if (target == CARD)
+        {
+            if ((game.getGameState() == SOCGame.PLAY1) && (cardBut.getLabel().equals("Buy")))
+            {
+                client.buyDevCard(game);
+            }
+        }        
     }
 
     /**

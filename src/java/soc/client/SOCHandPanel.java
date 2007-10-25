@@ -1193,7 +1193,12 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
     
     /**
-     * Remove the lockout-robot button, only if currently "lockout".
+     * Remove the sit-here/lockout-robot button, only if its label
+     * is currently "lockout". (sitButIsLock == true).  This button
+     * is also used for newly joining players to choose a seat.  If the
+     * button label is "sit here", our interface is a newly joining
+     * player to a game that's already started; otherwise they arrived
+     * while the game was forming, and now it's started, so clean up the window.
      */
     public void removeSitLockoutBut()
     {
@@ -1236,7 +1241,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
     /**
      * Internal mechanism to remove start button (if visible) and add VP label.
-     * Also refreshes status of "send-offer" checkboxes vs vacant seats.
+     * Also refreshes status of "send-offer" checkboxes vs. vacant seats.
      */
     public void removeStartBut()
     {
@@ -1313,9 +1318,9 @@ public class SOCHandPanel extends Panel implements ActionListener
             // reset the send squares
             for (int i = 0; i < 3; i++)
             {
-                boolean makeInter = ! game.isSeatVacant(playerSendMap[i]);
-                playerSend[i].setBoolValue(makeInter);
-                playerSend[i].setEnabled(makeInter);
+                boolean seatTaken = ! game.isSeatVacant(playerSendMap[i]);
+                playerSend[i].setBoolValue(seatTaken);
+                playerSend[i].setEnabled(seatTaken);
             }
             
             clearBut.disable();
