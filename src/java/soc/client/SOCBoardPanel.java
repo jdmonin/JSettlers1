@@ -145,13 +145,23 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     public final static int CONSIDER_LT_SETTLEMENT = 10;
     public final static int CONSIDER_LT_ROAD = 11;
     public final static int CONSIDER_LT_CITY = 12;
-    public final static int GAME_FORMING = 99;
+    public final static int GAME_FORMING = 98;
+    public final static int GAME_OVER = 99;
+    
+    /** During initial-piece placement, the tooltip is moved this far over to make room. */
+    public final static int HOVER_OFFSET_X_FOR_INIT_PLACE = 9;
     
     /** During robber placement, the tooltip is moved this far over to make room. */
     public final static int HOVER_OFFSET_X_FOR_ROBBER = 15;
     
-    /** for right-click network send maximum delay (seconds) */
-    protected static int BUILD_REQUEST_MAX_DELAY = 5;
+    /** for popup-menu build request, network send maximum delay (seconds) */
+    protected static int BUILD_REQUEST_MAX_DELAY_SEC = 5;
+    
+    /** for popup-menu build request, length of time after popup to ignore further
+     *  mouse-clicks.  Avoids Windows accidental build by popup-click during game's
+     *  initial piece placement. 
+     */ 
+    protected static int POPUP_MENU_IGNORE_MS = 150;
 
     /**
      * hex size
@@ -190,11 +200,22 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     
     /**
      * (tooltip) Hover text.  Its mode uses boardpanel mode
-     * constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT, or PLACE_ROBBER for hex.
+     * constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT,
+     *   PLACE_ROBBER for hex, or PLACE_INIT_SETTLEMENT for port.
      */
     private BoardToolTip hoverTip;
     
+    /**
+     * Context menu for build/cancel-build
+     */
     private BoardPopupMenu popupMenu;
+        
+    /**
+     * Tracks last popup time.  Avoids misinterpretation of popup-click with placement-click
+     * during initial placement: On Windows, popup-click must be caught in mouseReleased,
+     * but mousePressed is called immediately afterwards.    
+     */
+    private long popupMenuSystime;
 
     protected Timer buildReqTimer;  // Created just once
     protected BoardPanelSendBuildTask buildReqTimerTask;  // Created whenever right-click build request sent
@@ -375,6 +396,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         // Set up popup menu
         popupMenu = new BoardPopupMenu(this);
         add (popupMenu);
+        popupMenuSystime = System.currentTimeMillis();  // Set to a reasonable value 
 
         // load the static images
         loadImages(this);
@@ -949,6 +971,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         {
             g.setColor(playerInterface.getPlayerColor(pn, true));
             g.drawPolygon(tmpX, tmpY, 8);
+            // Draw again, slightly offset, for "ghost", since we can't fill and
+            // cover up the underlying settlement.
+            for (i = 0; i < 13; i++)
+            {
+                ++tmpX[i];
+                ++tmpY[i];
+            }
+            g.drawPolygon(tmpX, tmpY, 8);
             return;
         }
         
@@ -1205,6 +1235,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     mode = GAME_FORMING;
                     
                     break;
+                    
+                case SOCGame.OVER:
+                    mode = GAME_OVER;
+
+                    break;
 
                 default:
                     mode = NONE;
@@ -1227,12 +1262,21 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     
     protected void updateHoverTipToMode()
     {
-        if (mode == NONE)            
+        if ((mode == NONE) || (mode == GAME_OVER))            
             hoverTip.setOffsetX(0);
         else if (mode == PLACE_ROBBER)
             hoverTip.setOffsetX(HOVER_OFFSET_X_FOR_ROBBER);
+        else if ((mode == PLACE_INIT_SETTLEMENT) || (mode == PLACE_INIT_ROAD))
+            hoverTip.setOffsetX(HOVER_OFFSET_X_FOR_INIT_PLACE);
         else
             hoverTip.setHoverText(null);
+    }
+    
+    protected void clearModeAndHilight()
+    {
+        mode = NONE;
+        hilight = 0;
+        updateHoverTipToMode();
     }
 
     /**
@@ -1267,9 +1311,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *
      * @param e DOCUMENT ME!
      */
-    public void mouseClicked(MouseEvent e)
+    public void mousePressed(MouseEvent e)
     {
-        ;
+        ;  // JM: was mouseClicked (TODO check e.isPopupTrigger)
     }
 
     /**
@@ -1282,6 +1326,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         // Needed in Windows for popup-menu handling
         if (e.isPopupTrigger())
         {
+            popupMenuSystime = e.getWhen();
+            e.consume();
             doBoardMenuPopup(e.getX(), e.getY());
             return;
         }
@@ -1408,7 +1454,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (hilight != nodeNum)
                 {
                     hilight = nodeNum;
+                    if (mode == PLACE_INIT_SETTLEMENT)
+                        hoverTip.handleHover(x,y);
                     repaint();
+                }
+                else if (mode == PLACE_INIT_SETTLEMENT)
+                {
+                    hoverTip.handleHover(x,y);  // Will call repaint() if needed
                 }
             }
 
@@ -1545,6 +1597,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             break;
 
         case NONE:
+        case GAME_OVER:
             // see hover
             if ((ptrOldX != x) || (ptrOldY != y))
             {
@@ -1570,7 +1623,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *
      * @param evt DOCUMENT ME!
      */
-    public void mousePressed(MouseEvent evt)
+    public void mouseClicked(MouseEvent evt)
     {
         try {
         int x = evt.getX();
@@ -1578,8 +1631,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         
         if (evt.isPopupTrigger())
         {
+            popupMenuSystime = evt.getWhen();
+            evt.consume();
             doBoardMenuPopup(x,y);
-            return;
+            return;  // <--- Pop up menu, nothing else to do ---
+        }
+        
+        if (evt.getWhen() < (popupMenuSystime + POPUP_MENU_IGNORE_MS))
+        {
+            return;  // <--- Ignore click: too soon after popup click ---
         }
 
         if (hilight > 0)
@@ -1693,8 +1753,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 break;
             }
 
-            mode = NONE;
-            hilight = 0;
+            // Now that we've placed, clear the mode and the hilight.
+            clearModeAndHilight();
         }
         } catch (Throwable th) {
             playerInterface.chatPrintStackTrace(th);
@@ -1707,16 +1767,24 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         // Determine mode, to see if we're building or cancelling.
         switch (mode)
         {
-        case PLACE_ROAD:    
-            popupMenu.showCancel(SOCPlayingPiece.ROAD, x, y);
+        case PLACE_ROAD:
+            popupMenu.showCancelBuild(SOCPlayingPiece.ROAD, x, y, hilight);
             break;
 
         case PLACE_SETTLEMENT:
-            popupMenu.showCancel(SOCPlayingPiece.SETTLEMENT, x, y);
+            popupMenu.showCancelBuild(SOCPlayingPiece.SETTLEMENT, x, y, hilight);
             break;
 
         case PLACE_CITY:
-            popupMenu.showCancel(SOCPlayingPiece.CITY, x, y);
+            popupMenu.showCancelBuild(SOCPlayingPiece.CITY, x, y, hilight);
+            break;
+            
+        case PLACE_INIT_ROAD:
+            popupMenu.showBuild(x, y, hilight, 0, 0);
+            break;
+            
+        case PLACE_INIT_SETTLEMENT:
+            popupMenu.showBuild(x, y, 0, hilight, 0);
             break;
             
         default:  // NONE, GAME_FORMING, PLACE_ROBBER, etc
@@ -1752,7 +1820,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             // Run once, at maximum permissable delay;
             // hopefully the network is responsive and
             // we've heard back by then.
-            buildReqTimer.schedule(buildReqTimerTask, 1000 * BUILD_REQUEST_MAX_DELAY );
+            buildReqTimer.schedule(buildReqTimerTask, 1000 * BUILD_REQUEST_MAX_DELAY_SEC );
             
         }
     }
@@ -1982,11 +2050,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         
         /** Text to hover-display, or null if nothing to show */
         private String hoverText;
-        /** Uses mode constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT, or PLACE_ROBBER for hex */
+        /** Uses board mode constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT,
+         *  PLACE_ROBBER for hex, or PLACE_INIT_SETTLEMENT for port.
+         */
         private int hoverMode;
         /** "ID" coord as returned by findNode, findEdge, findHex */
         private int hoverID;
-        /** Object last pointed at; null for hexes */
+        /** Object last pointed at; null for hexes and ports */
         private SOCPlayingPiece hoverPiece;
         /** hover road ID, or 0. Readonly please from outside this inner class */
         int hoverRoadID;
@@ -2043,7 +2113,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             boxY = mouseY;
             if (SOCBoardPanel.panelx < ( boxX + boxW ))
             {
-                boxX = SOCBoardPanel.panelx - boxW;
+                // Try to float it to left of mouse pointer
+                boxX = mouseX - boxW - offsetX;
+                if (boxX < 0)
+                {
+                    // Not enough room, just place flush against right-hand side
+                    boxX = SOCBoardPanel.panelx - boxW;
+                }
             }
             
             bpanel.repaint();
@@ -2108,8 +2184,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         }
 
         /**
-         * Mouse is hovering during normal play; look for info for tooltip.
+         * Mouse is hovering during normal play; look for info for tooltip text.
          * Assumes x or y has changed since last call.
+         * Does not affect the "hilight" variable used by SOCBoardPanel during
+         * initial placement, and during placement from clicking "Buy" buttons.
          * 
          * @param x Cursor x
          * @param y Cursor y
@@ -2121,6 +2199,19 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             
             // Previous: hoverMode, hoverID, hoverText
             int id;
+            boolean modeAllowsHoverPieces = ((mode != PLACE_INIT_SETTLEMENT)
+                && (mode != PLACE_INIT_ROAD) && (mode != PLACE_ROBBER)
+                && (mode != GAME_OVER));
+            
+            boolean playerIsCurrent = playerInterface.clientIsCurrentPlayer();
+            boolean hoverTextSet = false;  // True once determined
+            
+            if (! modeAllowsHoverPieces)
+            {
+                hoverRoadID = 0;
+                hoverSettlementID = 0;
+                hoverCityID = 0;
+            }
 
             // Look first for settlements
             //   - reminder: socboard.getAdjacentHexesToNode
@@ -2148,9 +2239,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                         sb.append("Settlement: ");
                     sb.append(p.getPlayer().getName());
                     setHoverText(sb.toString());
+                    hoverTextSet = true;
 
                     // If we're at the player's settlement, ready to upgrade to city
-                    if ((p.getPlayer() == player)
+                    if (modeAllowsHoverPieces && playerIsCurrent
+                         && (p.getPlayer() == player)
                          && (p.getType() == SOCPlayingPiece.SETTLEMENT)
                          && (player.isPotentialCity(id)))
                     {
@@ -2159,18 +2252,78 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                         hoverCityID = 0;
                     }
                     hoverSettlementID = 0;
-
-                    return;  // <--- Early return: Found settlement/city ---
                 }
-                else if (playerInterface.clientIsCurrentPlayer())
-                {
-                    // Nothing currently here.
-                    hoverCityID = 0;
-                    if (player.isPotentialSettlement(id))
-                        hoverSettlementID = id;
+                else {
+                    if (playerIsCurrent)
+                    {
+                        // Nothing currently here.
+                        hoverCityID = 0;
+                        if (modeAllowsHoverPieces && player.isPotentialSettlement(id))
+                            hoverSettlementID = id;
+                        else
+                            hoverSettlementID = 0;
+                    }
+                    
+                    // Port check.  At most one adjacent will be a port.
+                    if ((hoverMode == PLACE_INIT_SETTLEMENT) && (hoverID == id))
+                    {
+                        // Already looking at a port at this coordinate.
+                        positionToMouse(x,y);
+                        hoverTextSet = true;
+                    }
                     else
-                        hoverSettlementID = 0;
-                }
+                    {
+                        int portType;
+                        Integer coordInteger = new Integer(id);
+    
+                        for (portType = SOCBoard.MISC_PORT; portType <= SOCBoard.WOOD_PORT; portType++)
+                        {
+                            if (game.getBoard().getPortCoordinates(portType).contains(coordInteger))
+                            {
+                                break;
+                            }
+                        }
+                        if (portType <= SOCBoard.WOOD_PORT)
+                        {
+                            String portDesc;
+                            switch (portType)
+                            {
+                            case SOCBoard.MISC_PORT:
+                                portDesc = "3:1 Port";
+                                break;
+    
+                            case SOCBoard.CLAY_PORT:
+                                portDesc = "2:1 Clay port";
+                                break;
+    
+                            case SOCBoard.ORE_PORT:
+                                portDesc = "2:1 Ore port";
+                                break;
+    
+                            case SOCBoard.SHEEP_PORT:
+                                portDesc = "2:1 Sheep port";
+                                break;
+    
+                            case SOCBoard.WHEAT_PORT:
+                                portDesc = "2:1 Wheat port";
+                                break;
+    
+                            case SOCBoard.WOOD_PORT:
+                                portDesc = "2:1 Wood port";
+                                break;                            
+    
+                            default:
+                                portDesc = "port type " + portType;                        
+                            }
+                        
+                            setHoverText(portDesc);
+                            hoverTextSet = true;
+                            hoverMode = PLACE_INIT_SETTLEMENT;  // const used for hovering-at-port
+                            hoverID = id;
+                            
+                        }  // end if-port-found                      
+                    }
+                }  // end if-node-has-settlement
             }
             else
             {
@@ -2193,22 +2346,31 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 SOCPlayingPiece p = board.roadAtEdge(id);
                 if (p != null)
                 {
-                    hoverMode = PLACE_ROAD;
-                    hoverPiece = p;
-                    hoverID = id;
+                    if (! hoverTextSet)
+                    {
+                        hoverMode = PLACE_ROAD;
+                        hoverPiece = p;
+                        hoverID = id;
+                        setHoverText("Road: " + p.getPlayer().getName());
+                    }
                     hoverRoadID = 0;
-                    setHoverText("road: " + p.getPlayer().getName());
                     
                     return;  // <--- Early return: Found road ---
                 }
-                else if (playerInterface.clientIsCurrentPlayer())
+                else if (playerIsCurrent)
                 {
                     // No piece there
-                    if (player.isPotentialRoad(id))
+                    if (modeAllowsHoverPieces && player.isPotentialRoad(id))
                         hoverRoadID = id;
                     else
                         hoverRoadID = 0;
                 }
+            }
+            
+            // By now we've set hoverRoadID, hoverCityID, hoverSettlementID.
+            if (hoverTextSet)
+            {
+                return;  // <--- Early return: Text and hover-pieces set ---
             }
 
             // If no road, look for a hex
@@ -2223,7 +2385,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     return;  // <--- Early ret: No work needed ---
                 }
                 
-                hoverMode = PLACE_ROBBER;
+                hoverMode = PLACE_ROBBER;  // const used for hovering-at-hex
                 hoverPiece = null;
                 hoverID = id;
                 {
@@ -2250,6 +2412,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     }
                     if (board.getRobberHex() == id)
                     {
+                        int num = board.getNumberOnHexFromCoord(id);
+                        if (num > 0)
+                        {
+                            sb.append(": ");
+                            sb.append(num);
+                        }
                         sb.append(" (ROBBER)");
                     }
                     setHoverText(sb.toString());                     
@@ -2282,7 +2450,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     {
 
       SOCBoardPanel bp;
-      MenuItem buildRoadItem, buildSettleItem, upgradeSettleItem; // , aboutItem, exitItem;
+      MenuItem buildRoadItem, buildSettleItem, upgradeCityItem; // , aboutItem, exitItem;
       MenuItem cancelBuildItem;
       // About us;  // TODO - JM
       /** determined at menu-show time */
@@ -2296,6 +2464,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       private int hoverRoadID;
       /** hover settlement or city node ID, or 0, at menu-show time */
       private int hoverSettlementID, hoverCityID;
+      /** Will this be for initial placement (send putpiece right away),
+       *  or for placement during game (send build, receive gamestate, send putpiece)?
+       */
+      protected boolean isInitialPlacement;
       
 
       /** the constructor handles everything. The calling class needs only
@@ -2328,14 +2500,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         buildRoadItem = new MenuItem("Build Road");         
         buildSettleItem = new MenuItem("Build Settlement");
-        upgradeSettleItem = new MenuItem("Upgrade to City");
+        upgradeCityItem = new MenuItem("Upgrade to City");
         cancelBuildItem = new MenuItem("Cancel build");
         // aboutItem = new MenuItem("About..."); aboutItem.setEnabled(false);
         // exitItem =  new MenuItem("Exit");
 
         add(buildRoadItem);
         add(buildSettleItem);
-        add(upgradeSettleItem);
+        add(upgradeCityItem);
         addSeparator();
         add(cancelBuildItem);
         // add(aboutItem);
@@ -2343,39 +2515,68 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         buildRoadItem.addActionListener(this);
         buildSettleItem.addActionListener(this);
-        upgradeSettleItem.addActionListener(this);
+        upgradeCityItem.addActionListener(this);
         cancelBuildItem.addActionListener(this);
         // aboutItem.addActionListener(this);
         // exitItem.addActionListener(this);
       }
 
       /** Custom 'cancel' show method for when placing a road/settlement/city,
-       *  giving the build-cancel option.
+       *  giving the build/cancel options for that type of piece.
        * 
        * @param buildType piece type (SOCPlayingPiece.ROAD, CITY, SETTLEMENT)
        * @param x   Mouse x-position
        * @param y   Mouse y-position
+       * @param hilightAt Current hover/hilight coordinates of piece being cancelled/placed
        */
-      public void showCancel(int buildType, int x, int y)
+      public void showCancelBuild(int buildType, int x, int y, int hilightAt)
       {
+          menuPlayerIsCurrent = playerInterface.clientIsCurrentPlayer();
           wantsCancel = true;
           cancelBuildType = buildType;
+          hoverRoadID = 0;
+          hoverSettlementID = 0;
+          hoverCityID = 0;
+
           buildRoadItem.setEnabled(false);
           buildSettleItem.setEnabled(false);
-          upgradeSettleItem.setEnabled(false);
-          cancelBuildItem.setEnabled(playerInterface.clientIsCurrentPlayer());
+          upgradeCityItem.setEnabled(false);
+          cancelBuildItem.setEnabled(menuPlayerIsCurrent);
+
+          // Check for initial placement (for different cancel message (TODO enable initial-cancel))
+          switch (game.getGameState())
+          {
+          case SOCGame.START1A:
+          case SOCGame.START2A:
+          case SOCGame.START1B:
+          case SOCGame.START2B:
+              isInitialPlacement = true;
+              break;
           
+          default:
+              isInitialPlacement = false;
+          }
+
           switch (buildType)
           {
           case SOCPlayingPiece.ROAD:
               cancelBuildItem.setLabel("Cancel road");
+              buildRoadItem.setEnabled(menuPlayerIsCurrent);
+              hoverRoadID = hilightAt; 
               break;
+              
           case SOCPlayingPiece.SETTLEMENT:
               cancelBuildItem.setLabel("Cancel settlement");
+              buildSettleItem.setEnabled(menuPlayerIsCurrent);
+              hoverSettlementID = hilightAt; 
               break;
+              
           case SOCPlayingPiece.CITY:
               cancelBuildItem.setLabel("Cancel city upgrade");
+              upgradeCityItem.setEnabled(menuPlayerIsCurrent);
+              hoverCityID = hilightAt;
               break;
+              
           default:
               throw new IllegalArgumentException ("bad buildtype: " + buildType);
           }
@@ -2394,30 +2595,55 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       public void showBuild(int x, int y, int hR, int hS, int hC)
       {
           wantsCancel = false;
+          isInitialPlacement = false;
           cancelBuildItem.setEnabled(false);
           cancelBuildItem.setLabel("Cancel build");
-          
+         
           menuPlayerIsCurrent = playerInterface.clientIsCurrentPlayer();
           if (menuPlayerIsCurrent)
           {
-              if (game.getGameState() < SOCGame.PLAY1)
-                  menuPlayerIsCurrent = false;  // Not in a state to place items
+              int gs = game.getGameState();
+              switch (gs)
+              {
+              case SOCGame.START1A:
+              case SOCGame.START2A:
+                  isInitialPlacement = true;  // Settlement
+                  buildRoadItem.setEnabled(false);
+                  buildSettleItem.setEnabled(hS != 0);
+                  upgradeCityItem.setEnabled(false);
+                  break;
+
+              case SOCGame.START1B:
+              case SOCGame.START2B:
+                  isInitialPlacement = true;  // Road
+                  buildRoadItem.setEnabled(hR != 0);
+                  buildSettleItem.setEnabled(false);
+                  upgradeCityItem.setEnabled(false);
+                  break;
+              
+              default:
+                  if (gs < SOCGame.PLAY1)
+                      menuPlayerIsCurrent = false;  // Not in a state to place items
+              }
           }
           
           if (! menuPlayerIsCurrent)
           {
               buildRoadItem.setEnabled(false);
               buildSettleItem.setEnabled(false);
-              upgradeSettleItem.setEnabled(false);
+              upgradeCityItem.setEnabled(false);
               hoverRoadID = 0;
               hoverSettlementID = 0;
               hoverCityID = 0;
           } else {
               int cpn = game.getCurrentPlayerNumber();
 
-              buildRoadItem.setEnabled(game.couldBuildRoad(cpn) && player.isPotentialRoad(hR));
-              buildSettleItem.setEnabled(game.couldBuildSettlement(cpn) && player.isPotentialSettlement(hS));
-              upgradeSettleItem.setEnabled(game.couldBuildCity(cpn) && player.isPotentialCity(hC));
+              if (! isInitialPlacement)
+              {
+                  buildRoadItem.setEnabled(game.couldBuildRoad(cpn) && player.isPotentialRoad(hR));
+                  buildSettleItem.setEnabled(game.couldBuildSettlement(cpn) && player.isPotentialSettlement(hS));
+                  upgradeCityItem.setEnabled(game.couldBuildCity(cpn) && player.isPotentialCity(hC));
+              }
               hoverRoadID = hR;
               hoverSettlementID = hS;
               hoverCityID = hC;
@@ -2435,39 +2661,66 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               return;
           Object target = e.getSource();
           if (target == buildRoadItem)
-              askBuild(SOCPlayingPiece.ROAD);
+              tryBuild(SOCPlayingPiece.ROAD);
           else if (target == buildSettleItem)
-              askBuild(SOCPlayingPiece.SETTLEMENT);
-          else if (target == upgradeSettleItem)
-              askBuild(SOCPlayingPiece.CITY);
+              tryBuild(SOCPlayingPiece.SETTLEMENT);
+          else if (target == upgradeCityItem)
+              tryBuild(SOCPlayingPiece.CITY);
           else if (target == cancelBuildItem)
-              askCancel();
+              tryCancel();
       } 
 
       /** Assumes player is current when calling */
-      void askBuild(int ptype)
+      void tryBuild(int ptype)
       {
           int cpn = playerInterface.getClientPlayerNumber();
           int buildLoc;      // location
           boolean canBuild;  // resources, rules
           String btarget;    // button name on buildpanel
+          
+          // If we're in initial placement, or cancel/build during game, send putpiece right now.
+          // Otherwise, multi-phase send.
+          
+          // Note that if we're in gameplay have clicked the "buy road" button
+          // and trying to place it, game.couldBuildRoad will be false because
+          // we've already spent the resources.  So, wantsCancel won't check it.
+          
           switch (ptype)
           {
           case SOCPlayingPiece.ROAD:
               buildLoc = hoverRoadID;
-              canBuild = game.couldBuildRoad(cpn) && player.isPotentialRoad(buildLoc);
+              canBuild = player.isPotentialRoad(buildLoc);
+              if (! (isInitialPlacement || wantsCancel))
+                  canBuild = canBuild && game.couldBuildRoad(cpn);
+              if (canBuild && (isInitialPlacement || wantsCancel))
+                  playerInterface.getClient().putPiece(game, new SOCRoad(player, buildLoc));
               btarget = SOCBuildingPanel.ROAD;
               break;
+
           case SOCPlayingPiece.SETTLEMENT:
               buildLoc = hoverSettlementID;
-              canBuild = game.couldBuildSettlement(cpn) && player.isPotentialSettlement(buildLoc);
+              canBuild = player.isPotentialSettlement(buildLoc);
+              if (! (isInitialPlacement || wantsCancel))
+                  canBuild = canBuild && game.couldBuildSettlement(cpn);
+              if (canBuild && (isInitialPlacement || wantsCancel))
+              {
+                  playerInterface.getClient().putPiece(game, new SOCSettlement(player, buildLoc));
+                  if (isInitialPlacement)
+                      initstlmt = buildLoc;  // track for initial road mouseover hilight
+              }
               btarget = SOCBuildingPanel.STLMT;
               break;
+          
           case SOCPlayingPiece.CITY:
               buildLoc = hoverCityID;
               canBuild = game.couldBuildCity(cpn) && player.isPotentialCity(buildLoc);
+              if (! (isInitialPlacement || wantsCancel))             
+                  canBuild = canBuild && game.couldBuildCity(cpn);
+              if (canBuild && (isInitialPlacement || wantsCancel))
+                  playerInterface.getClient().putPiece(game, new SOCCity(player, buildLoc));
               btarget = SOCBuildingPanel.CITY;
               break;
+
           default:
               throw new IllegalArgumentException ("Bad build type: " + ptype);
           }
@@ -2477,17 +2730,25 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               playerInterface.print("Sorry, you cannot build there.");
               return;
           }
+          
+          if (isInitialPlacement || wantsCancel)
+          {
+              // - Easy, we've sent it right away.  Done with placing this piece.
+              clearModeAndHilight();
+              return;
+          }
 
+          // - During gameplay: Send, wait to receive gameState, send.
+              
           // Set up timer to expect first-reply (and then send the second message)
           bp.popupSetBuildRequest(buildLoc, ptype);
 
           // Now that we're expecting that, use buttons to send the first message         
           playerInterface.getBuildingPanel().clickBuildingButton
-              (game, playerInterface.getClient(), btarget, true);
-          
+              (game, playerInterface.getClient(), btarget, true);          
       }
       
-      void askCancel()
+      void tryCancel()
       {
           String btarget = null;
           switch (cancelBuildType)
@@ -2593,6 +2854,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     client.putPiece(game, new SOCCity(player, buildLoc));
                 break;
             }
+
+            clearModeAndHilight();           
         }
         
     }  // inner class BoardPanelSendBuildTask

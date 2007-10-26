@@ -39,6 +39,9 @@ import java.util.Vector;
  */
 public class SOCBoard implements Serializable, Cloneable
 {
+    //
+    // Hex types
+    //
     public static final int DESERT_HEX = 0;
     public static final int CLAY_HEX = 1;
     public static final int ORE_HEX = 2;
@@ -46,54 +49,54 @@ public class SOCBoard implements Serializable, Cloneable
     public static final int WHEAT_HEX = 4;
     public static final int WOOD_HEX = 5;  // Also MAX_ROBBER_HEX
     public static final int WATER_HEX = 6;
-    public static final int MISC_PORT_HEX = 7;
+    public static final int MISC_PORT_HEX = 7;  // Must be first port-hextype integer
     public static final int CLAY_PORT_HEX = 8;
     public static final int ORE_PORT_HEX = 9;
     public static final int SHEEP_PORT_HEX = 10;
     public static final int WHEAT_PORT_HEX = 11;
-    public static final int WOOD_PORT_HEX = 12;
-    public static final int MISC_PORT = 0;
+    public static final int WOOD_PORT_HEX = 12;  // Must be last port-hextype integer
+    public static final int MISC_PORT = 0;  // Must be first port-type integer
     public static final int CLAY_PORT = 1;
     public static final int ORE_PORT = 2;
     public static final int SHEEP_PORT = 3;
     public static final int WHEAT_PORT = 4;
-    public static final int WOOD_PORT = 5;
+    public static final int WOOD_PORT = 5;  // Must be last port-type integer
     
     /** Highest-numbered hex type which may hold a robber. */ 
     public static final int MAX_ROBBER_HEX = WOOD_HEX;
 
     /**
-     * largest value for a hex
+     * largest coordinate value for a hex
      */
     public static final int MAXHEX = 0xDD;
 
     /**
-     * smallest value for a hex
+     * smallest coordinate value for a hex
      */
     public static final int MINHEX = 0x11;
 
     /**
-     * largest value for an edge
+     * largest coordinate value for an edge
      */
     public static final int MAXEDGE = 0xCC;
 
     /**
-     * smallest value for an edge
+     * smallest coordinate value for an edge
      */
     public static final int MINEDGE = 0x22;
 
     /**
-     * largest value for a node
+     * largest coordinate value for a node
      */
     public static final int MAXNODE = 0xDC;
 
     /**
-     * smallest value for a node
+     * smallest coordinate value for a node
      */
     public static final int MINNODE = 0x23;
 
     /**
-     * largest value for a node plus one
+     * largest coordinate value for a node plus one
      */
     public static final int MAXNODEPLUSONE = MAXNODE + 1;
 
@@ -938,7 +941,7 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * @return the hexes touching this node
+     * @return the coordinates (Integers) of the 1 to 3 hexes touching this node
      */
     public static Vector getAdjacentHexesToNode(int coord)
     {
@@ -955,7 +958,7 @@ public class SOCBoard implements Serializable, Cloneable
 
             if ((tmp >= MINHEX) && (tmp <= MAXHEX))
             {
-                hexes.addElement(new Integer(tmp));
+                hexes.addElement(new Integer(tmp));                
             }
 
             tmp = coord + 0x10;
@@ -996,7 +999,7 @@ public class SOCBoard implements Serializable, Cloneable
 
             if ((tmp >= MINHEX) && (tmp <= MAXHEX))
             {
-                hexes.addElement(new Integer(coord - 0x01));
+                hexes.addElement(new Integer(tmp));
             }
         }
 
