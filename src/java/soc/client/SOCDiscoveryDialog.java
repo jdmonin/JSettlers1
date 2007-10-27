@@ -50,7 +50,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
      */
     public SOCDiscoveryDialog(SOCPlayerInterface pi)
     {
-        super(pi, "Discovery", true);
+        super(pi, "Year of Plenty", true);
 
         this.pi = pi;
         setBackground(new Color(255, 230, 162));
@@ -62,7 +62,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         setLayout(null);
         addNotify();
-        setSize(280, 190);
+        setSize(280, 60 + 3 * ColorSquareLarger.HEIGHT_L);
 
         msg = new Label("Please pick two resources.", Label.CENTER);
         add(msg);
@@ -76,11 +76,11 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
         // clearBut.disable();        
 
         rsrc = new ColorSquare[5];
-        rsrc[0] = new ColorSquare(ColorSquare.BOUNDED_INC, true, ColorSquare.CLAY, 2, 0);
-        rsrc[1] = new ColorSquare(ColorSquare.BOUNDED_INC, true, ColorSquare.ORE, 2, 0);
-        rsrc[2] = new ColorSquare(ColorSquare.BOUNDED_INC, true, ColorSquare.SHEEP, 2, 0);
-        rsrc[3] = new ColorSquare(ColorSquare.BOUNDED_INC, true, ColorSquare.WHEAT, 2, 0);
-        rsrc[4] = new ColorSquare(ColorSquare.BOUNDED_INC, true, ColorSquare.WOOD, 2, 0);
+        rsrc[0] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, true, ColorSquare.CLAY, 2, 0);
+        rsrc[1] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, true, ColorSquare.ORE, 2, 0);
+        rsrc[2] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, true, ColorSquare.SHEEP, 2, 0);
+        rsrc[3] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, true, ColorSquare.WHEAT, 2, 0);
+        rsrc[4] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, true, ColorSquare.WOOD, 2, 0);
 
         for (int i = 0; i < 5; i++)
         {
@@ -113,14 +113,15 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
         int width = getSize().width - getInsets().left - getInsets().right;
         int height = getSize().height - getInsets().top - getInsets().bottom;
         int space = 5;
+        int msgW = this.getFontMetrics(this.getFont()).stringWidth(msg.getText());
 
         int pix = pi.getInsets().left;
         int piy = pi.getInsets().top;
         int piwidth = pi.getSize().width - pi.getInsets().left - pi.getInsets().right;
         int piheight = pi.getSize().height - pi.getInsets().top - pi.getInsets().bottom;
 
-        int sqwidth = ColorSquare.WIDTH;
-        int sqspace = (width - (5 * sqwidth)) / 5;
+        int sqwidth = ColorSquareLarger.WIDTH_L;
+        int sqspace = (width - (5 * sqwidth)) / 6;
 
         int buttonW = 80;
         int buttonX = (width - ((2 * buttonW) + space)) / 2;
@@ -131,27 +132,27 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         if (msg != null)
         {
-            msg.setBounds((width - 188) / 2, getInsets().top, 180, 20);
+            msg.setBounds((width - msgW) / 2, getInsets().top, msgW + 4, 20);
         }
 
         if (clearBut != null)
         {
-            clearBut.setBounds(buttonX, (getInsets().bottom + height) - 25, buttonW, 25);
+            clearBut.setBounds(x + buttonX, getSize().height - getInsets().bottom - 30, buttonW, 25);
         }
 
         if (doneBut != null)
         {
-            doneBut.setBounds(buttonX + buttonW + space, (getInsets().bottom + height) - 25, buttonW, 25);
+            doneBut.setBounds(x + buttonX + buttonW + space, getSize().height - getInsets().bottom - 30, buttonW, 25);
         }
 
         try
         {
-            rsrcY = y + 20 + space + 20 + space;
+            rsrcY = y + ColorSquareLarger.HEIGHT_L + 2 * space;
 
             for (int i = 0; i < 5; i++)
             {
                 rsrc[i].setSize(sqwidth, sqwidth);
-                rsrc[i].setLocation((i * sqspace) + ((width - ((3 * sqspace) + (4 * sqwidth))) / 2), rsrcY);
+                rsrc[i].setLocation(x + sqspace + (i * (sqspace + sqwidth)), rsrcY);
             }
         }
         catch (NullPointerException e) {}

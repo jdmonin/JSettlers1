@@ -122,11 +122,11 @@ public class TradeOfferPanel extends Panel
          */
         public void doLayout()
         {
-            // FontMetrics fm = this.getFontMetrics(this.getFont());
             Dimension dim = getSize();
-            int w = Math.min(175, dim.width);
-            int h = Math.min(124, dim.height);
+            int buttonW = 48;
             int inset = 10;
+            int w = Math.min((2*(inset+5) + 3*buttonW), dim.width);
+            int h = Math.min(92 + 2 * ColorSquareLarger.HEIGHT_L, dim.height);
 
             msg.setBounds(inset, ((h - 18) / 2), w - (2 * inset), 18);
             balloon.setBounds(0, 0, w, h);
@@ -344,21 +344,21 @@ public class TradeOfferPanel extends Panel
         {
             FontMetrics fm = this.getFontMetrics(this.getFont());
             Dimension dim = getSize();
-            int w = Math.min(175, dim.width);
-            int h = Math.min(124, dim.height);
+            int buttonW = 48;
+            int buttonH = 18;
             int inset = 10;
-            int top = (h / 8) + 5;
+            int w = Math.min((2*(inset+5) + 3*buttonW), dim.width);
+            int h = Math.min(92 + 2 * ColorSquareLarger.HEIGHT_L, dim.height);
+            int top = (h / (int)(.5 * ColorSquareLarger.HEIGHT_L)) + 5;
 
             if (counterOfferMode)
             {
                 // show the counter offer controls
-                h = Math.min(92, h);
-                top = (h / 8) + 5;
+                h = Math.min(60 + 2 * ColorSquareLarger.HEIGHT_L, h);
+                top = (h / (int)(.5 * ColorSquareLarger.HEIGHT_L)) + 5;
                 
-                int lineH = 16;
+                int lineH = ColorSquareLarger.HEIGHT_L;
                 int giveW = fm.stringWidth("I Give: ") + 2;
-                int buttonW = 48;
-                int buttonH = 18;
 
                 toWhom1.setBounds(inset, top, w - 20, 14);
                 toWhom2.setBounds(inset, top + 14, w - 20, 14);
@@ -372,19 +372,18 @@ public class TradeOfferPanel extends Panel
                 offerSquares.setLocation(inset + giveW, top + 32 + squaresHeight);
                 offerSquares.doLayout();
 
-                sendBut.setBounds(inset, top + 12 + (2 * squaresHeight), buttonW, buttonH);
-                clearBut.setBounds(inset + 5 + buttonW, top + 12 + (2 * squaresHeight), buttonW, buttonH);
-                cancelBut.setBounds(inset + (2 * (5 + buttonW)), top + 12 + (2 * squaresHeight), buttonW, buttonH);
+                int buttonY = top + 12 + (2 * squaresHeight);
+                sendBut.setBounds(inset, buttonY, buttonW, buttonH);
+                clearBut.setBounds(inset + 5 + buttonW, buttonY, buttonW, buttonH);
+                cancelBut.setBounds(inset + (2 * (5 + buttonW)), buttonY, buttonW, buttonH);
 
                 balloon.setBounds(0, 0, w, h);
                 offerBox.setBounds(0, top + 22 + squaresHeight, w, squaresHeight + 15);
             }
             else
             {
-                int lineH = 16;
+                int lineH = ColorSquareLarger.HEIGHT_L;
                 int giveW = fm.stringWidth("I Give: ") + 2;
-                int buttonW = 48;
-                int buttonH = 18;
 
                 toWhom1.setBounds(inset, top, w - 20, 14);
                 toWhom2.setBounds(inset, top + 14, w - 20, 14);
@@ -396,9 +395,10 @@ public class TradeOfferPanel extends Panel
                 if (offered)
                 {
                     int squaresHeight = squares.getBounds().height + 8;
-                    acceptBut.setBounds(inset, top + 32 + squaresHeight, buttonW, buttonH);
-                    rejectBut.setBounds(inset + 5 + buttonW, top + 32 + squaresHeight, buttonW, buttonH);
-                    offerBut.setBounds(inset + (2 * (5 + buttonW)), top + 32 + squaresHeight, buttonW, buttonH);
+                    int buttonY = top + 32 + squaresHeight;
+                    acceptBut.setBounds(inset, buttonY, buttonW, buttonH);
+                    rejectBut.setBounds(inset + 5 + buttonW, buttonY, buttonW, buttonH);
+                    offerBut.setBounds(inset + (2 * (5 + buttonW)), buttonY, buttonW, buttonH);
                 }
 
                 balloon.setBounds(0, 0, w, h);

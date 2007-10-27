@@ -88,8 +88,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String SEND = "Send";
     protected static final String BANK = "Bank/Port";
     protected static final String CARD = "  Play Card  ";
-    protected static final String GIVE = "I Give: ";
-    protected static final String GET = "I Get: ";
+    protected static final String GIVE = "I Give:";  // No trailing space (room for wider colorsquares)
+    protected static final String GET = "I Get:";
     protected static final String AUTOROLL_COUNTDOWN = "Auto-Roll in: ";
     protected static final String ROLL_OR_PLAY_CARD = "Roll or Play Card";    
     
@@ -293,7 +293,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         cityLab = new Label("Cities:");
         add(cityLab);
 
-        knightsLab = new Label("Soldiers: ");
+        knightsLab = new Label("Soldiers:");  // No trailing space (room for wider colorsquares at left)
         add(knightsLab);
         knightsSq = new ColorSquare(ColorSquare.GREY, 0);
         add(knightsSq);
@@ -1571,7 +1571,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         else
         {
             int stlmtsW = fm.stringWidth("Stlmts:_");     //Bug in stringWidth does not give correct size for ' '
-            int knightsW = fm.stringWidth("Soldiers:_");  //Bug in stringWidth
+            int knightsW = fm.stringWidth("Soldiers:") + 2;  // +2 because Label text does not start at pixel column 0
 
             faceImg.setBounds(inset, inset, faceW, faceW);
             pname.setBounds(inset + faceW + inset, inset, pnameW, lineH);
@@ -1608,7 +1608,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                     lroadLab.setBounds(topStuffW + ((dim.width - (topStuffW + inset + space)) / 2) + space, (inset + faceW) - lineH, (dim.width - (topStuffW + inset + space)) / 2, lineH);
 
                 giveLab.setBounds(inset, tradeY, giveW, lineH);
-                getLab.setBounds(inset, tradeY + lineH, giveW, lineH);
+                getLab.setBounds(inset, tradeY + ColorSquareLarger.HEIGHT_L, giveW, lineH);
                 sqPanel.setLocation(inset + giveW + space, tradeY);
 
                 int tbW = ((giveW + sqpDim.width) / 2);

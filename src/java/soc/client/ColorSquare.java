@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,6 +73,10 @@ public class ColorSquare extends Canvas implements MouseListener
     boolean interactive;
     SquaresPanel sqparent;
 
+    /** Size per instance, for ColorSquareLarger */
+    protected int squareW, squareH;
+    protected Dimension squareSize;
+    
     /**
      * Creates a new ColorSquare object without a visible value.
      *
@@ -114,7 +119,7 @@ public class ColorSquare extends Canvas implements MouseListener
      * Creates a new ColorSquare of the specified kind and background
      * color. Possibly interactive. For kind = NUMBER, upper=99, lower=0.
      *
-     * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DECk
+     * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
      * @param in interactive flag allowing user interaction
      * @param c background color
      * @see #ColorSquare(int, boolean, Color, int, int)
@@ -129,7 +134,7 @@ public class ColorSquare extends Canvas implements MouseListener
      * color. Possibly interactive, with upper and lower bounds specified for
      * NUMBER kinds.
      *
-     * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DECk
+     * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
      * @param in interactive flag allowing user interaction
      * @param c background color
      * @param upper upper bound if k == NUMBER
@@ -139,6 +144,7 @@ public class ColorSquare extends Canvas implements MouseListener
     {
         super();
 
+        setSize(WIDTH, HEIGHT);
         setFont(new Font("Geneva", Font.PLAIN, 10));
 
         setBackground(c);
@@ -196,14 +202,22 @@ public class ColorSquare extends Canvas implements MouseListener
         setBackground(c);
     }
 
+    public void setSize(int w, int h)
+    {
+        super.setSize(w, h);
+        squareW = w;
+        squareH = h;
+        squareSize = new Dimension(w, h);
+    }
+
     /**
      * DOCUMENT ME!
      *
      * @return DOCUMENT ME!
      */
-    public Dimension getPreferedSize()
+    public Dimension getPreferredSize()
     {
-        return new Dimension(WIDTH, HEIGHT);
+        return squareSize;
     }
 
     /**
@@ -213,7 +227,7 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public Dimension getMinimumSize()
     {
-        return new Dimension(WIDTH, HEIGHT);
+        return squareSize;
     }
 
     /**
@@ -224,9 +238,9 @@ public class ColorSquare extends Canvas implements MouseListener
     public void paint(Graphics g)
     {
             g.setPaintMode();
-            g.clearRect(0, 0, WIDTH, HEIGHT);
+            g.clearRect(0, 0, squareW, squareH);
             g.setColor(Color.black);
-            g.drawRect(0, 0, WIDTH - 1, HEIGHT - 1);
+            g.drawRect(0, 0, squareW - 1, squareH - 1);
 
             int x;
             int y;
@@ -235,7 +249,7 @@ public class ColorSquare extends Canvas implements MouseListener
             {
                 FontMetrics fm = this.getFontMetrics(this.getFont());
                 int numW;
-                //int numH = fm.getHeight();
+                int numH = fm.getHeight();
                 //int numA = fm.getAscent();
                 switch (kind)
                 {
@@ -245,10 +259,11 @@ public class ColorSquare extends Canvas implements MouseListener
 
                     numW = fm.stringWidth(Integer.toString(intValue));
 
-                    x = (WIDTH - numW) / 2;
+                    x = (squareW - numW) / 2;
                     
                     // y = numA + (HEIGHT - numH) / 2; // proper way
-                    y = 12; // way that works
+                    // y = 12; // way that works
+                    y = (squareH + ((int)(.6 * numH))) / 2;  // Semi-proper
 
                     g.drawString(Integer.toString(intValue), x, y);
 
@@ -259,10 +274,11 @@ public class ColorSquare extends Canvas implements MouseListener
 
                     numW = fm.stringWidth(value);
 
-                    x = (WIDTH - numW) / 2;
+                    x = (squareW - numW) / 2;
 
                     // y = numA + (HEIGHT - numH) / 2; // proper way
-                    y = 12; // way that works
+                    // y = 12; // way that works
+                    y = (squareH + ((int)(.6 * numH))) / 2;  // Semi-proper
 
                     g.drawString(value, x, y);
 
@@ -272,8 +288,8 @@ public class ColorSquare extends Canvas implements MouseListener
 
                     if (boolValue)
                     {
-                        int checkX = WIDTH / 5;
-                        int checkY = HEIGHT / 4;
+                        int checkX = squareW / 5;
+                        int checkY = squareH / 4;
                         g.drawLine(checkX, 2 * checkY, 2 * checkX, 3 * checkY);
                         g.drawLine(2 * checkX, 3 * checkY, 4 * checkX, checkY);
                     }

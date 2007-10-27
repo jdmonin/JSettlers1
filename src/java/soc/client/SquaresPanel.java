@@ -71,11 +71,11 @@ public class SquaresPanel extends Panel implements MouseListener
         setFont(new Font("Helvetica", Font.PLAIN, 10));
 
         give = new ColorSquare[5];
-        give[0] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.CLAY);
-        give[1] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.ORE);
-        give[2] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
-        give[3] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
-        give[4] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.WOOD);
+        give[0] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.CLAY);
+        give[1] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.ORE);
+        give[2] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
+        give[3] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
+        give[4] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WOOD);
         new AWTToolTip ("Clay", give[0]);
         new AWTToolTip ("Ore", give[1]);
         new AWTToolTip ("Sheep", give[2]);
@@ -83,11 +83,11 @@ public class SquaresPanel extends Panel implements MouseListener
         new AWTToolTip ("Wood", give[4]);
 
         get = new ColorSquare[5];
-        get[0] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.CLAY);
-        get[1] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.ORE);
-        get[2] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
-        get[3] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
-        get[4] = new ColorSquare(ColorSquare.NUMBER, in, ColorSquare.WOOD);
+        get[0] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.CLAY);
+        get[1] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.ORE);
+        get[2] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
+        get[3] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
+        get[4] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WOOD);
 
         for (int i = 0; i < 5; i++)
         {
@@ -99,8 +99,8 @@ public class SquaresPanel extends Panel implements MouseListener
             give[i].addMouseListener(this);
         }
 
-        int lineH = ColorSquare.HEIGHT - 1;
-        int sqW = ColorSquare.WIDTH - 1;
+        int lineH = ColorSquareLarger.HEIGHT_L - 1;
+        int sqW = ColorSquareLarger.WIDTH_L - 1;
         setSize((5 * sqW) + 1, (2 * lineH) + 1);
     }
 
@@ -109,10 +109,8 @@ public class SquaresPanel extends Panel implements MouseListener
      */
     public void doLayout()
     {
-        int curX = 0;
-        FontMetrics fm = this.getFontMetrics(this.getFont());
-        int lineH = ColorSquare.HEIGHT - 1;
-        int sqW = ColorSquare.WIDTH - 1;
+        int lineH = ColorSquareLarger.HEIGHT_L - 1;
+        int sqW = ColorSquareLarger.WIDTH_L - 1;
         int i;
 
         for (i = 0; i < 5; i++)

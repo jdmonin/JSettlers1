@@ -3853,13 +3853,13 @@ public class SOCServer extends Server
                                 messageToGame(ga.getName(), new SOCDevCard(ga.getName(), player.getPlayerNumber(), SOCDevCard.PLAY, SOCDevCardConstants.KNIGHT));
                                 messageToGame(ga.getName(), new SOCSetPlayedDevCard(ga.getName(), player.getPlayerNumber(), true));
                                 messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.NUMKNIGHTS, 1));
-                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Knight card."));
+                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Soldier card."));
                                 broadcastGameStats(ga);
                                 sendGameState(ga);
                             }
                             else
                             {
-                                c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't play a Knight card now."));
+                                c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't play a Soldier card now."));
                             }
 
                             break;
@@ -3888,12 +3888,12 @@ public class SOCServer extends Server
                                 ga.playDiscovery();
                                 messageToGame(ga.getName(), new SOCDevCard(ga.getName(), player.getPlayerNumber(), SOCDevCard.PLAY, SOCDevCardConstants.DISC));
                                 messageToGame(ga.getName(), new SOCSetPlayedDevCard(ga.getName(), player.getPlayerNumber(), true));
-                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Discovery card."));
+                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Year of Plenty card."));
                                 sendGameState(ga);
                             }
                             else
                             {
-                                c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't play a Discovery card now."));
+                                c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't play a Year of Plenty card now."));
                             }
 
                             break;
@@ -4026,7 +4026,7 @@ public class SOCServer extends Server
                         }
                         else
                         {
-                            c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "That is not a legal Discovery pick."));
+                            c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "That is not a legal Year of Plenty pick."));
                         }
                     }
                     else

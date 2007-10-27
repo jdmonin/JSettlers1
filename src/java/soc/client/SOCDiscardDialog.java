@@ -28,6 +28,7 @@ import java.awt.Button;
 import java.awt.Color;
 import java.awt.Dialog;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -89,18 +90,18 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
             discardBut.disable();  // Must choose that many first
 
         keep = new ColorSquare[5];
-        keep[0] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.CLAY);
-        keep[1] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.ORE);
-        keep[2] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.SHEEP);
-        keep[3] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.WHEAT);
-        keep[4] = new ColorSquare(ColorSquare.BOUNDED_DEC, false, ColorSquare.WOOD);
+        keep[0] = new ColorSquareLarger(ColorSquare.BOUNDED_DEC, false, ColorSquare.CLAY);
+        keep[1] = new ColorSquareLarger(ColorSquare.BOUNDED_DEC, false, ColorSquare.ORE);
+        keep[2] = new ColorSquareLarger(ColorSquare.BOUNDED_DEC, false, ColorSquare.SHEEP);
+        keep[3] = new ColorSquareLarger(ColorSquare.BOUNDED_DEC, false, ColorSquare.WHEAT);
+        keep[4] = new ColorSquareLarger(ColorSquare.BOUNDED_DEC, false, ColorSquare.WOOD);
 
         disc = new ColorSquare[5];
-        disc[0] = new ColorSquare(ColorSquare.BOUNDED_INC, false, ColorSquare.CLAY);
-        disc[1] = new ColorSquare(ColorSquare.BOUNDED_INC, false, ColorSquare.ORE);
-        disc[2] = new ColorSquare(ColorSquare.BOUNDED_INC, false, ColorSquare.SHEEP);
-        disc[3] = new ColorSquare(ColorSquare.BOUNDED_INC, false, ColorSquare.WHEAT);
-        disc[4] = new ColorSquare(ColorSquare.BOUNDED_INC, false, ColorSquare.WOOD);
+        disc[0] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, false, ColorSquare.CLAY);
+        disc[1] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, false, ColorSquare.ORE);
+        disc[2] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, false, ColorSquare.SHEEP);
+        disc[3] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, false, ColorSquare.WHEAT);
+        disc[4] = new ColorSquareLarger(ColorSquare.BOUNDED_INC, false, ColorSquare.WOOD);
 
         for (int i = 0; i < 5; i++)
         {
@@ -147,14 +148,15 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
         int width = getSize().width - getInsets().left - getInsets().right;
         int height = getSize().height - getInsets().top - getInsets().bottom;
         int space = 5;
+        int msgW = this.getFontMetrics(this.getFont()).stringWidth(msg.getText());
 
         int cfx = playerInterface.getInsets().left;
         int cfy = playerInterface.getInsets().top;
         int cfwidth = playerInterface.getSize().width - playerInterface.getInsets().left - playerInterface.getInsets().right;
         int cfheight = playerInterface.getSize().height - playerInterface.getInsets().top - playerInterface.getInsets().bottom;
 
-        int sqwidth = ColorSquare.WIDTH;
-        int sqspace = (width - (5 * sqwidth)) / 5;
+        int sqwidth = ColorSquareLarger.WIDTH_L;
+        int sqspace = (width - (5 * sqwidth)) / 6;
 
         int keepY;
         int discY;
@@ -164,8 +166,8 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
 
         try
         {
-            msg.setBounds((width - 188) / 2, getInsets().top, 180, 20);
-            discardBut.setBounds((width - 88) / 2, (getInsets().bottom + height) - 25, 80, 25);
+            msg.setBounds((width - msgW) / 2, getInsets().top, msgW + 4, 20);
+            discardBut.setBounds((getSize().width - 80) / 2, (getInsets().top + height) - 35, 80, 25);
             youHave.setBounds(getInsets().left, getInsets().top + 20 + space, 70, 20);
             discThese.setBounds(getInsets().left, getInsets().top + 20 + space + 20 + space + sqwidth + space, 100, 20);
         }
@@ -179,9 +181,9 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
             for (int i = 0; i < 5; i++)
             {
                 keep[i].setSize(sqwidth, sqwidth);
-                keep[i].setLocation((i * sqspace) + ((width - ((3 * sqspace) + (4 * sqwidth))) / 2), keepY);
+                keep[i].setLocation(x + sqspace + (i * (sqspace + sqwidth)), keepY);
                 disc[i].setSize(sqwidth, sqwidth);
-                disc[i].setLocation((i * sqspace) + ((width - ((3 * sqspace) + (4 * sqwidth))) / 2), discY);
+                disc[i].setLocation(x + sqspace + (i * (sqspace + sqwidth)), discY);
             }
         }
         catch (NullPointerException e) {}
