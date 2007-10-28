@@ -32,6 +32,7 @@ import soc.message.SOCAcceptOffer;
 import soc.message.SOCAdminPing;
 import soc.message.SOCAdminReset;
 import soc.message.SOCBoardLayout;
+import soc.message.SOCCancelBuildRequest;
 import soc.message.SOCChangeFace;
 import soc.message.SOCChoosePlayerRequest;
 import soc.message.SOCClearOffer;
@@ -407,6 +408,14 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
              */
             case SOCMessage.PUTPIECE:
                 handlePUTPIECE((SOCPutPiece) mes);
+
+                break;
+
+            /**
+             * the current player has cancelled an initial settlement
+             */
+            case SOCMessage.CANCELBUILDREQUEST:
+                handleCANCELBUILDREQUEST((SOCCancelBuildRequest) mes);
 
                 break;
 
@@ -1040,6 +1049,18 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                  */
                 put(SOCChangeFace.toCmd(ga.getName(), mes.getPlayerNumber(), 0));
             }
+            else
+            {
+                /**
+                 * add tracker for player in previously vacant seat
+                 */
+                SOCRobotBrain brain = (SOCRobotBrain) robotBrains.get(mes.getGame());
+
+                if (brain != null)
+                {
+                    brain.addPlayerTracker(mes.getPlayerNumber());
+                }
+            }
         }
     }
 
@@ -1278,6 +1299,36 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         }
     }
 
+    /**
+     * handle the rare "cancel build request" message; usually not sent from
+     * server to client.
+     * 
+     *  When sent from client to server, CANCELBUILDREQUEST means the player has changed
+     *  their mind about spending resources to build a piece.
+     *  
+     *  When sent from server to client, CANCELBUILDREQUEST means the current player
+     *  wants to undo the placement of their initial settlement.  Only allowed during
+     *  game startup (START_1B or START_2B)
+     *  
+     * @param mes  the message
+     */
+    protected void handleCANCELBUILDREQUEST(SOCCancelBuildRequest mes)
+    {
+        CappedQueue brainQ = (CappedQueue) brainQs.get(mes.getGame());
+
+        if (brainQ != null)
+        {
+            try
+            {
+                brainQ.put(mes);
+            }
+            catch (CutoffExceededException exc)
+            {
+                D.ebugPrintln("CutoffExceededException" + exc);
+            }
+        }
+    }
+    
     /**
      * handle the "move robber" message
      * @param mes  the message

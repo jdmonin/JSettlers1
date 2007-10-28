@@ -364,7 +364,9 @@ public class SOCBuildingPanel extends Panel implements ActionListener
 
         if (player != null)
         {
-            if ((game.getCurrentPlayerNumber() == player.getPlayerNumber()) && (game.getGameState() == SOCGame.PLACING_ROAD))
+            boolean isCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
+            int gstate = game.getGameState();
+            if (isCurrent && (gstate == SOCGame.PLACING_ROAD))
             {
                 roadBut.setLabel("Cancel");
             }
@@ -377,7 +379,9 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                 roadBut.setLabel("---");
             }
 
-            if ((game.getCurrentPlayerNumber() == player.getPlayerNumber()) && (game.getGameState() == SOCGame.PLACING_SETTLEMENT))
+            if (isCurrent &&
+                ((gstate == SOCGame.PLACING_SETTLEMENT) || (gstate == SOCGame.START1B)
+                 || (gstate == SOCGame.START2B)))
             {
                 settlementBut.setLabel("Cancel");
             }
@@ -390,7 +394,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                 settlementBut.setLabel("---");
             }
 
-            if ((game.getCurrentPlayerNumber() == player.getPlayerNumber()) && (game.getGameState() == SOCGame.PLACING_CITY))
+            if (isCurrent && (gstate == SOCGame.PLACING_CITY))
             {
                 cityBut.setLabel("Cancel");
             }

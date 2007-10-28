@@ -102,8 +102,17 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Button robotBut;
     protected Button startBut;
     protected Button takeOverBut;
+
+    /** Seat lock/unlock shown in robot handpanels during game play,
+     *  to prevent/allow humans to join and take over a robot's seat
+     */
     protected Button seatLockBut;
-    /** Game still forming, player has chosen a seat; "Sit Here" button is labeled as "Lock" */
+
+    /** When true, the game is still forming, player has chosen a seat;
+     *  "Sit Here" button is labeled as "Lock".  Humans can use this to
+     *  lock robots out of that seat, so as to start a game with fewer
+     *  players and some vacant seats.
+     */
     protected boolean sitButIsLock;
     protected SOCFaceButton faceImg;
     protected Label pname;
@@ -1069,7 +1078,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
         if (pnameActiveBG != null)
             return;
-        pnameActiveBG =  SOCPlayerInterface.makeGhostColor(this.getBackground());
+        pnameActiveBG =  SOCPlayerInterface.makeGhostColor(getBackground());
     }
 
     /** If enable/disable buttons accordingly. */
@@ -1245,8 +1254,12 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void removeStartBut()
     {
-        vpLab.setVisible(true);
-        vpSq.setVisible(true);
+        // First, hide or show victory-point buttons
+        {
+            boolean seatTaken = ! game.isSeatVacant(getPlayer().getPlayerNumber()); 
+            vpLab.setVisible(seatTaken);
+            vpSq.setVisible(seatTaken);
+        }
 
         startBut.setVisible(false);
         
@@ -1518,6 +1531,25 @@ public class SOCHandPanel extends Panel implements ActionListener
             knightsSq.setIntValue(player.getNumKnights());
 
             break;
+        }
+    }
+    
+    /**
+     * Re-read player's resource info and update the display.
+     */
+    public void updateResources()
+    {
+        if (! playerIsClient)
+        {
+            updateValue(NUMRESOURCES);
+        }
+        else
+        {
+            updateValue(CLAY);
+            updateValue(ORE);
+            updateValue(SHEEP);
+            updateValue(WHEAT);
+            updateValue(WOOD);
         }
     }
 

@@ -81,7 +81,7 @@ public class SOCGame implements Serializable, Cloneable
     /**
      * minimum number of players in a game (was assumed ==MAXPLAYERS in standard 1.0.6).
      * Use isSeatVacant(i) to determine if a player is present;
-     * players[i] may be non-null although no player is there.
+     * players[i] will be non-null although no player is there.
      */
     public static final int MINPLAYERS = 2;
 
@@ -1043,11 +1043,11 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * undo the putting of a temporary piece
+     * undo the putting of a temporary or initial piece
      *
      * @param pp the piece to put on the board
      */
-    public void undoPutTempPiece(SOCPlayingPiece pp)
+    protected void undoPutPieceCommon(SOCPlayingPiece pp)
     {
         //D.ebugPrintln("@@@ undoPutTempPiece "+pp);
         board.removePiece(pp);
@@ -1058,7 +1058,7 @@ public class SOCGame implements Serializable, Cloneable
         //
         for (int i = 0; i < MAXPLAYERS; i++)
         {
-            players[i].undoPutPiece(pp);
+            players[i].undoPutPiece(pp);   // If state START2B, will also zero resources
         }
 
         //
@@ -1075,12 +1075,48 @@ public class SOCGame implements Serializable, Cloneable
 
             board.putPiece(se);
         }
+    }
+
+    /**
+     * undo the putting of a temporary piece
+     *
+     * @param pp the piece to put on the board
+     * 
+     * @see #undoPutInitSettlement(SOCPlayingPiece)
+     */
+    public void undoPutTempPiece(SOCPlayingPiece pp)
+    {
+        undoPutPieceCommon(pp);
 
         //
         // update which player has longest road
         //
         SOCOldLRStats oldLRStats = (SOCOldLRStats) oldPlayerWithLongestRoad.pop();
         oldLRStats.restoreOldStats(this);
+    }
+    
+    /**
+     * undo the putting of an initial settlement.
+     * If state is STATE2B, resources will be returned.
+     * Player is unchanged; state will become STATE1A or STATE2A.
+     *
+     * @param pp the piece to remove from the board
+     */
+    public void undoPutInitSettlement(SOCPlayingPiece pp)
+    {
+        if ((gameState != START1B) && (gameState != START2B))
+            throw new IllegalStateException("Cannot remove at this game state: " + gameState);
+        if (pp.getType() != SOCPlayingPiece.SETTLEMENT)
+            throw new IllegalArgumentException("Not a settlement: type " + pp.getType());
+        if (pp.getCoordinates() != pp.getPlayer().getLastSettlementCoord())
+            throw new IllegalArgumentException("Not coordinate of last settlement");
+
+        undoPutPieceCommon(pp);  // Will also zero resources via player.undoPutPiece
+
+        if (gameState == START1B)
+            gameState = START1A;
+        else // gameState == START2B
+            gameState = START2A;
     }
 
     /**

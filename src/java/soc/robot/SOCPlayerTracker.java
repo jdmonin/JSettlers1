@@ -53,6 +53,21 @@ import java.util.Vector;
  * This class is used by the SOCRobotBrain to track
  * possible building spots for itself and other players.
  *
+ * (Dissertation excerpt)
+ *
+ * "When a player places a road, that player's PlayerTracker will look ahead by
+ *  pretending to place new roads attached to that road and then recording new
+ *  potential settlements [and their roads]...
+ *<p>
+ *  The PlayerTracker only needs to be updated when players put pieces on the
+ *  board... not only when that player builds a road but when any player builds
+ *  a road or settlement. This is because another player's road or settlement
+ *  may cut off a path to a future settlement. This update can be done by
+ *  keeping track of which pieces support the building of others."
+ *<p>
+ *  For a legible overview of the data in a SOCPlayerTracker, use playerTrackersDebug.
+ *  @see #playerTrackersDebug(HashMap)
+ *
  * @author Robert S Thomas
  */
 public class SOCPlayerTracker
@@ -72,6 +87,12 @@ public class SOCPlayerTracker
     protected int knightsToBuy;
     protected boolean needLR;
     protected boolean needLA;
+    
+    /**
+     * Player's settlement during initial placement; delay processing until
+     * the road is placed, and thus the settlement placement can't be moved around.
+     */
+    protected SOCSettlement pendingInitSettlement;
 
     /**
      * monitor for synchronization
@@ -96,6 +117,7 @@ public class SOCPlayerTracker
         roadsToGo = 20;
         largestArmyETA = 500;
         knightsToBuy = 0;
+        pendingInitSettlement = null;
     }
 
     /**
@@ -117,6 +139,7 @@ public class SOCPlayerTracker
         roadsToGo = pt.getRoadsToGo();
         largestArmyETA = pt.getLargestArmyETA();
         knightsToBuy = pt.getKnightsToBuy();
+        pendingInitSettlement = pt.getPendingInitSettlement();
 
         //D.ebugPrintln(">>>>> Copying SOCPlayerTracker for player number "+player.getPlayerNumber());
         //
@@ -439,6 +462,28 @@ public class SOCPlayerTracker
         return knightsToBuy;
     }
 
+    /**
+     * @return the pending-placement initial settlement
+     */
+    public SOCSettlement getPendingInitSettlement()
+    {
+        return pendingInitSettlement;
+    }
+    
+    /**
+     * set this player's pending initial settlement, to be
+     * placed/calculated by this tracker after their road.
+     * 
+     * You must call addNewSettlement and then addNewRoad:
+     * This is just a place to store the settlement data.
+     *  
+     * @param s Settlement, or null
+     */
+    public void setPendingInitSettlement(SOCSettlement s)
+    {
+        pendingInitSettlement = s;
+    }
+    
     /**
      * add a road that has just been built
      *

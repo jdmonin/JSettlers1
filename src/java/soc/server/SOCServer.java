@@ -2577,7 +2577,7 @@ public class SOCServer extends Server
                             {
                                 if (player.isPotentialSettlement(mes.getCoordinates()))
                                 {
-                                    ga.putPiece(se);   // Changes game state and player
+                                    ga.putPiece(se);   // Changes game state and (if game start) player
                                     messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.data + " built a settlement."));
                                     messageToGame(ga.getName(), new SOCPutPiece(mes.getGame(), player.getPlayerNumber(), SOCPlayingPiece.SETTLEMENT, mes.getCoordinates()));
                                     broadcastGameStats(ga);
@@ -3701,6 +3701,14 @@ public class SOCServer extends Server
                                 messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, 1));
                                 messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, 1));
                                 sendGameState(ga);
+                            }
+                            else if ((ga.getGameState() == SOCGame.START1B) || (ga.getGameState() == SOCGame.START2B))
+                            {
+                                SOCSettlement pp = new SOCSettlement(player, player.getLastSettlementCoord());
+                                ga.undoPutInitSettlement(pp);
+                                messageToGame(ga.getName(), mes);  // Re-send to all clients to announce it
+                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " cancelled their settlement placement."));
+                                sendGameState(ga);  // This send is redundant, if client reaction changes game state
                             }
                             else
                             {

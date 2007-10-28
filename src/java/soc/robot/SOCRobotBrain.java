@@ -164,7 +164,7 @@ public class SOCRobotBrain extends Thread
     protected SOCPlayerTracker ourPlayerTracker;
 
     /**
-     * trackers for all players
+     * trackers for all players (one per player, including this robot)
      */
     protected HashMap playerTrackers;
 
@@ -288,7 +288,9 @@ public class SOCRobotBrain extends Thread
     protected boolean expectWAITING_FOR_MONOPOLY;
 
     /**
-     * true if we're waiting for a GAMESTATE message from the server
+     * true if we're waiting for a GAMESTATE message from the server.
+     * This is set after a robot action or requested action is sent to server,
+     * or just before ending our turn (which also sets waitingForOurTurn == true).
      */
     protected boolean waitingForGameState;
 
@@ -455,7 +457,7 @@ public class SOCRobotBrain extends Thread
     }
 
     /**
-     * @return the player trackers
+     * @return the player trackers (one per player, including this robot)
      */
     public HashMap getPlayerTrackers()
     {
@@ -468,6 +470,39 @@ public class SOCRobotBrain extends Thread
     public SOCPlayerTracker getOurPlayerTracker()
     {
         return ourPlayerTracker;
+    }
+    
+    /**
+     * A player has sat down and been added to the game,
+     * during game formation. Create a PlayerTracker for them.
+     *<p>
+     * Called when SITDOWN received from server; one SITDOWN is
+     * sent for every player, and our robot player might not be the
+     * first or last SITDOWN.
+     *<p>
+     * Since our playerTrackers are initialized when our robot's
+     * SITDOWN is received (robotclient calls setOurPlayerData()),
+     * and seats may be vacant at that time (because SITDOWN not yet
+     * received for those seats), we must add a PlayerTracker for
+     * each SITDOWN received after our player's.
+     * 
+     * @param pn Player number
+     */
+    public void addPlayerTracker(int pn)
+    {
+        if (null == playerTrackers)
+        {
+            // SITDOWN hasn't been sent for our own player yet.
+            // When it is, playerTrackers will be initialized for
+            // each non-vacant player, including pn.
+            
+            return;
+        }
+        if (null == playerTrackers.get(new Integer(pn)))
+        {
+            SOCPlayerTracker tracker = new SOCPlayerTracker(game.getPlayer(pn), this);
+            playerTrackers.put(new Integer(pn), tracker);
+        }
     }
 
     /**
@@ -589,12 +624,17 @@ public class SOCRobotBrain extends Thread
 
             try
             {
+                //
+                // Along with actual game events, the pinger send a SOCGameTextMsg
+                // once per second, to aid the robot's timekeeping counter.
+                //
+                
                 while (alive)
                 {
                     SOCMessage mes;
 
                     //if (!gameEventQ.empty()) {
-                    mes = (SOCMessage) gameEventQ.get();
+                    mes = (SOCMessage) gameEventQ.get();  // Sleeps until message received
 
                     //} else {
                     //mes = null;
@@ -611,6 +651,13 @@ public class SOCRobotBrain extends Thread
                         mesType = -1;
                     }
 
+                    if (mesType != SOCMessage.GAMETEXTMSG)
+                    {
+                        // Not the ping.
+                        int x = 0;  // JM
+                        D.ebugPrintln();
+                    }
+                    
                     if (waitingForTradeMsg && (counter > 10))
                     {
                         waitingForTradeMsg = false;
@@ -1104,6 +1151,19 @@ public class SOCRobotBrain extends Thread
                         {
                         case SOCPlayingPiece.ROAD:
 
+                            if ((game.getGameState() == SOCGame.START1B) || (game.getGameState() == SOCGame.START2B))
+                            {
+                                //
+                                // Before processing this road, track the settlement that goes with it.
+                                // This was deferred until road placement, in case a human player decides
+                                // to cancel their settlement and place it elsewhere.
+                                //
+                                SOCPlayerTracker tr = (SOCPlayerTracker) playerTrackers.get
+                                    (new Integer(((SOCPutPiece) mes).getPlayerNumber()));
+                                SOCSettlement se = tr.getPendingInitSettlement();
+                                if (se != null)
+                                    trackNewSettlement(se);
+                            }
                             SOCRoad rd = new SOCRoad(pl, ((SOCPutPiece) mes).getCoordinates());
                             game.putPiece(rd);
 
@@ -1123,6 +1183,26 @@ public class SOCRobotBrain extends Thread
 
                             break;
                         }
+                    }
+                    
+                    else if (mesType == SOCMessage.CANCELBUILDREQUEST)
+                    {
+                        //
+                        // When sent from server to client, CANCELBUILDREQUEST means the current player
+                        // wants to undo the placement of their initial settlement.  Only allowed during
+                        // game startup (START_1B or START_2B).
+                        //
+                        int pnum = game.getCurrentPlayerNumber();
+                        SOCPlayer pl = game.getPlayer(pnum);
+                        SOCSettlement pp = new SOCSettlement(pl, pl.getLastSettlementCoord());
+                        game.undoPutInitSettlement(pp);
+                        //
+                        // "forget" to track this cancelled initial settlement.
+                        // Player will now place a new one.
+                        //
+                        SOCPlayerTracker tr = (SOCPlayerTracker) playerTrackers.get
+                            (new Integer(pnum));
+                        tr.setPendingInitSettlement(null);
                     }
 
                     else if (mesType == SOCMessage.MOVEROBBER)
@@ -1955,7 +2035,7 @@ public class SOCRobotBrain extends Thread
                     if ((game.getGameState() == SOCGame.START1A) && (!waitingForGameState))
                     {
                         expectSTART1A = false;
-
+                        
                         if ((!waitingForOurTurn) && (ourTurn))
                         {
                             if (!(expectPUTPIECE_FROM_START1A && (counter < 4000)))
@@ -2132,134 +2212,26 @@ public class SOCRobotBrain extends Thread
 
                         case SOCPlayingPiece.SETTLEMENT:
 
-                            SOCSettlement newSettlement = new SOCSettlement(game.getPlayer(((SOCPutPiece) mes).getPlayerNumber()), ((SOCPutPiece) mes).getCoordinates());
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
+                            /**
+                             * During initial placement, we delay tracking of the
+                             * settlement until after the corresponding road is placed.
+                             * This prevents the need for tracker "undo" work if a human
+                             * player changes their mind on where to place the settlement.
+                             */
+                            SOCPlayer newSettlementPl = game.getPlayer(((SOCPutPiece) mes).getPlayerNumber());
+                            SOCSettlement newSettlement = new SOCSettlement(newSettlementPl, ((SOCPutPiece) mes).getCoordinates());
+                            if ((game.getGameState() == SOCGame.START1B) || (game.getGameState() == SOCGame.START2B))
                             {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-                                tracker.addNewSettlement(newSettlement, playerTrackers);
+                                // Track it after the road is placed
+                                SOCPlayerTracker tr = (SOCPlayerTracker) playerTrackers.get
+                                    (new Integer(newSettlementPl.getPlayerNumber()));
+                                tr.setPendingInitSettlement(newSettlement);
                             }
-
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
+                            else
                             {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-                                Iterator posRoadsIter = tracker.getPossibleRoads().values().iterator();
-
-                                while (posRoadsIter.hasNext())
-                                {
-                                    ((SOCPossibleRoad) posRoadsIter.next()).clearThreats();
-                                }
-
-                                Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
-
-                                while (posSetsIter.hasNext())
-                                {
-                                    ((SOCPossibleSettlement) posSetsIter.next()).clearThreats();
-                                }
-                            }
-
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-                                tracker.updateThreats(playerTrackers);
-                            }
-
-                            ///
-                            /// see if this settlement bisected someone elses road
-                            ///
-                            int[] roadCount = { 0, 0, 0, 0 };
-                            Enumeration adjEdgeEnum = SOCBoard.getAdjacentEdgesToNode(((SOCPutPiece) mes).getCoordinates()).elements();
-
-                            while (adjEdgeEnum.hasMoreElements())
-                            {
-                                Integer adjEdge = (Integer) adjEdgeEnum.nextElement();
-                                Enumeration roadEnum = game.getBoard().getRoads().elements();
-
-                                while (roadEnum.hasMoreElements())
-                                {
-                                    SOCRoad road = (SOCRoad) roadEnum.nextElement();
-
-                                    if (road.getCoordinates() == adjEdge.intValue())
-                                    {
-                                        roadCount[road.getPlayer().getPlayerNumber()]++;
-
-                                        if (roadCount[road.getPlayer().getPlayerNumber()] == 2)
-                                        {
-                                            if (road.getPlayer().getPlayerNumber() != ourPlayerData.getPlayerNumber())
-                                            {
-                                                ///
-                                                /// this settlement bisects another players road
-                                                ///
-                                                trackersIter = playerTrackers.values().iterator();
-
-                                                while (trackersIter.hasNext())
-                                                {
-                                                    SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-
-                                                    if (tracker.getPlayer().getPlayerNumber() == road.getPlayer().getPlayerNumber())
-                                                    {
-                                                        //D.ebugPrintln("$$ updating LR Value for player "+tracker.getPlayer().getPlayerNumber());
-                                                        //tracker.updateLRValues();
-                                                    }
-
-                                                    //tracker.recalcLongestRoadETA();
-                                                }
-                                            }
-
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-
-                            ///
-                            /// update the speedups from possible settlements
-                            ///
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-
-                                if (tracker.getPlayer().getPlayerNumber() == ((SOCPutPiece) mes).getPlayerNumber())
-                                {
-                                    Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
-
-                                    while (posSetsIter.hasNext())
-                                    {
-                                        ((SOCPossibleSettlement) posSetsIter.next()).updateSpeedup();
-                                    }
-
-                                    break;
-                                }
-                            }
-
-                            ///
-                            /// update the speedups from possible cities
-                            ///
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-
-                                if (tracker.getPlayer().getPlayerNumber() == ((SOCPutPiece) mes).getPlayerNumber())
-                                {
-                                    Iterator posCitiesIter = tracker.getPossibleCities().values().iterator();
-
-                                    while (posCitiesIter.hasNext())
-                                    {
-                                        ((SOCPossibleCity) posCitiesIter.next()).updateSpeedup();
-                                    }
-
-                                    break;
-                                }
-                            }
+                                // Track it now
+                                trackNewSettlement(newSettlement);
+                            }                            
 
                             break;
 
@@ -2418,6 +2390,7 @@ public class SOCRobotBrain extends Thread
 
                     if ((mesType == SOCMessage.GAMETEXTMSG) && (((SOCGameTextMsg) mes).getText().equals("*PING*")))
                     {
+                        // Once-per-second message from the pinger thread
                         counter++;
                     }
 
@@ -2463,6 +2436,153 @@ public class SOCRobotBrain extends Thread
         playerTrackers = null;
         pinger.stopPinger();
         pinger = null;
+    }
+
+    /**
+     * Run a newly placed settlement through the playerTrackers.
+     *<P>
+     * During initial board setup, settlements aren't immediately tracked.
+     * They are deferred until their corresponding road placement, in case
+     * a human player decides to cancel their settlement and place it elsewhere.
+     *
+     * (Code previously in body of the run method.)
+     * Placing the code in its own method allows tracking that settlement when the
+     * road's putPiece message arrives.
+     * 
+     * @param newSettlement The newly placed settlement for the playerTrackers
+     */
+    protected void trackNewSettlement(SOCSettlement newSettlement)
+    {
+        Iterator trackersIter;
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+            tracker.addNewSettlement(newSettlement, playerTrackers);
+        }
+
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+            Iterator posRoadsIter = tracker.getPossibleRoads().values().iterator();
+
+            while (posRoadsIter.hasNext())
+            {
+                ((SOCPossibleRoad) posRoadsIter.next()).clearThreats();
+            }
+
+            Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
+
+            while (posSetsIter.hasNext())
+            {
+                ((SOCPossibleSettlement) posSetsIter.next()).clearThreats();
+            }
+        }
+
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+            tracker.updateThreats(playerTrackers);
+        }
+
+        ///
+        /// see if this settlement bisected someone elses road
+        ///
+        int[] roadCount = { 0, 0, 0, 0 };
+        Enumeration adjEdgeEnum = SOCBoard.getAdjacentEdgesToNode(newSettlement.getCoordinates()).elements();
+
+        while (adjEdgeEnum.hasMoreElements())
+        {
+            Integer adjEdge = (Integer) adjEdgeEnum.nextElement();
+            Enumeration roadEnum = game.getBoard().getRoads().elements();
+
+            while (roadEnum.hasMoreElements())
+            {
+                SOCRoad road = (SOCRoad) roadEnum.nextElement();
+
+                if (road.getCoordinates() == adjEdge.intValue())
+                {
+                    roadCount[road.getPlayer().getPlayerNumber()]++;
+
+                    if (roadCount[road.getPlayer().getPlayerNumber()] == 2)
+                    {
+                        if (road.getPlayer().getPlayerNumber() != ourPlayerData.getPlayerNumber())
+                        {
+                            ///
+                            /// this settlement bisects another players road
+                            ///
+                            trackersIter = playerTrackers.values().iterator();
+
+                            while (trackersIter.hasNext())
+                            {
+                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+
+                                if (tracker.getPlayer().getPlayerNumber() == road.getPlayer().getPlayerNumber())
+                                {
+                                    //D.ebugPrintln("$$ updating LR Value for player "+tracker.getPlayer().getPlayerNumber());
+                                    //tracker.updateLRValues();
+                                }
+
+                                //tracker.recalcLongestRoadETA();
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+        
+        int pNum = newSettlement.getPlayer().getPlayerNumber();
+
+        ///
+        /// update the speedups from possible settlements
+        ///
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+
+            if (tracker.getPlayer().getPlayerNumber() == pNum)
+            {
+                Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
+
+                while (posSetsIter.hasNext())
+                {
+                    ((SOCPossibleSettlement) posSetsIter.next()).updateSpeedup();
+                }
+
+                break;
+            }
+        }
+
+        ///
+        /// update the speedups from possible cities
+        ///
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+
+            if (tracker.getPlayer().getPlayerNumber() == pNum)
+            {
+                Iterator posCitiesIter = tracker.getPossibleCities().values().iterator();
+
+                while (posCitiesIter.hasNext())
+                {
+                    ((SOCPossibleCity) posCitiesIter.next()).updateSpeedup();
+                }
+
+                break;
+            }
+        }
     }
 
     /**

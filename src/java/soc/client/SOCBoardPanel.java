@@ -681,7 +681,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *
      * @return DOCUMENT ME!
      */
-    public Dimension getPreferedSize()
+    public Dimension getPreferredSize()
     {
         return new Dimension(panelx, panely);
     }
@@ -2495,30 +2495,23 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       public BoardPopupMenu(SOCBoardPanel bpanel)
       {
         super ("JSettlers");
-        // us = new jplot.About("About JPlot"); // JM todo
         bp = bpanel;
 
         buildRoadItem = new MenuItem("Build Road");         
         buildSettleItem = new MenuItem("Build Settlement");
         upgradeCityItem = new MenuItem("Upgrade to City");
         cancelBuildItem = new MenuItem("Cancel build");
-        // aboutItem = new MenuItem("About..."); aboutItem.setEnabled(false);
-        // exitItem =  new MenuItem("Exit");
 
         add(buildRoadItem);
         add(buildSettleItem);
         add(upgradeCityItem);
         addSeparator();
         add(cancelBuildItem);
-        // add(aboutItem);
-        // add(exitItem);
 
         buildRoadItem.addActionListener(this);
         buildSettleItem.addActionListener(this);
         upgradeCityItem.addActionListener(this);
         cancelBuildItem.addActionListener(this);
-        // aboutItem.addActionListener(this);
-        // exitItem.addActionListener(this);
       }
 
       /** Custom 'cancel' show method for when placing a road/settlement/city,
@@ -2619,6 +2612,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                   buildRoadItem.setEnabled(hR != 0);
                   buildSettleItem.setEnabled(false);
                   upgradeCityItem.setEnabled(false);
+                  cancelBuildItem.setLabel("Cancel settlement");  // Initial settlement
+                  cancelBuildItem.setEnabled(true);
+                  cancelBuildType = SOCPlayingPiece.SETTLEMENT;
                   break;
               
               default:

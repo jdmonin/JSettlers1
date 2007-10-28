@@ -24,8 +24,15 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message says which player the current player wants to
- * steal from.
+ *  This message type has two meanings, depending on game state and direction of send. 
+ *
+ *  When sent from client to server, CANCELBUILDREQUEST means the player has changed
+ *  their mind about spending resources to build a piece.  Only allowed during normal
+ *  game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
+ *  
+ *  When sent from server to client, CANCELBUILDREQUEST means the current player
+ *  wants to undo the placement of their initial settlement.  Only allowed during
+ *  game startup (START_1B or START_2B).
  *
  * @author Robert S. Thomas
  */

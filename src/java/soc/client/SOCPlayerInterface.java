@@ -169,7 +169,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         playerColors[3] = new Color(249, 128,  29); // orange
         for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
         {
-            playerColorsGhost[i] = this.makeGhostColor(playerColors[i]);
+            playerColorsGhost[i] = makeGhostColor(playerColors[i]);
         }
 
         /**

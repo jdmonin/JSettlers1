@@ -514,6 +514,14 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 break;
 
             /**
+             * the current player has cancelled an initial settlement
+             */
+            case SOCMessage.CANCELBUILDREQUEST:
+                handleCANCELBUILDREQUEST((SOCCancelBuildRequest) mes);
+
+                break;
+                
+            /**
              * the robber moved
              */
             case SOCMessage.MOVEROBBER:
@@ -1310,6 +1318,36 @@ public class SOCDisplaylessPlayerClient implements Runnable
         }
     }
 
+    /**
+     * handle the rare "cancel build request" message; usually not sent from
+     * server to client.
+     * 
+     *  When sent from client to server, CANCELBUILDREQUEST means the player has changed
+     *  their mind about spending resources to build a piece.
+     *  
+     *  When sent from server to client, CANCELBUILDREQUEST means the current player
+     *  wants to undo the placement of their initial settlement.  Only allowed during
+     *  game startup (START_1B or START_2B)
+     *  
+     * @param mes  the message
+     */
+    protected void handleCANCELBUILDREQUEST(SOCCancelBuildRequest mes)
+    {
+        SOCGame ga = (SOCGame) games.get(mes.getGame());
+        if (ga == null)
+            return;
+        
+        int sta = ga.getGameState();
+        if ((sta != SOCGame.START1B) && (sta != SOCGame.START2B))
+            return;
+        if (mes.getPieceType() != SOCPlayingPiece.SETTLEMENT)
+            return;
+        
+        SOCPlayer pl = ga.getPlayer(ga.getCurrentPlayerNumber());
+        SOCSettlement pp = new SOCSettlement(pl, pl.getLastSettlementCoord());
+        ga.undoPutInitSettlement(pp);
+    }
+    
     /**
      * handle the "robber moved" message
      * @param mes  the message
