@@ -1303,12 +1303,25 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
      * handle the rare "cancel build request" message; usually not sent from
      * server to client.
      * 
-     *  When sent from client to server, CANCELBUILDREQUEST means the player has changed
-     *  their mind about spending resources to build a piece.
+     * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
+     *   their mind about spending resources to build a piece.  Only allowed during normal
+     *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
+     *
+     *  When sent from server to client:
      *  
-     *  When sent from server to client, CANCELBUILDREQUEST means the current player
-     *  wants to undo the placement of their initial settlement.  Only allowed during
-     *  game startup (START_1B or START_2B)
+     * - During game startup (START1B or START2B):
+     *       Sent from server, CANCELBUILDREQUEST means the current player
+     *       wants to undo the placement of their initial settlement.  
+     *
+     * - During piece placement (PLACING_ROAD, PLACING_CITY, PLACING_SETTLEMENT,
+     *                           PLACING_FREE_ROAD1 or PLACING_FREE_ROAD2):
+     *
+     *      Sent from server, CANCELBUILDREQUEST means the player has sent
+     *      an illegal PUTPIECE (bad building location). Humans can probably
+     *      decide a better place to put their road, but robots must cancel
+     *      the build request and decide on a new plan.
+     *      
+     *      Our robot client sends this to the brain to act on.
      *  
      * @param mes  the message
      */

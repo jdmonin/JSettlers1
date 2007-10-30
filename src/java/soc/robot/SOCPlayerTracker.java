@@ -93,7 +93,7 @@ public class SOCPlayerTracker
      * the road is placed, and thus the settlement placement can't be moved around.
      */
     protected SOCSettlement pendingInitSettlement;
-
+    
     /**
      * monitor for synchronization
      */
@@ -498,7 +498,43 @@ public class SOCPlayerTracker
         }
         else
         {
-            addTheirNewRoad(road);
+            addTheirNewRoad(road, false);
+        }
+    }
+    
+    /**
+     * JM TODO javadoc comments
+     * 
+     * @param road Location of our bad road
+     * 
+     * @see SOCRobotBrain#cancelWrongPiecePlacement(SOCCancelBuildRequest)
+     */
+    public void cancelWrongRoad(SOCRoad road)
+    {
+        addTheirNewRoad(road, true);
+        
+        //
+        // Cancel-actions to remove from potential settlements list,
+        // (since it was wrongly placed), taken from addOurNewRoad.
+        //
+        // see if the new road was a possible road
+        //
+        Iterator prIter = possibleRoads.values().iterator();
+
+        while (prIter.hasNext())
+        {
+            SOCPossibleRoad pr = (SOCPossibleRoad) prIter.next();
+            if (pr.getCoordinates() == road.getCoordinates())
+            {
+                //
+                // if so, remove it
+                //
+                //D.ebugPrintln("$$$ removing (wrong) "+Integer.toHexString(road.getCoordinates()));
+                possibleRoads.remove(new Integer(pr.getCoordinates()));
+                removeFromNecessaryRoads(pr);
+
+                break;
+            }
         }
     }
 
@@ -858,8 +894,9 @@ public class SOCPlayerTracker
      * add another player's new road
      *
      * @param road  the new road
+     * @param isCancel  JM TODO
      */
-    public void addTheirNewRoad(SOCRoad road)
+    public void addTheirNewRoad(SOCRoad road, boolean isCancel)
     {
         /**
          * see if another player's road interferes with our possible roads
@@ -956,8 +993,34 @@ public class SOCPlayerTracker
         }
         else
         {
-            addTheirNewSettlement(settlement);
+            addTheirNewSettlement(settlement, false);
         }
+    }
+
+    /**
+     * JM TODO javadoc comments
+     * 
+     * @param road Location of our bad settlement
+     * 
+     * @see SOCRobotBrain#cancelWrongPiecePlacement(SOCCancelBuildRequest)
+     */
+    public void cancelWrongSettlement(SOCSettlement settlement)
+    {
+        addTheirNewSettlement(settlement, true);
+        
+        /**
+         * Cancel-actions to remove from potential settlements list,
+         * (since it was wrongly placed), taken from addOurNewSettlement.
+         * 
+         * see if the new settlement was a possible settlement in
+         * the list.  if so, remove it.
+         */
+        Integer settlementCoords = new Integer(settlement.getCoordinates());
+        SOCPossibleSettlement ps = (SOCPossibleSettlement) possibleSettlements.get(settlementCoords);
+        D.ebugPrintln("$$$ removing (wrong) " + Integer.toHexString(settlement.getCoordinates()));
+        possibleSettlements.remove(settlementCoords);
+        removeFromNecessaryRoads(ps);
+
     }
 
     /**
@@ -1127,8 +1190,9 @@ public class SOCPlayerTracker
      * add  another player's new settlement
      *
      * @param settlement  the new settlement
+     * @param isCancel JM TODO
      */
-    public void addTheirNewSettlement(SOCSettlement settlement)
+    public void addTheirNewSettlement(SOCSettlement settlement, boolean isCancel)
     {
         /**
          * this doesn't need to remove conflicts between settlements
@@ -1164,20 +1228,28 @@ public class SOCPlayerTracker
                     ///
                     /// This road has no necessary roads.
                     /// check to see if it is cut off by the new settlement
-                    /// by seeing if this road was threatened by the settlement
+                    /// by seeing if this road was threatened by the settlement.
                     ///
-                    Enumeration threatEnum = pr.getThreats().elements();
-
-                    while (threatEnum.hasMoreElements())
+                    /// If we're cancelling, it would have been our settlement,
+                    /// so wouldn't have threatened our road.  Don't worry about
+                    /// other players' potential roads, because point of 'cancel'
+                    /// is to change our robot's immediate goal, not other players. 
+                    ///
+                    if (! isCancel)
                     {
-                        SOCPossiblePiece threat = (SOCPossiblePiece) threatEnum.nextElement();
-
-                        if ((threat.getType() == SOCPossiblePiece.SETTLEMENT) && (threat.getCoordinates() == settlement.getCoordinates()) && (threat.getPlayer().getPlayerNumber() == settlement.getPlayer().getPlayerNumber()))
+                        Enumeration threatEnum = pr.getThreats().elements();
+    
+                        while (threatEnum.hasMoreElements())
                         {
-                            D.ebugPrintln("$$$ new settlement cuts off road at " + Integer.toHexString(pr.getCoordinates()));
-                            prTrash.addElement(pr);
-
-                            break;
+                            SOCPossiblePiece threat = (SOCPossiblePiece) threatEnum.nextElement();
+    
+                            if ((threat.getType() == SOCPossiblePiece.SETTLEMENT) && (threat.getCoordinates() == settlement.getCoordinates()) && (threat.getPlayer().getPlayerNumber() == settlement.getPlayer().getPlayerNumber()))
+                            {
+                                D.ebugPrintln("$$$ new settlement cuts off road at " + Integer.toHexString(pr.getCoordinates()));
+                                prTrash.addElement(pr);
+    
+                                break;
+                            }
                         }
                     }
                 }
@@ -1406,6 +1478,23 @@ public class SOCPlayerTracker
         }
     }
 
+    /**
+     * JM TODO javadoc comments
+     * 
+     * @param city Location of our bad city
+     * 
+     * @see SOCRobotBrain#cancelWrongPiecePlacement(SOCCancelBuildRequest)
+     */
+    public void cancelWrongCity(SOCCity city)
+    {
+        /**
+         * There is no addTheirNewCity method.
+         * Just remove our potential city, since it was wrongly placed.
+         * remove the possible city from the list
+         */
+        possibleCities.remove(new Integer(city.getCoordinates()));
+    }
+    
     /**
      * add one of our cities
      *

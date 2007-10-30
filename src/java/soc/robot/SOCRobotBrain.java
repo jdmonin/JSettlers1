@@ -37,6 +37,7 @@ import soc.game.SOCSettlement;
 import soc.game.SOCTradeOffer;
 
 import soc.message.SOCAcceptOffer;
+import soc.message.SOCCancelBuildRequest;
 import soc.message.SOCChoosePlayerRequest;
 import soc.message.SOCClearOffer;
 import soc.message.SOCDevCard;
@@ -126,6 +127,11 @@ public class SOCRobotBrain extends Thread
      * Our player data
      */
     protected SOCPlayer ourPlayerData;
+    
+    /**
+     * Dummy player for cancelling bad placements
+     */
+    protected SOCPlayer dummyCancelPlayerData;
 
     /**
      * The queue of game messages
@@ -146,6 +152,34 @@ public class SOCRobotBrain extends Thread
      * This is our current building plan
      */
     protected Stack buildingPlan;
+
+    /**
+     * This is what we tried building this turn,
+     * but the server said it was an illegal move
+     * (due to a bug in our robot).
+     * 
+     * @see #whatWeWantToBuild
+     */
+    protected SOCPlayingPiece whatWeFailedToBuild;
+
+    /**
+     * Track how many illegal placement requests we've
+     * made this turn.  Avoid infinite turn length, by
+     * preventing robot from alternately choosing two
+     * wrong things when the server denies a bad build.
+     * 
+     * @see #whatWeFailedToBuild
+     * @see #MAX_DENIED_BUILDING_PER_TURN
+     */
+    protected int failedBuildingAttempts;
+    
+    /**
+     * If, during a turn, we make this many illegal build
+     * requests that the server denies, stop trying.
+     * 
+     * @see #failedBuildingAttempts
+     */
+    public static int MAX_DENIED_BUILDING_PER_TURN = 3;
 
     /**
      * these are the two resources that we want
@@ -609,6 +643,7 @@ public class SOCRobotBrain extends Thread
 
         decisionMaker = new SOCRobotDM(this);
         negotiator = new SOCRobotNegotiator(this);
+        dummyCancelPlayerData = new SOCPlayer(-2, game);
     }
 
     /**
@@ -795,6 +830,10 @@ public class SOCRobotBrain extends Thread
                     if ((mesType == SOCMessage.TURN) && (ourTurn))
                     {
                         waitingForOurTurn = false;
+                        
+                        // Clear per-turn variables.
+                        whatWeFailedToBuild = null;
+                        failedBuildingAttempts = 0;
                     }
 
                     if (mesType == SOCMessage.PLAYERELEMENT)
@@ -1162,7 +1201,7 @@ public class SOCRobotBrain extends Thread
                                     (new Integer(((SOCPutPiece) mes).getPlayerNumber()));
                                 SOCSettlement se = tr.getPendingInitSettlement();
                                 if (se != null)
-                                    trackNewSettlement(se);
+                                    trackNewSettlement(se, false);
                             }
                             SOCRoad rd = new SOCRoad(pl, ((SOCPutPiece) mes).getCoordinates());
                             game.putPiece(rd);
@@ -1187,22 +1226,56 @@ public class SOCRobotBrain extends Thread
                     
                     else if (mesType == SOCMessage.CANCELBUILDREQUEST)
                     {
+                        int gstate = game.getGameState(); 
                         //
-                        // When sent from server to client, CANCELBUILDREQUEST means the current player
-                        // wants to undo the placement of their initial settlement.  Only allowed during
-                        // game startup (START_1B or START_2B).
+                        // During game startup (START1B or START2B):
+                        //    When sent from server to client, CANCELBUILDREQUEST means the current
+                        //    player wants to undo the placement of their initial settlement.  
                         //
-                        int pnum = game.getCurrentPlayerNumber();
-                        SOCPlayer pl = game.getPlayer(pnum);
-                        SOCSettlement pp = new SOCSettlement(pl, pl.getLastSettlementCoord());
-                        game.undoPutInitSettlement(pp);
+                        // During piece placement (PLACING_ROAD, PLACING_CITY, PLACING_SETTLEMENT,
+                        //                         PLACING_FREE_ROAD1, or PLACING_FREE_ROAD2):
+                        //    When sent from server to client, CANCELBUILDREQUEST means the player
+                        //    has sent an illegal PUTPIECE (bad building location). 
+                        //    Humans can probably decide a better place to put their road,
+                        //    but robots must cancel the build request and decide on a new plan.
                         //
-                        // "forget" to track this cancelled initial settlement.
-                        // Player will now place a new one.
-                        //
-                        SOCPlayerTracker tr = (SOCPlayerTracker) playerTrackers.get
-                            (new Integer(pnum));
-                        tr.setPendingInitSettlement(null);
+                        switch (gstate)
+                        {
+                        case SOCGame.START1B:
+                        case SOCGame.START2B:
+                            int pnum = game.getCurrentPlayerNumber();
+                            SOCPlayer pl = game.getPlayer(pnum);
+                            SOCSettlement pp = new SOCSettlement(pl, pl.getLastSettlementCoord());
+                            game.undoPutInitSettlement(pp);
+                            //
+                            // "forget" to track this cancelled initial settlement.
+                            // Wait for human player to place a new one.
+                            //
+                            SOCPlayerTracker tr = (SOCPlayerTracker) playerTrackers.get
+                                (new Integer(pnum));
+                            tr.setPendingInitSettlement(null);
+                            
+                            break;
+                            
+                        case SOCGame.PLACING_ROAD:
+                        case SOCGame.PLACING_SETTLEMENT:
+                        case SOCGame.PLACING_CITY:
+                        case SOCGame.PLACING_FREE_ROAD1:  // JM TODO how to break out?
+                        case SOCGame.PLACING_FREE_ROAD2:  // JM TODO how to break out?
+                            //
+                            // We've asked for an illegal piece placement.
+                            // (Must be a bug.) Cancel and invalidate this
+                            // planned piece, make a new plan.
+                            //
+                            cancelWrongPiecePlacement((SOCCancelBuildRequest) mes);
+                            
+                            break;
+                            
+                        default:
+                            // Should not occur
+                            D.ebugPrintln("Unexpected CANCELBUILDREQUEST at state " + gstate);
+                        
+                        }  // switch (gameState)
                     }
 
                     else if (mesType == SOCMessage.MOVEROBBER)
@@ -1689,9 +1762,11 @@ public class SOCRobotBrain extends Thread
                                 }
 
                                 /**
-                                 * make a plan if we don't have one
+                                 * make a plan if we don't have one,
+                                 * and if we haven't given up building
+                                 * attempts this turn.
                                  */
-                                if (!expectPLACING_ROBBER && (buildingPlan.empty()) && (ourPlayerData.getResources().getTotal() > 1))
+                                if (!expectPLACING_ROBBER && (buildingPlan.empty()) && (ourPlayerData.getResources().getTotal() > 1) && (failedBuildingAttempts < MAX_DENIED_BUILDING_PER_TURN))
                                 {
                                     decisionMaker.planStuff(robotParameters.getStrategyType());
 
@@ -1709,7 +1784,7 @@ public class SOCRobotBrain extends Thread
                                      * check to see if this is a Road Building plan
                                      */
                                     boolean roadBuildingPlan = false;
-
+                                    
                                     if (!ourPlayerData.hasPlayedDevCard() && (ourPlayerData.getNumPieces(SOCPlayingPiece.ROAD) >= 2) && (ourPlayerData.getDevCards().getAmount(SOCDevCardSet.OLD, SOCDevCardConstants.ROADS) > 0))
                                     {
                                         //D.ebugPrintln("** Checking for Road Building Plan **");
@@ -1725,12 +1800,20 @@ public class SOCRobotBrain extends Thread
                                             {
                                                 roadBuildingPlan = true;
                                                 whatWeWantToBuild = new SOCRoad(ourPlayerData, topPiece.getCoordinates());
-                                                waitingForGameState = true;
-                                                counter = 0;
-                                                expectPLACING_FREE_ROAD1 = true;
-
-                                                //D.ebugPrintln("!! PLAYING ROAD BUILDING CARD");
-                                                client.playDevCard(game, SOCDevCardConstants.ROADS);
+                                                if (! whatWeWantToBuild.equals(whatWeFailedToBuild))
+                                                {
+                                                    waitingForGameState = true;
+                                                    counter = 0;
+                                                    expectPLACING_FREE_ROAD1 = true;
+    
+                                                    //D.ebugPrintln("!! PLAYING ROAD BUILDING CARD");
+                                                    client.playDevCard(game, SOCDevCardConstants.ROADS);
+                                                } else {
+                                                    // We already tried to build this.
+                                                    roadBuildingPlan = false;
+                                                    cancelWrongPiecePlacementLocal(whatWeWantToBuild);
+                                                    // cancel sets whatWeWantToBuild = null;
+                                                }
                                             }
                                             else
                                             {
@@ -1883,9 +1966,16 @@ public class SOCRobotBrain extends Thread
                                                         counter = 0;
                                                         expectPLACING_ROAD = true;
                                                         whatWeWantToBuild = new SOCRoad(ourPlayerData, targetPiece.getCoordinates());
-                                                        D.ebugPrintln("!!! BUILD REQUEST FOR A ROAD AT " + Integer.toHexString(targetPiece.getCoordinates()) + " !!!");
-                                                        client.buildRequest(game, SOCPlayingPiece.ROAD);
-
+                                                        if (! whatWeWantToBuild.equals(whatWeFailedToBuild))
+                                                        {
+                                                            D.ebugPrintln("!!! BUILD REQUEST FOR A ROAD AT " + Integer.toHexString(targetPiece.getCoordinates()) + " !!!");
+                                                            client.buildRequest(game, SOCPlayingPiece.ROAD);
+                                                        } else {
+                                                            // We already tried to build this.
+                                                            cancelWrongPiecePlacementLocal(whatWeWantToBuild);
+                                                            // cancel sets whatWeWantToBuild = null;
+                                                        }
+                                                        
                                                         break;
 
                                                     case SOCPlayingPiece.SETTLEMENT:
@@ -1893,9 +1983,16 @@ public class SOCRobotBrain extends Thread
                                                         counter = 0;
                                                         expectPLACING_SETTLEMENT = true;
                                                         whatWeWantToBuild = new SOCSettlement(ourPlayerData, targetPiece.getCoordinates());
-                                                        D.ebugPrintln("!!! BUILD REQUEST FOR A SETTLEMENT " + Integer.toHexString(targetPiece.getCoordinates()) + " !!!");
-                                                        client.buildRequest(game, SOCPlayingPiece.SETTLEMENT);
-
+                                                        if (! whatWeWantToBuild.equals(whatWeFailedToBuild))
+                                                        {
+                                                            D.ebugPrintln("!!! BUILD REQUEST FOR A SETTLEMENT " + Integer.toHexString(targetPiece.getCoordinates()) + " !!!");
+                                                            client.buildRequest(game, SOCPlayingPiece.SETTLEMENT);
+                                                        } else {
+                                                            // We already tried to build this.
+                                                            cancelWrongPiecePlacementLocal(whatWeWantToBuild);
+                                                            // cancel sets whatWeWantToBuild = null;
+                                                        }
+                                                        
                                                         break;
 
                                                     case SOCPlayingPiece.CITY:
@@ -1903,8 +2000,15 @@ public class SOCRobotBrain extends Thread
                                                         counter = 0;
                                                         expectPLACING_CITY = true;
                                                         whatWeWantToBuild = new SOCCity(ourPlayerData, targetPiece.getCoordinates());
-                                                        D.ebugPrintln("!!! BUILD REQUEST FOR A CITY " + Integer.toHexString(targetPiece.getCoordinates()) + " !!!");
-                                                        client.buildRequest(game, SOCPlayingPiece.CITY);
+                                                        if (! whatWeWantToBuild.equals(whatWeFailedToBuild))
+                                                        {
+                                                            D.ebugPrintln("!!! BUILD REQUEST FOR A CITY " + Integer.toHexString(targetPiece.getCoordinates()) + " !!!");
+                                                            client.buildRequest(game, SOCPlayingPiece.CITY);
+                                                        } else {
+                                                            // We already tried to build this.
+                                                            cancelWrongPiecePlacementLocal(whatWeWantToBuild);
+                                                            // cancel sets whatWeWantToBuild = null;
+                                                        }
 
                                                         break;
                                                     }
@@ -2123,90 +2227,7 @@ public class SOCRobotBrain extends Thread
                         case SOCPlayingPiece.ROAD:
 
                             SOCRoad newRoad = new SOCRoad(game.getPlayer(((SOCPutPiece) mes).getPlayerNumber()), ((SOCPutPiece) mes).getCoordinates());
-                            Iterator trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-                                tracker.takeMonitor();
-
-                                try
-                                {
-                                    tracker.addNewRoad(newRoad, playerTrackers);
-                                }
-                                catch (Exception e)
-                                {
-                                    tracker.releaseMonitor();
-                                    System.out.println("Exception caught - " + e);
-                                    e.printStackTrace();
-                                }
-
-                                tracker.releaseMonitor();
-                            }
-
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-                                tracker.takeMonitor();
-
-                                try
-                                {
-                                    Iterator posRoadsIter = tracker.getPossibleRoads().values().iterator();
-
-                                    while (posRoadsIter.hasNext())
-                                    {
-                                        ((SOCPossibleRoad) posRoadsIter.next()).clearThreats();
-                                    }
-
-                                    Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
-
-                                    while (posSetsIter.hasNext())
-                                    {
-                                        ((SOCPossibleSettlement) posSetsIter.next()).clearThreats();
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    tracker.releaseMonitor();
-                                    System.out.println("Exception caught - " + e);
-                                    e.printStackTrace();
-                                }
-
-                                tracker.releaseMonitor();
-                            }
-
-                            ///
-                            /// update LR values and ETA
-                            ///
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-                                tracker.updateThreats(playerTrackers);
-                                tracker.takeMonitor();
-
-                                try
-                                {
-                                    if (tracker.getPlayer().getPlayerNumber() == ((SOCPutPiece) mes).getPlayerNumber())
-                                    {
-                                        //D.ebugPrintln("$$ updating LR Value for player "+tracker.getPlayer().getPlayerNumber());
-                                        //tracker.updateLRValues();
-                                    }
-
-                                    //tracker.recalcLongestRoadETA();
-                                }
-                                catch (Exception e)
-                                {
-                                    tracker.releaseMonitor();
-                                    System.out.println("Exception caught - " + e);
-                                    e.printStackTrace();
-                                }
-
-                                tracker.releaseMonitor();
-                            }
+                            trackNewRoad(newRoad, false);
 
                             break;
 
@@ -2230,7 +2251,7 @@ public class SOCRobotBrain extends Thread
                             else
                             {
                                 // Track it now
-                                trackNewSettlement(newSettlement);
+                                trackNewSettlement(newSettlement, false);
                             }                            
 
                             break;
@@ -2238,63 +2259,7 @@ public class SOCRobotBrain extends Thread
                         case SOCPlayingPiece.CITY:
 
                             SOCCity newCity = new SOCCity(game.getPlayer(((SOCPutPiece) mes).getPlayerNumber()), ((SOCPutPiece) mes).getCoordinates());
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-
-                                if (tracker.getPlayer().getPlayerNumber() == ((SOCPutPiece) mes).getPlayerNumber())
-                                {
-                                    tracker.addOurNewCity(newCity);
-
-                                    break;
-                                }
-                            }
-
-                            ///
-                            /// update the speedups from possible settlements
-                            ///
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-
-                                if (tracker.getPlayer().getPlayerNumber() == ((SOCPutPiece) mes).getPlayerNumber())
-                                {
-                                    Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
-
-                                    while (posSetsIter.hasNext())
-                                    {
-                                        ((SOCPossibleSettlement) posSetsIter.next()).updateSpeedup();
-                                    }
-
-                                    break;
-                                }
-                            }
-
-                            ///
-                            /// update the speedups from possible cities
-                            ///
-                            trackersIter = playerTrackers.values().iterator();
-
-                            while (trackersIter.hasNext())
-                            {
-                                SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-
-                                if (tracker.getPlayer().getPlayerNumber() == ((SOCPutPiece) mes).getPlayerNumber())
-                                {
-                                    Iterator posCitiesIter = tracker.getPossibleCities().values().iterator();
-
-                                    while (posCitiesIter.hasNext())
-                                    {
-                                        ((SOCPossibleCity) posCitiesIter.next()).updateSpeedup();
-                                    }
-
-                                    break;
-                                }
-                            }
+                            trackNewCity(newCity, false);
 
                             break;
                         }
@@ -2430,7 +2395,9 @@ public class SOCRobotBrain extends Thread
         client = null;
         game = null;
         ourPlayerData = null;
+        dummyCancelPlayerData = null;
         whatWeWantToBuild = null;
+        whatWeFailedToBuild = null;
         resourceChoices = null;
         ourPlayerTracker = null;
         playerTrackers = null;
@@ -2441,17 +2408,20 @@ public class SOCRobotBrain extends Thread
     /**
      * Run a newly placed settlement through the playerTrackers.
      *<P>
-     * During initial board setup, settlements aren't immediately tracked.
+     * During initial board setup, settlements aren't tracked when placed.
      * They are deferred until their corresponding road placement, in case
      * a human player decides to cancel their settlement and place it elsewhere.
+     * 
+     * During normal play, the settlements are tracked immediately when placed.
      *
      * (Code previously in body of the run method.)
      * Placing the code in its own method allows tracking that settlement when the
      * road's putPiece message arrives.
      * 
      * @param newSettlement The newly placed settlement for the playerTrackers
+     * @param isCancel JM TODO docu
      */
-    protected void trackNewSettlement(SOCSettlement newSettlement)
+    protected void trackNewSettlement(SOCSettlement newSettlement, boolean isCancel)
     {
         Iterator trackersIter;
         trackersIter = playerTrackers.values().iterator();
@@ -2459,7 +2429,10 @@ public class SOCRobotBrain extends Thread
         while (trackersIter.hasNext())
         {
             SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
-            tracker.addNewSettlement(newSettlement, playerTrackers);
+            if (! isCancel)
+                tracker.addNewSettlement(newSettlement, playerTrackers);
+            else
+                tracker.cancelWrongSettlement(newSettlement);
         }
 
         trackersIter = playerTrackers.values().iterator();
@@ -2490,12 +2463,17 @@ public class SOCRobotBrain extends Thread
             tracker.updateThreats(playerTrackers);
         }
 
+        if (isCancel)
+        {
+            return;  // <--- Early return, nothing else to do ---
+        }
+
         ///
         /// see if this settlement bisected someone elses road
         ///
         int[] roadCount = { 0, 0, 0, 0 };
         Enumeration adjEdgeEnum = SOCBoard.getAdjacentEdgesToNode(newSettlement.getCoordinates()).elements();
-
+        
         while (adjEdgeEnum.hasMoreElements())
         {
             Integer adjEdge = (Integer) adjEdgeEnum.nextElement();
@@ -2583,6 +2561,262 @@ public class SOCRobotBrain extends Thread
                 break;
             }
         }
+    }
+
+    /** JM TODO: docu
+     * @param newCity
+     * @param isCancel
+     */
+    private void trackNewCity(SOCCity newCity, boolean isCancel)
+    {
+        Iterator trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+
+            if (tracker.getPlayer().getPlayerNumber() == newCity.getPlayer().getPlayerNumber())
+            {
+                if (! isCancel)
+                    tracker.addOurNewCity(newCity);
+                else
+                    tracker.cancelWrongCity(newCity);
+
+                break;
+            }
+        }
+
+        if (isCancel)
+        {
+            return;  // <--- Early return, nothing else to do ---
+        }
+
+        ///
+        /// update the speedups from possible settlements
+        ///
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+
+            if (tracker.getPlayer().getPlayerNumber() == newCity.getPlayer().getPlayerNumber())
+            {
+                Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
+
+                while (posSetsIter.hasNext())
+                {
+                    ((SOCPossibleSettlement) posSetsIter.next()).updateSpeedup();
+                }
+
+                break;
+            }
+        }
+
+        ///
+        /// update the speedups from possible cities
+        ///
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+
+            if (tracker.getPlayer().getPlayerNumber() == newCity.getPlayer().getPlayerNumber())
+            {
+                Iterator posCitiesIter = tracker.getPossibleCities().values().iterator();
+
+                while (posCitiesIter.hasNext())
+                {
+                    ((SOCPossibleCity) posCitiesIter.next()).updateSpeedup();
+                }
+
+                break;
+            }
+        }
+    }
+
+    /** JM TODO: docu
+     * @param newRoad
+     * @param isCancel
+     */
+    protected void trackNewRoad(SOCRoad newRoad, boolean isCancel)
+    {
+        Iterator trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+            tracker.takeMonitor();
+
+            try
+            {
+                if (! isCancel)
+                    tracker.addNewRoad(newRoad, playerTrackers);
+                else
+                    tracker.cancelWrongRoad(newRoad);
+            }
+            catch (Exception e)
+            {
+                tracker.releaseMonitor();
+                System.out.println("Exception caught - " + e);
+                e.printStackTrace();
+            }
+
+            tracker.releaseMonitor();
+        }
+
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+            tracker.takeMonitor();
+
+            try
+            {
+                Iterator posRoadsIter = tracker.getPossibleRoads().values().iterator();
+
+                while (posRoadsIter.hasNext())
+                {
+                    ((SOCPossibleRoad) posRoadsIter.next()).clearThreats();
+                }
+
+                Iterator posSetsIter = tracker.getPossibleSettlements().values().iterator();
+
+                while (posSetsIter.hasNext())
+                {
+                    ((SOCPossibleSettlement) posSetsIter.next()).clearThreats();
+                }
+            }
+            catch (Exception e)
+            {
+                tracker.releaseMonitor();
+                System.out.println("Exception caught - " + e);
+                e.printStackTrace();
+            }
+
+            tracker.releaseMonitor();
+        }
+
+        ///
+        /// update LR values and ETA
+        ///
+        trackersIter = playerTrackers.values().iterator();
+
+        while (trackersIter.hasNext())
+        {
+            SOCPlayerTracker tracker = (SOCPlayerTracker) trackersIter.next();
+            tracker.updateThreats(playerTrackers);
+            tracker.takeMonitor();
+
+            try
+            {
+                if (tracker.getPlayer().getPlayerNumber() == newRoad.getPlayer().getPlayerNumber())
+                {
+                    //D.ebugPrintln("$$ updating LR Value for player "+tracker.getPlayer().getPlayerNumber());
+                    //tracker.updateLRValues();
+                }
+
+                //tracker.recalcLongestRoadETA();
+            }
+            catch (Exception e)
+            {
+                tracker.releaseMonitor();
+                System.out.println("Exception caught - " + e);
+                e.printStackTrace();
+            }
+
+            tracker.releaseMonitor();
+        }
+    }
+    
+    /**
+     *  We've asked for an illegal piece placement.
+     *  Cancel and invalidate this planned piece, make a new plan.
+     *  
+     * @param mes Cancelmessage from server, including piece type
+     */
+    protected void cancelWrongPiecePlacement(SOCCancelBuildRequest mes)
+    {
+        whatWeFailedToBuild = whatWeWantToBuild;
+        ++failedBuildingAttempts;
+        
+        int coord = whatWeWantToBuild.getCoordinates();
+        SOCPlayingPiece cancelPiece;
+        
+        /**
+         * First, invalidate that piece in trackers, so we don't try again to
+         * build it. If we treat it like another player's new placement, we
+         * can remove any of our planned pieces depending on this one.
+         */
+        switch (mes.getPieceType())
+        {
+        case SOCPlayingPiece.ROAD:
+            cancelPiece = new SOCRoad(dummyCancelPlayerData, coord);
+            break;
+
+        case SOCPlayingPiece.SETTLEMENT:
+            cancelPiece = new SOCSettlement(dummyCancelPlayerData, coord);
+            break;
+
+        case SOCPlayingPiece.CITY:
+            cancelPiece = new SOCCity(dummyCancelPlayerData, coord);
+            break;
+            
+        default:
+            cancelPiece = null;  // To satisfy javac
+        }
+        
+        /**
+         * we've invalidated that piece in trackers.
+         * - clear whatWeWantToBuild, buildingPlan
+         * - set expectPLAY1, waitingForGameState
+         * - reset counter = 0
+         * - send CANCEL _to_ server, so all players get PLAYERELEMENT & GAMESTATE(PLAY1) messages.
+         * - wait for the play1 message, then can re-plan another piece.
+         * - update javadoc of this method (TODO)
+         */
+        cancelWrongPiecePlacementLocal(cancelPiece);
+        expectPLAY1 = true;
+        waitingForGameState = true;
+        counter = 0;
+        client.cancelBuildRequest(game, mes.getPieceType());
+        // Now wait for the play1 message, then can re-plan another piece.
+    }
+
+    /**
+     * JM TODO: javadoc
+     * 
+     * out of trackers, without sending anything to server
+     * 
+     * @param cancelPiece
+     */
+    protected void cancelWrongPiecePlacementLocal(SOCPlayingPiece cancelPiece)
+    {
+        switch (cancelPiece.getType())
+        {
+        case SOCPlayingPiece.ROAD:
+
+            trackNewRoad((SOCRoad) cancelPiece, true);
+
+            break;
+
+        case SOCPlayingPiece.SETTLEMENT:
+
+            trackNewSettlement((SOCSettlement) cancelPiece, true);
+
+            break;
+
+        case SOCPlayingPiece.CITY:
+
+            trackNewCity((SOCCity) cancelPiece, true);
+
+            break;
+        }
+
+        whatWeWantToBuild = null;
+        buildingPlan.clear();
     }
 
     /**

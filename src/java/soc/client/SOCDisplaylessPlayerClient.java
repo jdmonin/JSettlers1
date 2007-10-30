@@ -514,7 +514,8 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 break;
 
             /**
-             * the current player has cancelled an initial settlement
+             * the current player has cancelled an initial settlement,
+             * or has tried to place a piece illegally. 
              */
             case SOCMessage.CANCELBUILDREQUEST:
                 handleCANCELBUILDREQUEST((SOCCancelBuildRequest) mes);
@@ -1318,19 +1319,33 @@ public class SOCDisplaylessPlayerClient implements Runnable
         }
     }
 
-    /**
-     * handle the rare "cancel build request" message; usually not sent from
-     * server to client.
-     * 
-     *  When sent from client to server, CANCELBUILDREQUEST means the player has changed
-     *  their mind about spending resources to build a piece.
-     *  
-     *  When sent from server to client, CANCELBUILDREQUEST means the current player
-     *  wants to undo the placement of their initial settlement.  Only allowed during
-     *  game startup (START_1B or START_2B)
-     *  
-     * @param mes  the message
-     */
+   /**
+    * handle the rare "cancel build request" message; usually not sent from
+    * server to client.
+    * 
+    * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
+    *   their mind about spending resources to build a piece.  Only allowed during normal
+    *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
+    *
+    *  When sent from server to client:
+    *  
+    * - During game startup (START1B or START2B):
+    *       Sent from server, CANCELBUILDREQUEST means the current player
+    *       wants to undo the placement of their initial settlement.  
+    *
+    * - During piece placement (PLACING_ROAD, PLACING_CITY, PLACING_SETTLEMENT,
+    *                           PLACING_FREE_ROAD1 or PLACING_FREE_ROAD2):
+    * 
+    *      Sent from server, CANCELBUILDREQUEST means the player has sent
+    *      an illegal PUTPIECE (bad building location). Humans can probably
+    *      decide a better place to put their road, but robots must cancel
+    *      the build request and decide on a new plan.
+    *      
+    *      Our client can ignore this case, because the server also sends a text
+    *      message that the human player is capable of reading and acting on.
+    *  
+    * @param mes  the message
+    */
     protected void handleCANCELBUILDREQUEST(SOCCancelBuildRequest mes)
     {
         SOCGame ga = (SOCGame) games.get(mes.getGame());
@@ -1339,7 +1354,12 @@ public class SOCDisplaylessPlayerClient implements Runnable
         
         int sta = ga.getGameState();
         if ((sta != SOCGame.START1B) && (sta != SOCGame.START2B))
+        {
+            // The human player gets a text message from the server informing
+            // about the bad piece placement.  So, we can ignore this message type.
+            // The robot player will override this method and react.
             return;
+        }
         if (mes.getPieceType() != SOCPlayingPiece.SETTLEMENT)
             return;
         

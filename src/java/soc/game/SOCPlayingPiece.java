@@ -85,4 +85,26 @@ public abstract class SOCPlayingPiece implements Serializable, Cloneable
 
         return s;
     }
+    
+    /**
+     * Compare this SOCPlayingPiece to another SOCPlayingPiece, or another object.
+     * Comparison method:
+     * <UL>
+     * <LI> If other is null, false.
+     * <LI> If other is not a SOCPlayingPiece, use our super.equals to compare.
+     * <LI> SOCPlayingPieces are equal if same piece type, coordinate, and player.
+     * </UL>
+     * 
+     * @param other The object to compare with, or null.
+     */
+    public boolean equals(Object other)
+    {
+        if (other == null)
+            return false;
+        if (! (other instanceof SOCPlayingPiece))
+            return super.equals(other);
+        return ((this.pieceType == ((SOCPlayingPiece) other).pieceType)
+            &&  (this.coord == ((SOCPlayingPiece) other).coord)
+            &&  (this.player == ((SOCPlayingPiece) other).player));
+    }
 }

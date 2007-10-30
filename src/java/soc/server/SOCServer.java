@@ -2500,6 +2500,7 @@ public class SOCServer extends Server
                      */
                     if (checkTurn(c, ga))
                     {
+                        boolean sendDenyReply = false;
                         /*
                            if (D.ebugOn) {
                            D.ebugPrintln("BEFORE");
@@ -2560,6 +2561,7 @@ public class SOCServer extends Server
                                 {
                                     D.ebugPrintln("ILLEGAL ROAD");
                                     c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't build a road there."));
+                                    sendDenyReply = true;                                   
                                 }
                             }
                             else
@@ -2590,7 +2592,9 @@ public class SOCServer extends Server
                                 }
                                 else
                                 {
+                                    D.ebugPrintln("ILLEGAL SETTLEMENT");
                                     c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't build a settlement there."));
+                                    sendDenyReply = true;
                                 }
                             }
                             else
@@ -2621,7 +2625,9 @@ public class SOCServer extends Server
                                 }
                                 else
                                 {
+                                    D.ebugPrintln("ILLEGAL CITY");
                                     c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You can't build a city there."));
+                                    sendDenyReply = true;
                                 }
                             }
                             else
@@ -2633,6 +2639,10 @@ public class SOCServer extends Server
                         
                         }  // switch (mes.getPieceType())
                         
+                        if (sendDenyReply)
+                        {
+                            messageToPlayer(c, new SOCCancelBuildRequest(ga.getName(), mes.getPieceType()));
+                        }                       
                     }
                     else
                     {
