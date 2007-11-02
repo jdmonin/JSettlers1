@@ -366,6 +366,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         {
             boolean isCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
             int gstate = game.getGameState();
+
             if (isCurrent && (gstate == SOCGame.PLACING_ROAD))
             {
                 roadBut.setLabel("Cancel");

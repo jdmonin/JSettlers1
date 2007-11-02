@@ -1081,7 +1081,7 @@ public class SOCGame implements Serializable, Cloneable
      * undo the putting of a temporary piece
      *
      * @param pp the piece to put on the board
-     * 
+     *
      * @see #undoPutInitSettlement(SOCPlayingPiece)
      */
     public void undoPutTempPiece(SOCPlayingPiece pp)
@@ -1094,7 +1094,7 @@ public class SOCGame implements Serializable, Cloneable
         SOCOldLRStats oldLRStats = (SOCOldLRStats) oldPlayerWithLongestRoad.pop();
         oldLRStats.restoreOldStats(this);
     }
-    
+
     /**
      * undo the putting of an initial settlement.
      * If state is STATE2B, resources will be returned.

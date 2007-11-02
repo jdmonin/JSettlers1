@@ -521,7 +521,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 handleCANCELBUILDREQUEST((SOCCancelBuildRequest) mes);
 
                 break;
-                
+
             /**
              * the robber moved
              */
@@ -1322,28 +1322,28 @@ public class SOCDisplaylessPlayerClient implements Runnable
    /**
     * handle the rare "cancel build request" message; usually not sent from
     * server to client.
-    * 
+    *
     * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
     *   their mind about spending resources to build a piece.  Only allowed during normal
     *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
     *
     *  When sent from server to client:
-    *  
+    *
     * - During game startup (START1B or START2B):
     *       Sent from server, CANCELBUILDREQUEST means the current player
     *       wants to undo the placement of their initial settlement.  
     *
     * - During piece placement (PLACING_ROAD, PLACING_CITY, PLACING_SETTLEMENT,
     *                           PLACING_FREE_ROAD1 or PLACING_FREE_ROAD2):
-    * 
+    *
     *      Sent from server, CANCELBUILDREQUEST means the player has sent
     *      an illegal PUTPIECE (bad building location). Humans can probably
     *      decide a better place to put their road, but robots must cancel
     *      the build request and decide on a new plan.
-    *      
+    *
     *      Our client can ignore this case, because the server also sends a text
     *      message that the human player is capable of reading and acting on.
-    *  
+    *
     * @param mes  the message
     */
     protected void handleCANCELBUILDREQUEST(SOCCancelBuildRequest mes)
@@ -1351,7 +1351,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
         SOCGame ga = (SOCGame) games.get(mes.getGame());
         if (ga == null)
             return;
-        
+
         int sta = ga.getGameState();
         if ((sta != SOCGame.START1B) && (sta != SOCGame.START2B))
         {
@@ -1362,12 +1362,12 @@ public class SOCDisplaylessPlayerClient implements Runnable
         }
         if (mes.getPieceType() != SOCPlayingPiece.SETTLEMENT)
             return;
-        
+
         SOCPlayer pl = ga.getPlayer(ga.getCurrentPlayerNumber());
         SOCSettlement pp = new SOCSettlement(pl, pl.getLastSettlementCoord());
         ga.undoPutInitSettlement(pp);
     }
-    
+
     /**
      * handle the "robber moved" message
      * @param mes  the message

@@ -1533,17 +1533,13 @@ public class SOCHandPanel extends Panel implements ActionListener
             break;
         }
     }
-    
+
     /**
-     * Re-read player's resource info and update the display.
+     * Re-read player's resource info and victory points, update the display.
      */
-    public void updateResources()
+    public void updateResourcesVP()
     {
-        if (! playerIsClient)
-        {
-            updateValue(NUMRESOURCES);
-        }
-        else
+        if (playerIsClient)
         {
             updateValue(CLAY);
             updateValue(ORE);
@@ -1551,6 +1547,11 @@ public class SOCHandPanel extends Panel implements ActionListener
             updateValue(WHEAT);
             updateValue(WOOD);
         }
+        else
+        {
+            updateValue(NUMRESOURCES);
+        }
+        updateValue(VICTORYPOINTS);
     }
 
     /** Is this panel showing the client player,

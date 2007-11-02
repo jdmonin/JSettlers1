@@ -995,7 +995,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 handlePUTPIECE((SOCPutPiece) mes);
 
                 break;
-                
+
             /**
              * the current player has cancelled an initial settlement,
              * or has tried to place a piece illegally. 
@@ -2189,17 +2189,17 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             pi.getBuildingPanel().updateButtonStatus();
         }
     }
-    
+
     /**
      * handle the rare "cancel build request" message; usually not sent from
      * server to client.
-     * 
+     *
      * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
      *   their mind about spending resources to build a piece.  Only allowed during normal
      *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
      *
      *  When sent from server to client:
-     *  
+     *
      * - During game startup (START1B or START2B):
      *       Sent from server, CANCELBUILDREQUEST means the current player
      *       wants to undo the placement of their initial settlement.  
@@ -2214,7 +2214,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      *      
      *      Our client can ignore this case, because the server also sends a text
      *      message that the human player is capable of reading and acting on.
-     *  
+     *
      * @param mes  the message
      */
     protected void handleCANCELBUILDREQUEST(SOCCancelBuildRequest mes)
@@ -2222,7 +2222,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         SOCGame ga = (SOCGame) games.get(mes.getGame());
         if (ga == null)
             return;
-        
+
         int sta = ga.getGameState();
         if ((sta != SOCGame.START1B) && (sta != SOCGame.START2B))
         {
@@ -2232,13 +2232,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
         if (mes.getPieceType() != SOCPlayingPiece.SETTLEMENT)
             return;
-        
+
         SOCPlayer pl = ga.getPlayer(ga.getCurrentPlayerNumber());
         SOCSettlement pp = new SOCSettlement(pl, pl.getLastSettlementCoord());
         ga.undoPutInitSettlement(pp);
 
         SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-        pi.getPlayerHandPanel(pl.getPlayerNumber()).updateResources();
+        pi.getPlayerHandPanel(pl.getPlayerNumber()).updateResourcesVP();
         pi.getBoardPanel().updateMode();
     }
 
