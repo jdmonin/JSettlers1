@@ -467,7 +467,7 @@ public class SOCRobotBrain extends Thread
         resourceChoices = new SOCResourceSet();
         resourceChoices.add(2, SOCResourceConstants.CLAY);
         monopolyChoice = SOCResourceConstants.SHEEP;
-        pinger = new SOCRobotPinger(gameEventQ);
+        pinger = new SOCRobotPinger(gameEventQ, client.getNickname() + "-" + game.getName());
         dRecorder = new DebugRecorder[2];
         dRecorder[0] = new DebugRecorder();
         dRecorder[1] = new DebugRecorder();
@@ -652,7 +652,13 @@ public class SOCRobotBrain extends Thread
      */
     public void run()
     {
-        Thread.currentThread().setName("robotBrain");  // Thread name for debug
+        // Thread name for debug
+        try
+        {
+            Thread.currentThread().setName("robotBrain-" + client.getNickname() + "-" + game.getName());
+        }
+        catch (Throwable th) {}
+        
         if (pinger != null)
         {
             pinger.start();

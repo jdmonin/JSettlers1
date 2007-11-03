@@ -1756,6 +1756,16 @@ public class SOCHandPanel extends Panel implements ActionListener
         
         public void run()
         {
+            // for debugging
+            if (Thread.currentThread().getName().startsWith("Thread-"))
+            {
+                try {
+                    Thread.currentThread().setName("timertask-autoroll");
+                }
+                catch (Throwable th) {}
+            }
+            
+            // autoroll function
             if (timeRemain > 0)
             {
                 setRollPrompt(AUTOROLL_COUNTDOWN + Integer.toString(timeRemain));

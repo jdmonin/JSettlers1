@@ -207,7 +207,13 @@ public class SOCDisplaylessPlayerClient implements Runnable
      */
     public void run()
     {
-        Thread.currentThread().setName("robot-netread");  // Thread name for debug
+        // Thread name for debug
+        try
+        {
+            Thread.currentThread().setName("robot-netread-" + nickname);
+        }
+        catch (Throwable th) {}
+        
         try
         {
             while (connected)

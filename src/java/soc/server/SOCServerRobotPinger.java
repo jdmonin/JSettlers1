@@ -53,7 +53,7 @@ public class SOCServerRobotPinger extends Thread
         robotConnections = robots;
         ping = new SOCServerPing(sleepTime);
         alive = true;
-        setName ("robotPinger");  // Thread name for debug
+        setName ("robotPinger-srv");  // Thread name for debug
     }
 
     /**

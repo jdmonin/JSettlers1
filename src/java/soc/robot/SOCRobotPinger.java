@@ -36,17 +36,20 @@ public class SOCRobotPinger extends Thread
     CappedQueue messageQueue;
     SOCGameTextMsg ping;
     boolean alive;
+    String robotNickname;
 
     /**
      * Create a robot pinger
      *
      * @param q  the robot brain's message queue
+     * @param nickname the robot's nickname, for debug thread naming
      */
-    public SOCRobotPinger(CappedQueue q)
+    public SOCRobotPinger(CappedQueue q, String nickname)
     {
         messageQueue = q;
         ping = new SOCGameTextMsg("*PING*", "*PING*", "*PING*");
         alive = true;
+        robotNickname = nickname;
     }
 
     /**
@@ -54,7 +57,13 @@ public class SOCRobotPinger extends Thread
      */
     public void run()
     {
-        Thread.currentThread().setName("robotPinger");  // Thread name for debug
+        // Thread name for debug
+        try
+        {
+            Thread.currentThread().setName("robotPinger-" + robotNickname);
+        }
+        catch (Throwable th) {}
+        
         while (alive)
         {
             try

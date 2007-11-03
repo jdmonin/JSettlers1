@@ -2772,6 +2772,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * Used for the delay between sending a build-request message,
      * and receiving a game-state message.
      * 
+     * This timer will probably not be called, unless there's a large lag
+     * between the server and client.  It's here just in case.
+     * Ideally the server responds right away, and the client responds then.
+     * 
      * @see #SOCBoardPanel.autoRollSetupTimer()
      */
     protected class BoardPanelSendBuildTask extends java.util.TimerTask
@@ -2803,8 +2807,21 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             return pieceType;
         }
         
+        /**
+         * This timer will probably not be called, unless there's a large lag
+         * between the server and client.  It's here just in case.
+         */
         public void run()
         {
+            // for debugging
+            if (Thread.currentThread().getName().startsWith("Thread-"))
+            {
+                try {
+                    Thread.currentThread().setName("timertask-boardpanel");
+                }
+                catch (Throwable th) {}
+            }
+            
             // Time is up.
             sendOnceFromClientIfCurrentPlayer();
         }
