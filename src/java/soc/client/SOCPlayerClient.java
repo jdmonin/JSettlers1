@@ -38,9 +38,9 @@ import soc.message.*;
 
 import soc.robot.SOCRobotClient;
 import soc.server.SOCServer;
+import soc.server.genericServer.LocalStringConnection;
+import soc.server.genericServer.LocalStringServerSocket;
 import soc.server.genericServer.StringConnection;
-import soc.util.LocalStringConnection;
-import soc.util.LocalStringServerSocket;
 import soc.util.Version;
 
 import java.applet.Applet;
@@ -100,7 +100,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Button jc;  // join channel
     protected Button jg;  // join game
     protected Button pg;  // practice game (local)
-    protected Label messageLabel;
+    protected Label messageLabel;  // error message for messagepanel
+    protected Label messageLabel_top;   // secondary message
     protected Button pgm;  // practice game from messagepanel
     protected AppletContext ac;
     
@@ -125,6 +126,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * @see soc.util.LocalStringConnection
      */
     public static String PRACTICE_STRINGPORT = "SOCPRACTICE"; 
+    
+    /**
+     * For local practice games, default player name.
+     */
+    public static String DEFAULT_PLAYER_NAME = "Player";
+    
+    /**
+     * For local practice games, default game name.
+     */
+    public static String DEFAULT_PRACTICE_GAMENAME = "Practice";
+    
+    public static String NET_UNAVAIL_CAN_PRACTICE_MSG = "The server is unavailable. You can still play practice games.";
 
     /**
      * the nickname
@@ -166,6 +179,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     protected SOCServer practiceServer = null;
     protected StringConnection prCli = null;
+    protected int numPracticeGames = 0;
 
     /**
      * Create a SOCPlayerClient connecting to localhost port 8880
@@ -209,7 +223,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gmlist.add(" ");
         jc = new Button("Join Channel");
         jg = new Button("Join Game");
-        pg = new Button("Practice Game");
+        pg = new Button("Practice");  // "practice game" is too wide
 
         nick.addActionListener(this);
         pass.addActionListener(this);
@@ -258,6 +272,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
+        l = new Label();
+        c.gridwidth = 1;
+        gbl.setConstraints(l, c);
+        mainPane.add(l);
+
         c.gridwidth = 1;
         gbl.setConstraints(pass, c);
         mainPane.add(pass);
@@ -287,6 +306,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         mainPane.add(l);
 
         l = new Label("New Game:");
+        c.gridwidth = 1;
+        gbl.setConstraints(l, c);
+        mainPane.add(l);
+
+        l = new Label();
         c.gridwidth = 1;
         gbl.setConstraints(l, c);
         mainPane.add(l);
@@ -322,6 +346,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         c.gridwidth = 1;
         gbl.setConstraints(pg, c);
         mainPane.add(pg);
+
+        l = new Label();
+        c.gridwidth = 1;
+        gbl.setConstraints(l, c);
+        mainPane.add(l);
 
         c.gridwidth = 1;
         gbl.setConstraints(jg, c);
@@ -361,13 +390,20 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(gmlist, c);
         mainPane.add(gmlist);
 
+        Panel messagePane = new Panel(new BorderLayout());
+
+        // secondary message at top of message pane, used with pgm button.
+        messageLabel_top = new Label("", Label.CENTER);
+        messageLabel_top.setVisible(false);        
+        messagePane.add(messageLabel_top, BorderLayout.NORTH);
+        
         // message label that takes up the whole pane
         messageLabel = new Label("", Label.CENTER);
-
-        Panel messagePane = new Panel(new BorderLayout());
+        messageLabel.setForeground(new Color(252, 251, 243)); // off-white 
         messagePane.add(messageLabel, BorderLayout.CENTER);
         
-        pgm = new Button("Practice Game (robots)");
+        // bottom of message pane: practice-game button
+        pgm = new Button("Practice Game (against robots)");
         pgm.setVisible(false);
         messagePane.add(pgm, BorderLayout.SOUTH);
         pgm.addActionListener(this);
@@ -493,6 +529,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             if (ex_L == null)
             {
                 pgm.setVisible(true);
+                messageLabel_top.setText(msg);                
+                messageLabel_top.setVisible(true);
+                messageLabel.setText(NET_UNAVAIL_CAN_PRACTICE_MSG);
                 validate();
             }
         }
@@ -634,13 +673,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 gm = game.getText().trim();
                 if (gm.length() == 0)
                 {
-                    gm = "Practice";
+                    gm = DEFAULT_PRACTICE_GAMENAME;
                     game.setText(gm);
                 }
                 
                 if (0 == nick.getText().trim().length())
                 {
-                    nick.setText("Person");
+                    nick.setText(DEFAULT_PLAYER_NAME);
                 }
             }
             else if (target == jg) // "Join Game" Button
@@ -681,7 +720,31 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 return;
             }
 
+            // Are we already in a game with that name?
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gm);
+            
+            if ((pi != null) && ((target == pg) || (target == pgm)))
+            {
+                // "Practice Game" button.
+                // Ask the player if they want to join, or start a new game.
+                // If we're from the error panel (pgm), there's no way to
+                // enter a game name; make a name up if needed.
+                // If we already have a game going, our nickname is not empty.
+                // So, it's OK to not check that here.
+                
+                // Is the game over yet?
+                if (pi.getGame().getGameState() == SOCGame.OVER)
+                {
+                    // No point joining, just start a new one.
+                    startPracticeGame();
+                }
+                else
+                {
+                    new SOCPracticeAskDialog(this, pi).show();
+                }
+
+                return;
+            }
 
             if (pi == null)
             {
@@ -855,7 +918,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
     
     /**
-     * Write a message to the net or local server
+     * Write a message to the net or local server.
+     * Because the player can be in both network games and local games,
+     * we must route to the appropriate client-server connection.
      * 
      * @param s  the message
      * @param isLocal Is the server local (practice game), or network?
@@ -863,10 +928,10 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public synchronized boolean put(String s, boolean isLocal)
     {
-        if (! isLocal)
-            return putNet(s);
-        else
+        if (isLocal)
             return putLocal(s);
+        else
+            return putNet(s);
     }
 
     /**
@@ -2611,8 +2676,19 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         disconnect();
         
-        messageLabel.setText(mes.getText());
-        pgm.setVisible(ex_L == null);
+        if (ex_L == null)
+        {
+            messageLabel_top.setText(mes.getText());                
+            messageLabel_top.setVisible(true);
+            messageLabel.setText(NET_UNAVAIL_CAN_PRACTICE_MSG);
+            pgm.setVisible(true);
+        }
+        else
+        {
+            messageLabel_top.setVisible(false);
+            messageLabel.setText(mes.getText());
+            pgm.setVisible(false);
+        }
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
     }
@@ -3499,15 +3575,40 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
     
     /**
-     * for stand-alones
+     * Make up a name and start a practice game.
+     */
+    public void startPracticeGame()
+    {
+        startPracticeGame(DEFAULT_PRACTICE_GAMENAME + " " + (1 + numPracticeGames));
+    }
+    
+    /**
+     * for local practice game (local server).
      */
     public void startPracticeGame(String practiceGameName)
     {
+        ++numPracticeGames;
+        
         if (practiceServer == null)
         {
             practiceServer = new SOCServer(PRACTICE_STRINGPORT, 30, null, null);
             practiceServer.setPriority(5);
             practiceServer.start();
+            
+            // We need some opponents.
+            SOCRobotClient[] rob = new SOCRobotClient[3];
+            for (int i = 0; i < 3; ++i)
+            {
+                rob[i] = new SOCRobotClient (PRACTICE_STRINGPORT, "robot " + (i+1), "pw");  // TODO names and parameters
+                new Thread(new SOCPlayerLocalRobotRunner(rob[i])).start();
+                Thread.yield();
+                try
+                {
+                    Thread.sleep(100);  // Let that robot go for a bit.
+                        // robot runner thread will call rob[i].init();
+                }
+                catch (InterruptedException ie) {}
+            }            
         }
         if (prCli == null)
         {
@@ -3521,25 +3622,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 ex_L = e;
                 return;
             }
-
-            // Along with our client, we need some opponents.
-            
-            SOCRobotClient[] rob = new SOCRobotClient[3];
-            for (int i = 0; i < 3; ++i)
-            {
-                rob[i] = new SOCRobotClient (PRACTICE_STRINGPORT, "robot " + i, "pw");  // TODO names and parameters
-                new Thread(new SOCPlayerLocalRobotRunner(rob[i])).start();
-                Thread.yield();
-                try
-                {
-                    Thread.sleep(200);  // Let that robot go for a bit.
-                        // robot runner thread will call rob[i].init();
-                }
-                catch (InterruptedException ie) {}
-            }            
         }
 
-        putLocal(SOCJoinGame.toCmd(nickname, password, host, practiceGameName));        
+        // Ask "server" to create the game
+        putLocal(SOCJoinGame.toCmd(nickname, password, host, practiceGameName));
+        
+        // Clear the textfield for next game name
+        game.setText("");
     }
 
     /**
@@ -3556,7 +3645,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void destroy()
     {
-        boolean canLocal = (ex_L == null);
+        boolean canLocal = (ex_L == null);  // Can we start a local game? 
 
         SOCLeaveAll leaveAllMes = new SOCLeaveAll();
         putNet(leaveAllMes.toCmd());
@@ -3579,13 +3668,31 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         for (Enumeration e = playerInterfaces.elements(); e.hasMoreElements();)
         {
-            ((SOCPlayerInterface) e.nextElement()).over(err);
+            // Stop network games.
+            // Local practice games can continue.
+            
+            SOCPlayerInterface pi = ((SOCPlayerInterface) e.nextElement());
+            if (! pi.getGame().isLocal)
+            {
+                pi.over(err);
+            }
         }
         
         disconnect();
 
-        messageLabel.setText(err);
-        pgm.setVisible(canLocal);
+        if (canLocal)
+        {
+            messageLabel_top.setText(err);
+            messageLabel_top.setVisible(true);
+            messageLabel.setText(NET_UNAVAIL_CAN_PRACTICE_MSG);
+            pgm.setVisible(true);            
+        }
+        else
+        {
+            messageLabel_top.setVisible(false);
+            messageLabel.setText(err);
+            pgm.setVisible(false);            
+        }
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
     }

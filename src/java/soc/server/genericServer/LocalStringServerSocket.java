@@ -1,7 +1,24 @@
 /**
- * GPL (TODO JM)
- */
-package soc.util;
+ * Local (StringConnection) network system.
+ * Copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>.
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ * The author of this program can be reached at jeremy@nand.net
+ **/
+package soc.server.genericServer;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -9,8 +26,6 @@ import java.net.ConnectException;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
-
-import soc.server.genericServer.StringConnection;
 
 /**
  * 
@@ -95,18 +110,17 @@ public class LocalStringServerSocket implements StringServerSocket
         // and accepted the connection from this client-side thread already.
         // So, check if we're accepted, before waiting to be accepted.
         //
-        if (! servSidePeer.isAccepted())
+        synchronized (servSidePeer)
         {
-            try
+            // Sync vs. critical section in accept
+            
+            if (! servSidePeer.isAccepted())
             {
-                synchronized (servSidePeer)
+                try
                 {
                     servSidePeer.wait();  // Notified by accept method
                 }
-            }
-            catch (InterruptedException e)
-            {
-                // We'll loop and wait again.
+                catch (InterruptedException e) {}
             }
         }
         
@@ -189,15 +203,19 @@ public class LocalStringServerSocket implements StringServerSocket
             acceptQueue.removeElementAt(0);            
         }
         
-        LocalStringConnection servPeer = cliPeer.getPeer();
+        LocalStringConnection servPeer = cliPeer.getPeer();        
         cliPeer.setAccepted();
-        servPeer.setAccepted();
-        allConnected.addElement(servPeer);
-        
         synchronized (servPeer)
         {
-            servPeer.notifyAll();  // Client has been waiting in connectTo for our accept
+            // Sync vs. critical section in connectTo;
+            // client has been waiting there for our accept.
+            
+            servPeer.setAccepted();
+            servPeer.notifyAll();
         }
+
+        allConnected.addElement(servPeer);
+
         return servPeer;
     }
     

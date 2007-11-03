@@ -71,14 +71,13 @@
 
   <!-- jar file packages -->
   <patternset id="server.files">
-    <include name="soc/robot/" />
-    <include name="soc/server/" />
+    <include name="resources/" />    <!-- for version file -->
+    <include name="soc/" />       <!-- everything... -->
+    <exclude name="soc/client/" />  <!-- ...except these -->
   </patternset>
   <patternset id="client.files">
-    <include name="resources/" />
+    <include name="resources/" /> <!-- client may run local server -->
     <include name="soc/" />       <!-- everything... -->
-    <exclude name="soc/robot/" /> <!-- ...except these -->
-    <exclude name="soc/server/" />
   </patternset>
 
   <!-- external libraries -->

@@ -21,9 +21,6 @@
 package soc.server.genericServer;
 
 import soc.debug.D; // JM
-import soc.util.LocalStringConnection;
-import soc.util.LocalStringServerSocket;
-import soc.util.StringServerSocket;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -41,6 +38,7 @@ import java.util.Vector;
  *  @version 1.5
  *  Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A>
  *  Lots of mods by Robert S. Thomas and Jay Budzik
+ *  Local (StringConnection) network system by Jeremy D Monin <jeremy@nand.net>
  *  This is the real stuff. Server subclasses won't have to care about
  *  reading/writing on the net, data consistency among threads, etc.
  */

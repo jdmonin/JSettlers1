@@ -94,8 +94,7 @@ import soc.message.SOCStartGame;
 import soc.message.SOCStatusMessage;
 import soc.message.SOCTextMsg;
 import soc.message.SOCTurn;
-import soc.server.genericServer.StringConnection;
-import soc.util.LocalStringConnection;
+import soc.server.genericServer.LocalStringConnection;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;

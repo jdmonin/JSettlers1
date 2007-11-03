@@ -71,9 +71,10 @@ import soc.message.SOCStartGame;
 import soc.message.SOCTurn;
 import soc.message.SOCUpdateRobotParams;
 
+import soc.server.genericServer.LocalStringServerSocket;
+
 import soc.util.CappedQueue;
 import soc.util.CutoffExceededException;
-import soc.util.LocalStringServerSocket;
 import soc.util.SOCRobotParameters;
 
 import java.io.DataInputStream;
