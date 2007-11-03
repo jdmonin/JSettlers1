@@ -172,7 +172,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         //playerColors[0] = new Color( 10,  63, 172); // blue
         playerColors[0] = new Color(109, 124, 231); // grey-blue
         playerColors[1] = new Color(231,  35,  35); // red
-        playerColors[2] = new Color(244, 238, 206); // green
+        playerColors[2] = new Color(244, 238, 206); // off-white
         playerColors[3] = new Color(249, 128,  29); // orange
         for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
         {
@@ -499,6 +499,10 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     {
         textInput.setEditable(false);
         textInput.setText(s);
+        textDisplay.append("* Sorry, lost connection to the server.\n");
+        textDisplay.append("*** Game stopped. ***\n");
+        game.setCurrentPlayerNumber(-1);
+        boardPanel.repaint();
     }
 
     /**
