@@ -21,11 +21,16 @@
 package soc.server.genericServer;
 
 import soc.debug.D; // JM
+import soc.util.LocalStringConnection;
+import soc.util.LocalStringServerSocket;
+import soc.util.StringServerSocket;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
 
 import java.net.ServerSocket;
+import java.net.Socket;
 
 import java.util.Date;
 import java.util.Enumeration;
@@ -41,10 +46,11 @@ import java.util.Vector;
  */
 public abstract class Server extends Thread implements Serializable, Cloneable
 {
-    ServerSocket ss;
+    StringServerSocket ss;
     boolean up = false;
     protected Exception error = null;
-    protected int port;
+    protected int port;  // -1 for local mode (LocalStringServerSocket, etc)
+    protected String strSocketName;
 
     /**
      * total number of connections made
@@ -59,11 +65,12 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     public Server(int port)
     {
         this.port = port;
+        this.strSocketName = null;
         numberOfConnections = 0;
 
         try
         {
-            ss = new ServerSocket(port);
+            ss = new NetStringServerSocket(port, this);
         }
         catch (IOException e)
         {
@@ -72,6 +79,18 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
         
         setName("server-" + port);  // Thread name for debugging
+    }
+    
+    public Server(String stringSocketName)
+    {
+        if (stringSocketName == null)
+            throw new IllegalArgumentException("stringSocketName null");
+        
+        this.port = -1;
+        this.strSocketName = stringSocketName;
+        numberOfConnections = 0;
+        ss = new LocalStringServerSocket(stringSocketName);
+        setName("server-localstring-" + stringSocketName);  // Thread name for debugging
     }
 
     protected Enumeration getConnections()
@@ -110,10 +129,18 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 while (isUp())
                 {
                     // we could limit the number of accepted connections here
-                    Connection con = new Connection(ss.accept(), this);
-                    con.start();
+                    StringConnection con = ss.accept();
+                    if (port != -1)
+                    {
+                        ((Connection) con).start();
+                    }
+                    else
+                    {
+                        ((LocalStringConnection) con).setServer(this);
+                        new Thread((LocalStringConnection) con).start();
+                    }
 
-                    //addConnection(new Connection());
+                    //addConnection(new StringConnection());
                 }
             }
             catch (IOException e)
@@ -128,7 +155,10 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             try
             {
                 ss.close();
-                ss = new ServerSocket(port);
+                if (strSocketName == null)
+                    ss = new NetStringServerSocket(port, this);
+                else
+                    ss = new LocalStringServerSocket(strSocketName);
             }
             catch (IOException e)
             {
@@ -140,7 +170,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     }
 
     /** treat a request from the given connection */
-    public void treat(String s, Connection c)
+    public void treat(String s, StringConnection c)
     {
         D.ebugPrintln("IN got: " + s);  // JM
         synchronized (inQueue)
@@ -156,16 +186,16 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * @param str DOCUMENT ME!
      * @param con DOCUMENT ME!
      */
-    abstract public void processCommand(String str, Connection con);
+    abstract public void processCommand(String str, StringConnection con);
 
     /** placeholder for doing things when server gets down */
     protected void serverDown() {}
 
     /** placeholder for doing things when a new connection comes */
-    protected void newConnection(Connection c) {}
+    protected void newConnection(StringConnection c) {}
 
     /** placeholder for doing things when a connection is closed */
-    protected void leaveConnection(Connection c) {}
+    protected void leaveConnection(StringConnection c) {}
 
     /** The server is being stopped, disconnect all the connections.
      * Currently nobody calls this, except the debug command "*STOP*".
@@ -177,14 +207,14 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
         for (Enumeration e = conns.elements(); e.hasMoreElements();)
         {
-            ((Connection) e.nextElement()).disconnect();
+            ((StringConnection) e.nextElement()).disconnect();
         }
 
         conns.removeAllElements();
     }
 
     /** remove a connection from the system */
-    protected synchronized void removeConnection(Connection c)
+    public synchronized void removeConnection(StringConnection c)
     {
         //conns.removeElement(c);
         if (!conns.removeElement(c))
@@ -194,14 +224,14 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
         c.disconnect();
         leaveConnection(c);
-        D.ebugPrintln(c.host() + " left (" + connectionCount() + ")  " + (new Date()).toString() + ((c.error != null) ? (": " + c.error.toString()) : ""));
+        D.ebugPrintln(c.host() + " left (" + connectionCount() + ")  " + (new Date()).toString() + ((c.getError() != null) ? (": " + c.getError().toString()) : ""));
     }
 
     /** do cleanup after a remove connection */
-    protected void removeConnectionCleanup(Connection c) {}
+    protected void removeConnectionCleanup(StringConnection c) {}
 
     /** add a connection to the system */
-    protected synchronized void addConnection(Connection c)
+    public synchronized void addConnection(StringConnection c)
     {
         if (c.connect())
         {
@@ -217,16 +247,16 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     {
         for (Enumeration e = getConnections(); e.hasMoreElements();)
         {
-            ((Connection) e.nextElement()).put(m);
+            ((StringConnection) e.nextElement()).put(m);
         }
     }
 
     class Command
     {
         public String str;
-        public Connection con;
+        public StringConnection con;
 
-        public Command(String s, Connection c)
+        public Command(String s, StringConnection c)
         {
             str = s;
             con = c;
@@ -294,4 +324,28 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             D.ebugPrintln("treater returning; server not up"); // JM uncommented
         }
     }
+    
+    class NetStringServerSocket implements StringServerSocket
+    {
+        private ServerSocket implServSocket;
+        private Server server;
+
+        public NetStringServerSocket (int port, Server serv) throws IOException
+        {
+            implServSocket = new ServerSocket(port);
+            server = serv;
+        }
+        
+        public StringConnection accept() throws EOFException, IOException
+        {
+            Socket s = implServSocket.accept();
+            return new Connection(s, server);  // Good old net, not generic StringConnection
+        }
+        
+        public void close() throws IOException
+        {
+            implServSocket.close();
+        }
+    }
+    
 }

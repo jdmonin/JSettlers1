@@ -22,7 +22,7 @@ package soc.server;
 
 import soc.disableDebug.D;
 
-import soc.server.genericServer.Connection;
+import soc.server.genericServer.StringConnection;
 
 import soc.util.MutexFlag;
 
@@ -192,7 +192,7 @@ public class SOCChannelList
      * @param  conn     the member's connection
      * @return  true if memName is a member of the channel
      */
-    public synchronized boolean isMember(Connection conn, String chName)
+    public synchronized boolean isMember(StringConnection conn, String chName)
     {
         Vector members = getMembers(chName);
 
@@ -212,7 +212,7 @@ public class SOCChannelList
      * @param  chName   the name of the channel
      * @param  conn     the member's connection
      */
-    public synchronized void addMember(Connection conn, String chName)
+    public synchronized void addMember(StringConnection conn, String chName)
     {
         Vector members = getMembers(chName);
 
@@ -228,7 +228,7 @@ public class SOCChannelList
      * @param  chName   the name of the channel
      * @param  conn     the member's connection
      */
-    public synchronized void removeMember(Connection conn, String chName)
+    public synchronized void removeMember(StringConnection conn, String chName)
     {
         Vector members = getMembers(chName);
 

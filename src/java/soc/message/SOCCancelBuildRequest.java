@@ -31,7 +31,7 @@ import java.util.StringTokenizer;
  *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
  *
  *  When sent from server to client:
- *  
+ *
  * - During game startup (START1B or START2B):
  *       Sent from server, CANCELBUILDREQUEST means the current player
  *       wants to undo the placement of their initial settlement.  

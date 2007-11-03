@@ -108,6 +108,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * the game associated with this interface
      */
     protected SOCGame game;
+    
+    /**
+     * Is this locally run (practice game) or a remote server?
+     */
+    protected boolean serverIsLocal;
 
     /**
      * number of columns in the text output area
@@ -145,8 +150,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * @param title  title for this interface
      * @param cl     the player client that spawned us
      * @param ga     the game associated with this interface
+     * @param isLocal server is local (pipes) on this computer, not remote (TCP/IP).
      */
-    public SOCPlayerInterface(String title, SOCPlayerClient cl, SOCGame ga)
+    public SOCPlayerInterface(String title, SOCPlayerClient cl, SOCGame ga, boolean isLocal)
     {
         super("Settlers of Catan Game: " + title + " [" + cl.getNickname() + "]");
         setResizable(true);
@@ -155,6 +161,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         game = ga;
         clientHand = null;
         clientHandPlayerNum = -1;
+        serverIsLocal = isLocal;
 
         /**
          * initialize the player colors

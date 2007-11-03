@@ -87,13 +87,13 @@ public class SOCPlayerTracker
     protected int knightsToBuy;
     protected boolean needLR;
     protected boolean needLA;
-    
+
     /**
      * Player's settlement during initial placement; delay processing until
      * the road is placed, and thus the settlement placement can't be moved around.
      */
     protected SOCSettlement pendingInitSettlement;
-    
+
     /**
      * monitor for synchronization
      */
@@ -469,21 +469,21 @@ public class SOCPlayerTracker
     {
         return pendingInitSettlement;
     }
-    
+
     /**
      * set this player's pending initial settlement, to be
      * placed/calculated by this tracker after their road.
-     * 
+     *
      * You must call addNewSettlement and then addNewRoad:
      * This is just a place to store the settlement data.
-     *  
+     *
      * @param s Settlement, or null
      */
     public void setPendingInitSettlement(SOCSettlement s)
     {
         pendingInitSettlement = s;
     }
-    
+
     /**
      * add a road that has just been built
      *

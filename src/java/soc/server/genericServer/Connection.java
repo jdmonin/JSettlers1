@@ -38,16 +38,16 @@ import java.util.Vector;
  *  Reads from the net, writes atomically to the net and
  *  holds the connection data
  */
-public final class Connection extends Thread implements Runnable, Serializable, Cloneable
+public final class Connection extends Thread implements Runnable, Serializable, Cloneable, StringConnection
 {
     static int putters = 0;
     static Object puttersMonitor = new Object();
     protected final static int TIMEOUT_VALUE = 3600000; // approx. 1 hour
 
     /**
-     * the data associated with this connection
+     * the abritrary app-specific data associated with this connection
      */
-    public Object data;
+    protected Object data;    
     DataInputStream in = null;
     DataOutputStream out = null;
     Socket s = null;
@@ -75,18 +75,19 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             setName ("connection-(null)");
     }
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @return DOCUMENT ME!
+    /* (non-Javadoc)
+     * @see soc.server.genericServer.StringConnection#host()
      */
     public String host()
     {
         return hst;
     }
 
-    /** start reading from the net; called only by the server */
-    boolean connect()
+    /** start reading from the net; called only by the server.
+     * 
+     * @return true if thread start was successful, false if an error occurred.
+     */
+    public boolean connect()
     {
         try
         {
@@ -150,14 +151,10 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         }
     }
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @param str DOCUMENT ME!
-     *
-     * @return DOCUMENT ME!
+    /* (non-Javadoc)
+     * @see soc.server.genericServer.StringConnection#put(java.lang.String)
      */
-    public final boolean put(String str)
+    public final void put(String str)
     {
         synchronized (outQueue)
         {
@@ -166,7 +163,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             outQueue.notify();
         }
 
-        return true;
+        // return true;  // JM 
     }
 
     /**
@@ -242,8 +239,31 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         return true;
     }
 
+    /**
+     * @return The app-specific data for this generic connection
+     */
+    public Object getData()
+    {
+        return data;
+    }
+    
+    public Exception getError()
+    {
+        return error;
+    }
+    
+    /**
+     * Set the data for this connection
+     * 
+     * @param dat The new data, or null
+     */
+    public void setData(Object dat)
+    {
+        data = dat;
+    }
+
     /** close the socket, stop the reader */
-    void disconnect()
+    public void disconnect()
     {
         D.ebugPrintln("DISCONNECTING " + data);
         connected = false;
@@ -271,10 +291,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         out = null;
     }
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @return DOCUMENT ME!
+    /* (non-Javadoc)
+     * @see soc.server.genericServer.StringConnection#isConnected()
      */
     public boolean isConnected()
     {

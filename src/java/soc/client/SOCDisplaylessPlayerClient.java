@@ -94,6 +94,8 @@ import soc.message.SOCStartGame;
 import soc.message.SOCStatusMessage;
 import soc.message.SOCTextMsg;
 import soc.message.SOCTurn;
+import soc.server.genericServer.StringConnection;
+import soc.util.LocalStringConnection;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -121,9 +123,11 @@ public class SOCDisplaylessPlayerClient implements Runnable
 
     protected String host;
     protected int port;
+    protected String strSocketName;  // For robots in local practice games
     protected Socket s;
     protected DataInputStream in;
     protected DataOutputStream out;
+    protected LocalStringConnection sLocal;  // if strSocketName not null
     protected Thread reader = null;
     protected Exception ex = null;
     protected boolean connected = false;
@@ -160,6 +164,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
     {
         host = null;
         port = 8889;
+        strSocketName = null;
         gotPassword = false;
     }
 
@@ -174,6 +179,19 @@ public class SOCDisplaylessPlayerClient implements Runnable
     {
         host = h;
         port = p;
+        strSocketName = null;
+    }
+    
+    /**
+     * Constructor for connecting to a local game (practice) on a local stringport.
+     *
+     * @param s    the stringport that the server listens on
+     * @param visual  true if this client is visual
+     */
+    public SOCDisplaylessPlayerClient(String s, boolean visual)
+    {
+        this();         
+        strSocketName = s;
     }
 
     /**
@@ -194,7 +212,11 @@ public class SOCDisplaylessPlayerClient implements Runnable
         {
             while (connected)
             {
-                String s = in.readUTF();
+                String s;
+                if (sLocal == null)
+                    s = in.readUTF();
+                else
+                    s = sLocal.readNext();
                 treat((SOCMessage) SOCMessage.toMsg(s));
             }
         }
@@ -242,7 +264,10 @@ public class SOCDisplaylessPlayerClient implements Runnable
 
         try
         {
-            out.writeUTF(s);
+            if (sLocal == null)
+                out.writeUTF(s);
+            else
+                sLocal.put(s);
         }
         catch (InterruptedIOException x)
         {
@@ -1650,8 +1675,11 @@ public class SOCDisplaylessPlayerClient implements Runnable
     protected void disconnect()
     {
         connected = false;
-
+        
         // reader will die once 'connected' is false, and socket is closed
+
+        if (sLocal != null)
+            sLocal.disconnect();
 
         try
         {

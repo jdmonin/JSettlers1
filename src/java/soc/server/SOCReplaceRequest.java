@@ -22,17 +22,17 @@ package soc.server;
 
 import soc.message.SOCSitDown;
 
-import soc.server.genericServer.Connection;
+import soc.server.genericServer.StringConnection;
 
 
 /**
- * This is a pair of connecitons, one is sitting at the
+ * This is a pair of connections, one is sitting at the
  * game and the other is leaving.
  */
 class SOCReplaceRequest
 {
-    private Connection arriving;
-    private Connection leaving;
+    private StringConnection arriving;
+    private StringConnection leaving;
     private SOCSitDown sdMes;
 
     /**
@@ -41,7 +41,7 @@ class SOCReplaceRequest
      * @param l  the leaving connection
      * @param sm the SITDOWN message
      */
-    public SOCReplaceRequest(Connection a, Connection l, SOCSitDown sm)
+    public SOCReplaceRequest(StringConnection a, StringConnection l, SOCSitDown sm)
     {
         arriving = a;
         leaving = l;
@@ -51,7 +51,7 @@ class SOCReplaceRequest
     /**
      * @return the arriving connection
      */
-    public Connection getArriving()
+    public StringConnection getArriving()
     {
         return arriving;
     }
@@ -59,7 +59,7 @@ class SOCReplaceRequest
     /**
      * @return the leaving connection
      */
-    public Connection getLeaving()
+    public StringConnection getLeaving()
     {
         return leaving;
     }

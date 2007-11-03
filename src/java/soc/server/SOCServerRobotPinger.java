@@ -24,7 +24,7 @@ import soc.disableDebug.D;
 
 import soc.message.SOCServerPing;
 
-import soc.server.genericServer.Connection;
+import soc.server.genericServer.StringConnection;
 
 import java.util.Enumeration;
 import java.util.Vector;
@@ -69,8 +69,8 @@ public class SOCServerRobotPinger extends Thread
 
                 while (robotConnectionsEnum.hasMoreElements())
                 {
-                    Connection robotConnection = (Connection) robotConnectionsEnum.nextElement();
-                    D.ebugPrintln("(*)(*)(*)(*) PINGING " + robotConnection.data);
+                    StringConnection robotConnection = (StringConnection) robotConnectionsEnum.nextElement();
+                    D.ebugPrintln("(*)(*)(*)(*) PINGING " + robotConnection.getData());
                     robotConnection.put(ping.toCmd());
                 }
             }

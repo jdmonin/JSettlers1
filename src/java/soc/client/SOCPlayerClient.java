@@ -36,6 +36,11 @@ import soc.game.SOCTradeOffer;
 
 import soc.message.*;
 
+import soc.robot.SOCRobotClient;
+import soc.server.SOCServer;
+import soc.server.genericServer.StringConnection;
+import soc.util.LocalStringConnection;
+import soc.util.LocalStringServerSocket;
 import soc.util.Version;
 
 import java.applet.Applet;
@@ -63,6 +68,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import java.net.ConnectException;
 import java.net.Socket;
 
 import java.util.Enumeration;
@@ -91,11 +97,15 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected TextField game;
     protected java.awt.List chlist;
     protected java.awt.List gmlist;
-    protected Button jc;
-    protected Button jg;
+    protected Button jc;  // join channel
+    protected Button jg;  // join game
+    protected Button pg;  // practice game (local)
     protected Label messageLabel;
+    protected Button pgm;  // practice game from messagepanel
     protected AppletContext ac;
-    protected String lastMessage;
+    
+    /** For debug, our last messages sent, over the net and locally (pipes) */
+    protected String lastMessage_N, lastMessage_L;
 
     protected CardLayout cardLayout;
     
@@ -105,8 +115,16 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected DataInputStream in;
     protected DataOutputStream out;
     protected Thread reader = null;
-    protected Exception ex = null;
+    protected Exception ex = null;    // Network errors (TCP communication)
+    protected Exception ex_L = null;  // Local errors (stringport pipes comm.)
     protected boolean connected = false;
+    
+    /**
+     * For local practice games (pipes, not TCP), the name of the pipe.
+     * 
+     * @see soc.util.LocalStringConnection
+     */
+    public static String PRACTICE_STRINGPORT = "SOCPRACTICE"; 
 
     /**
      * the nickname
@@ -142,6 +160,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * the ignore list
      */
     protected Vector ignoreList = new Vector();
+    
+    /**
+     * for practice game
+     */
+    protected SOCServer practiceServer = null;
+    protected StringConnection prCli = null;
 
     /**
      * Create a SOCPlayerClient connecting to localhost port 8880
@@ -185,6 +209,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gmlist.add(" ");
         jc = new Button("Join Channel");
         jg = new Button("Join Game");
+        pg = new Button("Practice Game");
 
         nick.addActionListener(this);
         pass.addActionListener(this);
@@ -194,6 +219,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gmlist.addActionListener(this);
         jc.addActionListener(this);
         jg.addActionListener(this);
+        pg.addActionListener(this);        
         
         ac = null;
 
@@ -293,10 +319,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
-        l = new Label();
         c.gridwidth = 1;
-        gbl.setConstraints(l, c);
-        mainPane.add(l);
+        gbl.setConstraints(pg, c);
+        mainPane.add(pg);
 
         c.gridwidth = 1;
         gbl.setConstraints(jg, c);
@@ -341,6 +366,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         Panel messagePane = new Panel(new BorderLayout());
         messagePane.add(messageLabel, BorderLayout.CENTER);
+        
+        pgm = new Button("Practice Game (robots)");
+        pgm.setVisible(false);
+        messagePane.add(pgm, BorderLayout.SOUTH);
+        pgm.addActionListener(this);
         
         // all together now...
         cardLayout = new CardLayout();
@@ -460,6 +490,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             String msg = "Could not connect to the server: " + ex;
             System.err.println(msg);
             messageLabel.setText(msg);
+            if (ex_L == null)
+            {
+                pgm.setVisible(true);
+                validate();
+            }
         }
     }
 
@@ -475,6 +510,27 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * Handle mouse clicks and keyboard
      */
     public void actionPerformed(ActionEvent e)
+    {
+        try
+        {
+            guardedActionPerform(e);
+        }
+        catch(Throwable thr)
+        {
+            System.err.println("-- Error caught in AWT event thread: " + thr + " --");
+            thr.printStackTrace();
+            while (thr.getCause() != null)
+            {
+                thr = thr.getCause();
+                System.err.println(" --> Cause: " + thr + " --");
+                thr.printStackTrace();
+            }
+            System.err.println("-- Error stack trace end --");
+            System.err.println();
+        }
+    }
+    
+    private void guardedActionPerform(ActionEvent e)
     {
         Object target = e.getSource();
 
@@ -557,7 +613,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 }
 
                 status.setText("Talking to server...");
-                put(SOCJoin.toCmd(nickname, password, host, ch));
+                putNet(SOCJoin.toCmd(nickname, password, host, ch));
             }
             else
             {
@@ -569,11 +625,25 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             return;
         }
 
-        if ((target == jg) || (target == game) || (target == gmlist)) // Join game stuff
+        if ((target == jg) || (target == game) || (target == gmlist) || (target == pg) || (target == pgm)) // Join game stuff
         {
             String gm;
-
-            if (target == jg) // "Join Game" Button
+            
+            if ((target == pg) || (target == pgm)) // "Practice Game" Buttons
+            {
+                gm = game.getText().trim();
+                if (gm.length() == 0)
+                {
+                    gm = "Practice";
+                    game.setText(gm);
+                }
+                
+                if (0 == nick.getText().trim().length())
+                {
+                    nick.setText("Person");
+                }
+            }
+            else if (target == jg) // "Join Game" Button
             {
                 gm = game.getText().trim();
 
@@ -655,8 +725,19 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                     gm = gm.substring(0, endOfName);
                 }
 
-                status.setText("Talking to server...");
-                put(SOCJoinGame.toCmd(nickname, password, host, gm));
+                if (((target == pg) || (target == pgm)) && (null == ex_L))
+                {
+                    if (target == pg)
+                    {
+                        status.setText("Starting practice game setup...");
+                    }
+                    startPracticeGame(gm);
+                }
+                else
+                {
+                    status.setText("Talking to server...");
+                    putNet(SOCJoinGame.toCmd(nickname, password, host, gm));
+                }
             }
             else
             {
@@ -687,7 +768,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             while (connected)
             {
                 String s = in.readUTF();
-                treat((SOCMessage) SOCMessage.toMsg(s));
+                treat((SOCMessage) SOCMessage.toMsg(s), false);
             }
         }
         catch (IOException e)
@@ -703,11 +784,19 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * resend the last message
+     * resend the last message (to the network)
      */
-    public void resend()
+    public void resendNet()
     {
-        put(lastMessage);
+        putNet(lastMessage_N);
+    }
+
+    /**
+     * resend the last message (to the local practice server)
+     */
+    public void resendLocal()
+    {
+        putLocal(lastMessage_L);
     }
 
     /**
@@ -716,9 +805,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * @param s  the message
      * @return true if the message was sent, false if not
      */
-    public synchronized boolean put(String s)
+    public synchronized boolean putNet(String s)
     {
-        lastMessage = s;
+        lastMessage_N = s;
 
         D.ebugPrintln("OUT - " + SOCMessage.toMsg(s));
 
@@ -744,11 +833,49 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
+     * write a message to the local server
+     *
+     * @param s  the message
+     * @return true if the message was sent, false if not
+     */
+    public synchronized boolean putLocal(String s)
+    {
+        lastMessage_L = s;        
+
+        D.ebugPrintln("OUT L- " + SOCMessage.toMsg(s));
+
+        if ((ex_L != null) || !prCli.isConnected())
+        {
+            return false;
+        }
+
+        prCli.put(s);
+
+        return true;
+    }
+    
+    /**
+     * Write a message to the net or local server
+     * 
+     * @param s  the message
+     * @param isLocal Is the server local (practice game), or network?
+     * @return true if the message was sent, false if not
+     */
+    public synchronized boolean put(String s, boolean isLocal)
+    {
+        if (! isLocal)
+            return putNet(s);
+        else
+            return putLocal(s);
+    }
+
+    /**
      * Treat the incoming messages
      *
      * @param mes    the message
+     * @param isLocal Server is local (vs network)
      */
-    public void treat(SOCMessage mes)
+    public void treat(SOCMessage mes, boolean isLocal)
     {
         D.ebugPrintln(mes.toString());
 
@@ -800,7 +927,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
              * list of channels on the server
              */
             case SOCMessage.CHANNELS:
-                handleCHANNELS((SOCChannels) mes);
+                handleCHANNELS((SOCChannels) mes, isLocal);
 
                 break;
 
@@ -840,7 +967,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
              * join game authorization
              */
             case SOCMessage.JOINGAMEAUTH:
-                handleJOINGAMEAUTH((SOCJoinGameAuth) mes);
+                handleJOINGAMEAUTH((SOCJoinGameAuth) mes, isLocal);
 
                 break;
 
@@ -1220,16 +1347,20 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * handle the "list of channels" message
      * @param mes  the message
+     * @param isLocal is the server actually local (practice game)?
      */
-    protected void handleCHANNELS(SOCChannels mes)
+    protected void handleCHANNELS(SOCChannels mes, boolean isLocal)
     {
         //
         // this message indicates that we're connected to the server
         //
-        cardLayout.show(this, MAIN_PANEL);
-        validate();
-        
-        status.setText("Login by entering nickname and then joining a channel or game.");
+        if (! isLocal)
+        {
+            cardLayout.show(this, MAIN_PANEL);
+            validate();
+            
+            status.setText("Login by entering nickname and then joining a channel or game.");
+        }
 
         Enumeration channelsEnum = (mes.getChannels()).elements();
 
@@ -1320,8 +1451,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * handle the "join game authorization" message
      * @param mes  the message
+     * @param isLocal server is local (vs. normal network)
      */
-    protected void handleJOINGAMEAUTH(SOCJoinGameAuth mes)
+    protected void handleJOINGAMEAUTH(SOCJoinGameAuth mes, boolean isLocal)
     {
         nick.setEditable(false);
         pass.setEditable(false);
@@ -1332,7 +1464,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (ga != null)
         {
-            SOCPlayerInterface pi = new SOCPlayerInterface(mes.getGame(), this, ga);
+            ga.isLocal = isLocal;
+            SOCPlayerInterface pi = new SOCPlayerInterface(mes.getGame(), this, ga, isLocal);
             pi.setVisible(true);
             playerInterfaces.put(mes.getGame(), pi);
             games.put(mes.getGame(), ga);
@@ -2479,6 +2612,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         disconnect();
         
         messageLabel.setText(mes.getText());
+        pgm.setVisible(ex_L == null);
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
     }
@@ -2795,7 +2929,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         if (!doLocalCommand(ch, mes))
         {
-            put(SOCTextMsg.toCmd(ch, nickname, mes));
+            putNet(SOCTextMsg.toCmd(ch, nickname, mes));
         }
     }
 
@@ -2807,7 +2941,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     public void leaveChannel(String ch)
     {
         channels.remove(ch);
-        put(SOCLeave.toCmd(nickname, host, ch));
+        putNet(SOCLeave.toCmd(nickname, host, ch));
     }
 
     /**
@@ -2836,7 +2970,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void buyDevCard(SOCGame ga)
     {
-        put(SOCBuyCardRequest.toCmd(ga.getName()));
+        put(SOCBuyCardRequest.toCmd(ga.getName()), ga.isLocal);
     }
 
     /**
@@ -2847,7 +2981,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void buildRequest(SOCGame ga, int piece)
     {
-        put(SOCBuildRequest.toCmd(ga.getName(), piece));
+        put(SOCBuildRequest.toCmd(ga.getName(), piece), ga.isLocal);
     }
 
     /**
@@ -2858,7 +2992,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void cancelBuildRequest(SOCGame ga, int piece)
     {
-        put(SOCCancelBuildRequest.toCmd(ga.getName(), piece));
+        put(SOCCancelBuildRequest.toCmd(ga.getName(), piece), ga.isLocal);
     }
 
     /**
@@ -2872,7 +3006,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         /**
          * send the command
          */
-        put(SOCPutPiece.toCmd(ga.getName(), pp.getPlayer().getPlayerNumber(), pp.getType(), pp.getCoordinates()));
+        put(SOCPutPiece.toCmd(ga.getName(), pp.getPlayer().getPlayerNumber(), pp.getType(), pp.getCoordinates()), ga.isLocal);
     }
 
     /**
@@ -2884,7 +3018,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void moveRobber(SOCGame ga, SOCPlayer pl, int coord)
     {
-        put(SOCMoveRobber.toCmd(ga.getName(), pl.getPlayerNumber(), coord));
+        put(SOCMoveRobber.toCmd(ga.getName(), pl.getPlayerNumber(), coord), ga.isLocal);
     }
 
     /**
@@ -2897,7 +3031,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         if (!doLocalCommand(ga, me))
         {
-            put(SOCGameTextMsg.toCmd(ga.getName(), nickname, me));
+            put(SOCGameTextMsg.toCmd(ga.getName(), nickname, me), ga.isLocal);
         }
     }
 
@@ -2910,7 +3044,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         playerInterfaces.remove(ga.getName());
         games.remove(ga.getName());
-        put(SOCLeaveGame.toCmd(nickname, host, ga.getName()));
+        put(SOCLeaveGame.toCmd(nickname, host, ga.getName()), ga.isLocal);
     }
 
     /**
@@ -2921,7 +3055,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void sitDown(SOCGame ga, int pn)
     {
-        put(SOCSitDown.toCmd(ga.getName(), "dummy", pn, false));
+        put(SOCSitDown.toCmd(ga.getName(), "dummy", pn, false), ga.isLocal);
     }
 
     /**
@@ -2931,7 +3065,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void startGame(SOCGame ga)
     {
-        put(SOCStartGame.toCmd(ga.getName()));
+        put(SOCStartGame.toCmd(ga.getName()), ga.isLocal);
     }
 
     /**
@@ -2941,7 +3075,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void rollDice(SOCGame ga)
     {
-        put(SOCRollDice.toCmd(ga.getName()));
+        put(SOCRollDice.toCmd(ga.getName()), ga.isLocal);
     }
 
     /**
@@ -2951,7 +3085,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void endTurn(SOCGame ga)
     {
-        put(SOCEndTurn.toCmd(ga.getName()));
+        put(SOCEndTurn.toCmd(ga.getName()), ga.isLocal);
     }
 
     /**
@@ -2961,7 +3095,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void discard(SOCGame ga, SOCResourceSet rs)
     {
-        put(SOCDiscard.toCmd(ga.getName(), rs));
+        put(SOCDiscard.toCmd(ga.getName(), rs), ga.isLocal);
     }
 
     /**
@@ -2972,7 +3106,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void choosePlayer(SOCGame ga, int pn)
     {
-        put(SOCChoosePlayer.toCmd(ga.getName(), pn));
+        put(SOCChoosePlayer.toCmd(ga.getName(), pn), ga.isLocal);
     }
 
     /**
@@ -2982,7 +3116,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void rejectOffer(SOCGame ga)
     {
-        put(SOCRejectOffer.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber()));
+        put(SOCRejectOffer.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber()), ga.isLocal);
     }
 
     /**
@@ -2993,7 +3127,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void acceptOffer(SOCGame ga, int from)
     {
-        put(SOCAcceptOffer.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber(), from));
+        put(SOCAcceptOffer.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber(), from), ga.isLocal);
     }
 
     /**
@@ -3003,7 +3137,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void clearOffer(SOCGame ga)
     {
-        put(SOCClearOffer.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber()));
+        put(SOCClearOffer.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber()), ga.isLocal);
     }
 
     /**
@@ -3015,7 +3149,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void bankTrade(SOCGame ga, SOCResourceSet give, SOCResourceSet get)
     {
-        put(SOCBankTrade.toCmd(ga.getName(), give, get));
+        put(SOCBankTrade.toCmd(ga.getName(), give, get), ga.isLocal);
     }
 
     /**
@@ -3026,7 +3160,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void offerTrade(SOCGame ga, SOCTradeOffer offer)
     {
-        put(SOCMakeOffer.toCmd(ga.getName(), offer));
+        put(SOCMakeOffer.toCmd(ga.getName(), offer), ga.isLocal);
     }
 
     /**
@@ -3037,7 +3171,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void playDevCard(SOCGame ga, int dc)
     {
-        put(SOCPlayDevCardRequest.toCmd(ga.getName(), dc));
+        put(SOCPlayDevCardRequest.toCmd(ga.getName(), dc), ga.isLocal);
     }
 
     /**
@@ -3048,7 +3182,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void discoveryPick(SOCGame ga, SOCResourceSet rscs)
     {
-        put(SOCDiscoveryPick.toCmd(ga.getName(), rscs));
+        put(SOCDiscoveryPick.toCmd(ga.getName(), rscs), ga.isLocal);
     }
 
     /**
@@ -3059,7 +3193,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void monopolyPick(SOCGame ga, int res)
     {
-        put(SOCMonopolyPick.toCmd(ga.getName(), res));
+        put(SOCMonopolyPick.toCmd(ga.getName(), res), ga.isLocal);
     }
 
     /**
@@ -3070,7 +3204,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void changeFace(SOCGame ga, int id)
     {
-        put(SOCChangeFace.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber(), id));
+        put(SOCChangeFace.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber(), id), ga.isLocal);
     }
 
     /**
@@ -3081,7 +3215,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void lockSeat(SOCGame ga, int pn)
     {
-        put(SOCSetSeatLock.toCmd(ga.getName(), pn, true));
+        put(SOCSetSeatLock.toCmd(ga.getName(), pn, true), ga.isLocal);
     }
 
     /**
@@ -3092,7 +3226,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void unlockSeat(SOCGame ga, int pn)
     {
-        put(SOCSetSeatLock.toCmd(ga.getName(), pn, false));
+        put(SOCSetSeatLock.toCmd(ga.getName(), pn, false), ga.isLocal);
     }
 
     /**
@@ -3326,7 +3460,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
 
         msg += (" " + piece.getCoordinates());
-        put(SOCGameTextMsg.toCmd(ga.getName(), nickname, msg));
+        put(SOCGameTextMsg.toCmd(ga.getName(), nickname, msg), ga.isLocal);
     }
 
     /**
@@ -3361,7 +3495,51 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
 
         msg += (" " + piece.getCoordinates());
-        put(SOCGameTextMsg.toCmd(ga.getName(), nickname, msg));
+        put(SOCGameTextMsg.toCmd(ga.getName(), nickname, msg), ga.isLocal);
+    }
+    
+    /**
+     * for stand-alones
+     */
+    public void startPracticeGame(String practiceGameName)
+    {
+        if (practiceServer == null)
+        {
+            practiceServer = new SOCServer(PRACTICE_STRINGPORT, 30, null, null);
+            practiceServer.setPriority(5);
+            practiceServer.start();
+        }
+        if (prCli == null)
+        {
+            try
+            {
+                prCli = LocalStringServerSocket.connectTo(PRACTICE_STRINGPORT);
+                new SOCPlayerLocalStringReader((LocalStringConnection)prCli);  // Will start itself
+            }
+            catch (ConnectException e)
+            {
+                ex_L = e;
+                return;
+            }
+
+            // Along with our client, we need some opponents.
+            
+            SOCRobotClient[] rob = new SOCRobotClient[3];
+            for (int i = 0; i < 3; ++i)
+            {
+                rob[i] = new SOCRobotClient (PRACTICE_STRINGPORT, "robot " + i, "pw");  // TODO names and parameters
+                new Thread(new SOCPlayerLocalRobotRunner(rob[i])).start();
+                Thread.yield();
+                try
+                {
+                    Thread.sleep(200);  // Let that robot go for a bit.
+                        // robot runner thread will call rob[i].init();
+                }
+                catch (InterruptedException ie) {}
+            }            
+        }
+
+        putLocal(SOCJoinGame.toCmd(nickname, password, host, practiceGameName));        
     }
 
     /**
@@ -3371,15 +3549,29 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         return "SOCPlayerClient 0.9 by Robert S. Thomas.";
     }
-
-    /** destroy the applet */
+    
+    /**
+     * network trouble; if possible, ask if they want to play locally (robots).
+     * Otherwise, go ahead and destroy the applet.
+     */
     public void destroy()
     {
+        boolean canLocal = (ex_L == null);
+
         SOCLeaveAll leaveAllMes = new SOCLeaveAll();
-        put(leaveAllMes.toCmd());
+        putNet(leaveAllMes.toCmd());
+        if ((prCli != null) && ! canLocal)
+            putLocal(leaveAllMes.toCmd());
 
-        String err = "Sorry, the applet has been destroyed. " + ((ex == null) ? "Load the page again." : ex.toString());
-
+        String err;
+        if (canLocal)
+        {
+            err = "Sorry, network trouble has occurred. ";
+        } else {
+            err = "Sorry, the applet has been destroyed. ";
+        }
+        err = err + ((ex == null) ? "Load the page again." : ex.toString());
+        
         for (Enumeration e = channels.elements(); e.hasMoreElements();)
         {
             ((ChannelFrame) e.nextElement()).over(err);
@@ -3393,6 +3585,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         disconnect();
 
         messageLabel.setText(err);
+        pgm.setVisible(canLocal);
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
     }
@@ -3459,4 +3652,66 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             nick.requestFocus();
         }
     }
+    
+    protected class SOCPlayerLocalStringReader implements Runnable
+    {
+        LocalStringConnection locl;
+        
+        /** 
+         * Listen to local in a new thread.
+         * Starts its own thread.
+         * @param localConn
+         */
+        protected SOCPlayerLocalStringReader (LocalStringConnection localConn)
+        {
+            locl = localConn;
+
+            Thread thr = new Thread(this);
+            thr.setDaemon(true);
+            thr.start();
+        }
+        
+        /**
+         * continuously read from the local string server in a separate thread
+         */
+        public void run()
+        {
+            Thread.currentThread().setName("cli-stringread");  // Thread name for debug
+            try
+            {
+                while (locl.isConnected())
+                {
+                    String s = locl.readNext();
+                    treat((SOCMessage) SOCMessage.toMsg(s), true);
+                }
+            }
+            catch (IOException e)
+            {
+                // purposefully closing the socket brings us here too
+                if (locl.isConnected())
+                {
+                    ex_L = e;
+                    System.out.println("could not read from string localnet: " + ex_L);
+                    destroy();
+                }
+            }
+        }
+    }
+    
+    protected class SOCPlayerLocalRobotRunner implements Runnable
+    {
+        SOCRobotClient rob;
+        
+        protected SOCPlayerLocalRobotRunner (SOCRobotClient rc)
+        {
+            rob = rc;
+        }
+        
+        public void run()
+        {
+            Thread.currentThread().setName("robotrunner-" + rob.getNickname());
+            rob.init();
+        }
+    }
+
 }

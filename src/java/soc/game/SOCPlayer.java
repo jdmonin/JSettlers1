@@ -310,7 +310,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     {
         int i;
         int j;
-        
+
         game = ga;
         playerNumber = pn;
         numPieces = new int[SOCPlayingPiece.MAXPLUSONE];
@@ -319,9 +319,9 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
         numPieces[SOCPlayingPiece.CITY] = 4;
         pieces = new Vector(24);
         roads = new Vector(15);
-        longestRoadLength = 0;
         settlements = new Vector(5);
         cities = new Vector(4);
+        longestRoadLength = 0;
         lrPaths = new Vector();
         resources = new SOCResourceSet();
         devCards = new SOCDevCardSet();
@@ -1032,7 +1032,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
      * undo the putting of a piece
      *
      * @param piece         the piece to be put into play
-     * 
+     *
      * For removing second initial settlement (state START2B),
      *   will zero the player's resource cards. 
      */
@@ -1181,7 +1181,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
             {
                 resources.clear();
             }
-            
+
             break;
 
         //
@@ -1530,9 +1530,9 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
 
                 break;
             }
-        }        
+        }
     }
-    
+
     /**
      * update the arrays that keep track of where
      * this player can play a piece

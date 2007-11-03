@@ -73,6 +73,7 @@ import soc.message.SOCUpdateRobotParams;
 
 import soc.util.CappedQueue;
 import soc.util.CutoffExceededException;
+import soc.util.LocalStringServerSocket;
 import soc.util.SOCRobotParameters;
 
 import java.io.DataInputStream;
@@ -172,8 +173,21 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         port = p;
         nickname = nn;
         password = pw;
+        strSocketName = null;
     }
 
+    /**
+     * Constructor for connecting to a local game (practice) on a local stringport.
+     *
+     * @param s    the stringport that the server listens on
+     * @param visual  true if this client is visual
+     */
+    public SOCRobotClient(String s, String nn, String pw)
+    {
+        this(null, 0, nn, pw);
+        strSocketName = s;
+    }
+    
     /**
      * Initialize the robot player
      */
@@ -181,10 +195,17 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     {
         try
         {
-            s = new Socket(host, port);
-            s.setSoTimeout(300000);
-            in = new DataInputStream(s.getInputStream());
-            out = new DataOutputStream(s.getOutputStream());
+            if (strSocketName == null)
+            {
+                s = new Socket(host, port);
+                s.setSoTimeout(300000);
+                in = new DataInputStream(s.getInputStream());
+                out = new DataOutputStream(s.getOutputStream());
+            }
+            else
+            {
+                sLocal = LocalStringServerSocket.connectTo(strSocketName);
+            }               
             connected = true;
             reader = new Thread(this);
             reader.start();
@@ -211,10 +232,18 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         try
         {
             connected = false;
-            s.close();
-            s = new Socket(host, port);
-            in = new DataInputStream(s.getInputStream());
-            out = new DataOutputStream(s.getOutputStream());
+            if (strSocketName == null)
+            {
+                s.close();
+                s = new Socket(host, port);
+                in = new DataInputStream(s.getInputStream());
+                out = new DataOutputStream(s.getOutputStream());
+            }
+            else
+            {
+                sLocal.disconnect();
+                sLocal = LocalStringServerSocket.connectTo(strSocketName);
+            }
             connected = true;
             reader = new Thread(this);
             reader.start();
@@ -533,10 +562,17 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                 break;
             }
         }
-        catch (Exception e)
+        catch (Throwable e)
         {
             System.out.println("SOCRobotClient treat ERROR - " + e.getMessage());
             e.printStackTrace();
+            while (e.getCause() != null)
+            {
+                e = e.getCause();
+                System.err.println(" -> nested: " + e.getClass());
+                e.printStackTrace();
+            }
+            System.err.println("-- end stacktrace --");
         }
     }
 
@@ -1302,13 +1338,13 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     /**
      * handle the rare "cancel build request" message; usually not sent from
      * server to client.
-     * 
+     *
      * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
      *   their mind about spending resources to build a piece.  Only allowed during normal
      *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
      *
      *  When sent from server to client:
-     *  
+     *
      * - During game startup (START1B or START2B):
      *       Sent from server, CANCELBUILDREQUEST means the current player
      *       wants to undo the placement of their initial settlement.  
@@ -1320,9 +1356,9 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
      *      an illegal PUTPIECE (bad building location). Humans can probably
      *      decide a better place to put their road, but robots must cancel
      *      the build request and decide on a new plan.
-     *      
+     *
      *      Our robot client sends this to the brain to act on.
-     *  
+     *
      * @param mes  the message
      */
     protected void handleCANCELBUILDREQUEST(SOCCancelBuildRequest mes)
@@ -1341,7 +1377,7 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
             }
         }
     }
-    
+
     /**
      * handle the "move robber" message
      * @param mes  the message

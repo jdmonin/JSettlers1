@@ -24,7 +24,7 @@ import soc.disableDebug.D;
 
 import soc.game.SOCGame;
 
-import soc.server.genericServer.Connection;
+import soc.server.genericServer.StringConnection;
 
 import soc.util.MutexFlag;
 
@@ -221,7 +221,7 @@ public class SOCGameList
      * @param  conn     the member's connection
      * @return true if memName is a member of the game
      */
-    public synchronized boolean isMember(Connection conn, String gaName)
+    public synchronized boolean isMember(StringConnection conn, String gaName)
     {
         Vector members = getMembers(gaName);
 
@@ -241,7 +241,7 @@ public class SOCGameList
      * @param  gaName   the name of the game
      * @param  conn     the member's connection
      */
-    public synchronized void addMember(Connection conn, String gaName)
+    public synchronized void addMember(StringConnection conn, String gaName)
     {
         Vector members = getMembers(gaName);
 
@@ -257,7 +257,7 @@ public class SOCGameList
      * @param  gaName   the name of the game
      * @param  conn     the member's connection
      */
-    public synchronized void removeMember(Connection conn, String gaName)
+    public synchronized void removeMember(StringConnection conn, String gaName)
     {
         Vector members = getMembers(gaName);
 

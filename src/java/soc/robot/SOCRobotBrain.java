@@ -505,7 +505,7 @@ public class SOCRobotBrain extends Thread
     {
         return ourPlayerTracker;
     }
-    
+
     /**
      * A player has sat down and been added to the game,
      * during game formation. Create a PlayerTracker for them.
@@ -519,7 +519,7 @@ public class SOCRobotBrain extends Thread
      * and seats may be vacant at that time (because SITDOWN not yet
      * received for those seats), we must add a PlayerTracker for
      * each SITDOWN received after our player's.
-     * 
+     *
      * @param pn Player number
      */
     public void addPlayerTracker(int pn)
@@ -529,7 +529,7 @@ public class SOCRobotBrain extends Thread
             // SITDOWN hasn't been sent for our own player yet.
             // When it is, playerTrackers will be initialized for
             // each non-vacant player, including pn.
-            
+
             return;
         }
         if (null == playerTrackers.get(new Integer(pn)))
@@ -1223,7 +1223,7 @@ public class SOCRobotBrain extends Thread
                             break;
                         }
                     }
-                    
+
                     else if (mesType == SOCMessage.CANCELBUILDREQUEST)
                     {
                         int gstate = game.getGameState(); 
@@ -2139,7 +2139,7 @@ public class SOCRobotBrain extends Thread
                     if ((game.getGameState() == SOCGame.START1A) && (!waitingForGameState))
                     {
                         expectSTART1A = false;
-                        
+
                         if ((!waitingForOurTurn) && (ourTurn))
                         {
                             if (!(expectPUTPIECE_FROM_START1A && (counter < 4000)))
@@ -2411,13 +2411,13 @@ public class SOCRobotBrain extends Thread
      * During initial board setup, settlements aren't tracked when placed.
      * They are deferred until their corresponding road placement, in case
      * a human player decides to cancel their settlement and place it elsewhere.
-     * 
+     *
      * During normal play, the settlements are tracked immediately when placed.
      *
      * (Code previously in body of the run method.)
      * Placing the code in its own method allows tracking that settlement when the
      * road's putPiece message arrives.
-     * 
+     *
      * @param newSettlement The newly placed settlement for the playerTrackers
      * @param isCancel JM TODO docu
      */

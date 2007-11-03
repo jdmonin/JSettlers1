@@ -20,7 +20,7 @@
  **/
 package soc.message;
 
-import soc.server.genericServer.Connection;
+import soc.server.genericServer.StringConnection;
 
 import java.util.Enumeration;
 import java.util.StringTokenizer;
@@ -100,8 +100,8 @@ public class SOCMembers extends SOCMessage
 
             while (mlEnum.hasMoreElements())
             {
-                Connection con = (Connection) mlEnum.nextElement();
-                cmd += (sep2 + (String) con.data);
+                StringConnection con = (StringConnection) mlEnum.nextElement();
+                cmd += (sep2 + (String) con.getData());
             }
         }
         catch (Exception e) {}
