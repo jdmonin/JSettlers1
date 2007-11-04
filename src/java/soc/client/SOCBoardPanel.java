@@ -1657,6 +1657,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialRoad(hilight))
                 {
                     client.putPiece(game, new SOCRoad(player, hilight));
+
+                    // Now that we've placed, clear the mode and the hilight.
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1667,6 +1670,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialSettlement(hilight))
                 {
                     client.putPiece(game, new SOCSettlement(player, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1676,6 +1680,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialSettlement(hilight))
                 {
                     client.putPiece(game, new SOCSettlement(player, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1685,6 +1690,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialCity(hilight))
                 {
                     client.putPiece(game, new SOCCity(player, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1694,6 +1700,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (hilight != board.getRobberHex())
                 {
                     client.moveRobber(game, player, hilight);
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1703,6 +1710,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialSettlement(hilight))
                 {
                     client.considerMove(game, otherPlayer.getName(), new SOCSettlement(otherPlayer, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1712,6 +1720,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialRoad(hilight))
                 {
                     client.considerMove(game, otherPlayer.getName(), new SOCRoad(otherPlayer, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1721,6 +1730,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialCity(hilight))
                 {
                     client.considerMove(game, otherPlayer.getName(), new SOCCity(otherPlayer, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1730,6 +1740,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialSettlement(hilight))
                 {
                     client.considerTarget(game, otherPlayer.getName(), new SOCSettlement(otherPlayer, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1739,6 +1750,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialRoad(hilight))
                 {
                     client.considerTarget(game, otherPlayer.getName(), new SOCRoad(otherPlayer, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
@@ -1748,14 +1760,25 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialCity(hilight))
                 {
                     client.considerTarget(game, otherPlayer.getName(), new SOCCity(otherPlayer, hilight));
+                    clearModeAndHilight();
                 }
 
                 break;
             }
-
-            // Now that we've placed, clear the mode and the hilight.
-            clearModeAndHilight();
         }
+        else if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
+        {
+            // No hilight. But, they clicked the board, expecting something.
+            // It's possible the mode is incorrect.
+            // Update and wait for the next click.
+            updateMode();
+            ptrOldX = 0;
+            ptrOldY = 0;
+            mouseMoved(evt);  // Should establish hilight using click's x,y
+        }
+        
+        evt.consume();
+        
         } catch (Throwable th) {
             playerInterface.chatPrintStackTrace(th);
         }
