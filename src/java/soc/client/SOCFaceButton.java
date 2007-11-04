@@ -43,17 +43,28 @@ import java.awt.event.MouseEvent;
  */
 public class SOCFaceButton extends Canvas
 {
-    public static final int DEFAULT_FACE = 1;
+    public static final int DEFAULT_FACE = 1;  // Human face # 1 (face1.gif)
 
     private static final String IMAGEDIR = "/soc/client/images";
     
     /**
-     * number of /numbered/ face images /plus 1/ for the robot face
+     * number of /numbered/ face images, /plus 1/ for indexing
      */
     public static final int NUM_FACES = 74;
+    /**
+     * number of robot faces, which are separately numbered.
+     * Robot face 0 is just robot.gif, otherwise robot1.gif, robot2.gif, etc.
+     * Internally, robot faces are negative faceIds.
+     */
+    public static final int NUM_ROBOT_FACES = 2;
     /** Shared images */
     private static Image[] images;
+    private static Image[] robotImages;
 
+    /**
+     * Human face images are positive numbers, 1-based (range 1 to NUM_FACES).
+     * Robot face images are negative, 0-based (range -(NUM_ROBOT_FACES-1) to 0).
+     */
     private int currentImageNum = DEFAULT_FACE;
     private int panelx;
     private int panely;
@@ -75,17 +86,26 @@ public class SOCFaceButton extends Canvas
             Class clazz = c.getClass();
         
             images = new Image[NUM_FACES];
+            robotImages = new Image[NUM_ROBOT_FACES];
 
             /**
              * load the images
              */
-            images[0] = tk.getImage(clazz.getResource(IMAGEDIR + "/robot.gif"));
-            tracker.addImage(images[0], 0);
+            robotImages[0] = tk.getImage(clazz.getResource(IMAGEDIR + "/robot.gif"));
+            tracker.addImage(robotImages[0], 0);
             
             for (int i = 1; i < NUM_FACES; i++)
             {
                 images[i] = tk.getImage(clazz.getResource(IMAGEDIR + "/face" + i + ".gif"));
                 tracker.addImage(images[i], 0);
+            }
+            
+            for (int i = 1; i < NUM_ROBOT_FACES; i++)
+            {
+                // Client possibly only has robot.gif
+                // TODO TODO TODO here, how to  handle that?
+                robotImages[i] = tk.getImage(clazz.getResource(IMAGEDIR + "/robot" + i + ".gif"));
+                tracker.addImage(robotImages[i], 0);
             }
 
             try
@@ -133,6 +153,10 @@ public class SOCFaceButton extends Canvas
      */
     public void setFace(int id)
     {
+        if (id >= NUM_FACES)            
+            id = DEFAULT_FACE;
+        else if (id <= (-NUM_ROBOT_FACES))
+            id = 0;
         currentImageNum = id;
         repaint();
     }
@@ -195,7 +219,27 @@ public class SOCFaceButton extends Canvas
     private void drawFace(Graphics g)
     {
         g.clearRect(0, 0, WIDTH, HEIGHT);
-        g.drawImage(images[currentImageNum], 0, 0, getBackground(), this);
+        int findex;
+        Image fimage;
+        if (currentImageNum > 0)
+        {
+            findex = currentImageNum;
+            if ((findex >= NUM_FACES) || (null == images[findex]))
+            {
+                findex = DEFAULT_FACE;
+                currentImageNum = findex;
+            }
+            fimage = images[findex];
+        } else {
+            findex = -currentImageNum;
+            if ((findex >= NUM_ROBOT_FACES) || (null == robotImages[findex]))
+            {
+                findex = 0;
+                currentImageNum = -findex;
+            }
+            fimage = robotImages[findex];
+        }
+        g.drawImage(fimage, 0, 0, getBackground(), this);
     }
 
     /*********************************

@@ -188,7 +188,7 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         this(null, 0, nn, pw);
         strSocketName = s;
     }
-    
+
     /**
      * Initialize the robot player
      */
@@ -1078,13 +1078,27 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
             if (nickname.equals(mes.getNickname()))
             {
                 SOCRobotBrain brain = (SOCRobotBrain) robotBrains.get(mes.getGame());
+
+                /**
+                 * retrieve the proper face for our strategy
+                 */
+                int faceId;
+                switch (brain.getRobotParameters().getStrategyType())
+                {
+                case SOCRobotDM.SMART_STRATEGY:
+                    faceId = -1;  // smarter robot face
+                    break;
+                default:
+                    faceId = 0;  // default robot face
+                }
+
                 brain.setOurPlayerData();
                 brain.start();
 
                 /**
                  * change our face to the robot face
                  */
-                put(SOCChangeFace.toCmd(ga.getName(), mes.getPlayerNumber(), 0));
+                put(SOCChangeFace.toCmd(ga.getName(), mes.getPlayerNumber(), faceId));
             }
             else
             {
