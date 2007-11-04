@@ -104,7 +104,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Label messageLabel_top;   // secondary message
     protected Button pgm;  // practice game from messagepanel
     protected AppletContext ac;
-    
+
     /** For debug, our last messages sent, over the net and locally (pipes) */
     protected String lastMessage_N, lastMessage_L;
 
@@ -117,26 +117,29 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected DataOutputStream out;
     protected Thread reader = null;
     protected Exception ex = null;    // Network errors (TCP communication)
-    protected Exception ex_L = null;  // Local errors (stringport pipes comm.)
+    protected Exception ex_L = null;  // Local errors (stringport pipes)
     protected boolean connected = false;
-    
+
     /**
      * For local practice games (pipes, not TCP), the name of the pipe.
      * 
      * @see soc.util.LocalStringConnection
      */
     public static String PRACTICE_STRINGPORT = "SOCPRACTICE"; 
-    
+
     /**
      * For local practice games, default player name.
      */
     public static String DEFAULT_PLAYER_NAME = "Player";
-    
+
     /**
      * For local practice games, default game name.
      */
     public static String DEFAULT_PRACTICE_GAMENAME = "Practice";
-    
+
+    /**
+     * For local practice games, reminder message for network problems.
+     */
     public static String NET_UNAVAIL_CAN_PRACTICE_MSG = "The server is unavailable. You can still play practice games.";
 
     /**
@@ -173,13 +176,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * the ignore list
      */
     protected Vector ignoreList = new Vector();
-    
+
     /**
      * for practice game
      */
     protected SOCServer practiceServer = null;
     protected StringConnection prCli = null;
-    protected int numPracticeGames = 0;
+    protected int numPracticeGames = 0;  // Used for naming practice games
 
     /**
      * Create a SOCPlayerClient connecting to localhost port 8880
@@ -223,7 +226,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gmlist.add(" ");
         jc = new Button("Join Channel");
         jg = new Button("Join Game");
-        pg = new Button("Practice");  // "practice game" is too wide
+        pg = new Button("Practice");  // "practice game" text is too wide
 
         nick.addActionListener(this);
         pass.addActionListener(this);
@@ -248,10 +251,14 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         Label l;
 
+        // Row 1
+
         l = new Label();
         c.gridwidth = GridBagConstraints.REMAINDER;
         gbl.setConstraints(l, c);
         mainPane.add(l);
+
+        // Row 2
 
         l = new Label("Your Nickname:");
         c.gridwidth = 1;
@@ -291,6 +298,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
+        // Row 3
+
         l = new Label("New Channel:");
         c.gridwidth = 1;
         gbl.setConstraints(l, c);
@@ -324,10 +333,14 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
+        // Row 4 (spacer)
+
         l = new Label();
         c.gridwidth = GridBagConstraints.REMAINDER;
         gbl.setConstraints(l, c);
         mainPane.add(l);
+
+        // Row 5
 
         l = new Label();
         c.gridwidth = 1;
@@ -361,6 +374,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
+        // Row 6
+
         l = new Label("Channels");
         c.gridwidth = 2;
         gbl.setConstraints(l, c);
@@ -375,6 +390,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         c.gridwidth = GridBagConstraints.REMAINDER;
         gbl.setConstraints(l, c);
         mainPane.add(l);
+
+        // Row 7
 
         c.gridwidth = 2;
         c.gridheight = GridBagConstraints.REMAINDER;
@@ -396,18 +413,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         messageLabel_top = new Label("", Label.CENTER);
         messageLabel_top.setVisible(false);        
         messagePane.add(messageLabel_top, BorderLayout.NORTH);
-        
+
         // message label that takes up the whole pane
         messageLabel = new Label("", Label.CENTER);
         messageLabel.setForeground(new Color(252, 251, 243)); // off-white 
         messagePane.add(messageLabel, BorderLayout.CENTER);
-        
+
         // bottom of message pane: practice-game button
         pgm = new Button("Practice Game (against robots)");
         pgm.setVisible(false);
         messagePane.add(pgm, BorderLayout.SOUTH);
         pgm.addActionListener(this);
-        
+
         // all together now...
         cardLayout = new CardLayout();
         setLayout(cardLayout);
@@ -568,7 +585,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             System.err.println();
         }
     }
-    
+
     private void guardedActionPerform(ActionEvent e)
     {
         Object target = e.getSource();
@@ -667,16 +684,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         if ((target == jg) || (target == game) || (target == gmlist) || (target == pg) || (target == pgm)) // Join game stuff
         {
             String gm;
-            
+
             if ((target == pg) || (target == pgm)) // "Practice Game" Buttons
             {
+                // If blank, fill in game and player names
+
                 gm = game.getText().trim();
                 if (gm.length() == 0)
                 {
                     gm = DEFAULT_PRACTICE_GAMENAME;
                     game.setText(gm);
                 }
-                
+
                 if (0 == nick.getText().trim().length())
                 {
                     nick.setText(DEFAULT_PLAYER_NAME);
@@ -722,16 +741,17 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
             // Are we already in a game with that name?
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gm);
-            
+
             if ((pi != null) && ((target == pg) || (target == pgm)))
             {
-                // "Practice Game" button.
+                // Practice game requested, already exists.
+                //
                 // Ask the player if they want to join, or start a new game.
                 // If we're from the error panel (pgm), there's no way to
                 // enter a game name; make a name up if needed.
                 // If we already have a game going, our nickname is not empty.
-                // So, it's OK to not check that here.
-                
+                // So, it's OK to not check that here or in the dialog.
+
                 // Is the game over yet?
                 if (pi.getGame().getGameState() == SOCGame.OVER)
                 {
@@ -903,7 +923,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public synchronized boolean putLocal(String s)
     {
-        lastMessage_L = s;        
+        lastMessage_L = s;
 
         D.ebugPrintln("OUT L- " + SOCMessage.toMsg(s));
 
@@ -916,7 +936,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         return true;
     }
-    
+
     /**
      * Write a message to the net or local server.
      * Because the player can be in both network games and local games,
@@ -1423,7 +1443,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             cardLayout.show(this, MAIN_PANEL);
             validate();
-            
+
             status.setText("Login by entering nickname and then joining a channel or game.");
         }
 
@@ -1530,7 +1550,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         if (ga != null)
         {
             ga.isLocal = isLocal;
-            SOCPlayerInterface pi = new SOCPlayerInterface(mes.getGame(), this, ga, isLocal);
+            SOCPlayerInterface pi = new SOCPlayerInterface(mes.getGame(), this, ga);
             pi.setVisible(true);
             playerInterfaces.put(mes.getGame(), pi);
             games.put(mes.getGame(), ga);
@@ -3573,49 +3593,78 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         msg += (" " + piece.getCoordinates());
         put(SOCGameTextMsg.toCmd(ga.getName(), nickname, msg), ga.isLocal);
     }
-    
+
     /**
-     * Make up a name and start a practice game.
+     * Make up a game name, and start a practice game.
      */
     public void startPracticeGame()
     {
         startPracticeGame(DEFAULT_PRACTICE_GAMENAME + " " + (1 + numPracticeGames));
     }
-    
+
     /**
-     * for local practice game (local server).
+     * Setup for local practice game (local server).
+     * If needed, a local server, client, and robots are started.
      */
     public void startPracticeGame(String practiceGameName)
     {
         ++numPracticeGames;
-        
+
         if (practiceServer == null)
         {
             practiceServer = new SOCServer(PRACTICE_STRINGPORT, 30, null, null);
-            practiceServer.setPriority(5);
+            practiceServer.setPriority(5);  // same as in SOCServer.main
             practiceServer.start();
-            
+
             // We need some opponents.
-            SOCRobotClient[] rob = new SOCRobotClient[3];
-            for (int i = 0; i < 3; ++i)
+            // Let the server randomize if we get smart or fast ones.
+            SOCRobotClient[] robo_fast = new SOCRobotClient[5];
+            SOCRobotClient[] robo_smrt = new SOCRobotClient[2];
+
+            // ASSUMPTION: Server ROBOT_DEFAULTS use SOCRobotDM.FAST_STRATEGY.
+
+            // Make some faster ones first.
+            for (int i = 0; i < 5; ++i)
             {
-                rob[i] = new SOCRobotClient (PRACTICE_STRINGPORT, "robot " + (i+1), "pw");  // TODO names and parameters
-                new Thread(new SOCPlayerLocalRobotRunner(rob[i])).start();
+                robo_fast[i] = new SOCRobotClient (PRACTICE_STRINGPORT, "droid " + (i+1), "pw");
+                new Thread(new SOCPlayerLocalRobotRunner(robo_fast[i])).start();
                 Thread.yield();
                 try
                 {
-                    Thread.sleep(100);  // Let that robot go for a bit.
-                        // robot runner thread will call rob[i].init();
+                    Thread.sleep(75);  // Let that robot go for a bit.
+                        // robot runner thread will call its init()
                 }
                 catch (InterruptedException ie) {}
-            }            
+            }
+
+            // Make a few smarter ones now.
+            try
+            {
+                Thread.sleep(150);
+                    // Wait for robots' accept and UPDATEROBOTPARAMS.
+            }
+            catch (InterruptedException ie) {}
+
+            SOCServer.ROBOT_PARAMS_DEFAULT = SOCServer.ROBOT_PARAMS_SMARTER;   // SOCRobotDM.SMART_STRATEGY
+            for (int i = 0; i < 2; ++i)
+            {
+                robo_smrt[i] = new SOCRobotClient (PRACTICE_STRINGPORT, "robot " + (i+1+robo_fast.length), "pw");
+                new Thread(new SOCPlayerLocalRobotRunner(robo_smrt[i])).start();
+                Thread.yield();
+                try
+                {
+                    Thread.sleep(75);  // Let that robot go for a bit.
+                }
+                catch (InterruptedException ie) {}
+            }
         }
         if (prCli == null)
         {
             try
             {
                 prCli = LocalStringServerSocket.connectTo(PRACTICE_STRINGPORT);
-                new SOCPlayerLocalStringReader((LocalStringConnection)prCli);  // Will start itself
+                new SOCPlayerLocalStringReader((LocalStringConnection)prCli);
+                // Reader will start its own thread
             }
             catch (ConnectException e)
             {
@@ -3624,9 +3673,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             }
         }
 
-        // Ask "server" to create the game
+        // Ask local "server" to create the game
         putLocal(SOCJoinGame.toCmd(nickname, password, host, practiceGameName));
-        
+
         // Clear the textfield for next game name
         game.setText("");
     }
@@ -3638,7 +3687,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         return "SOCPlayerClient 0.9 by Robert S. Thomas.";
     }
-    
+
     /**
      * network trouble; if possible, ask if they want to play locally (robots).
      * Otherwise, go ahead and destroy the applet.
@@ -3660,7 +3709,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             err = "Sorry, the applet has been destroyed. ";
         }
         err = err + ((ex == null) ? "Load the page again." : ex.toString());
-        
+
         for (Enumeration e = channels.elements(); e.hasMoreElements();)
         {
             ((ChannelFrame) e.nextElement()).over(err);
@@ -3670,14 +3719,14 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             // Stop network games.
             // Local practice games can continue.
-            
+
             SOCPlayerInterface pi = ((SOCPlayerInterface) e.nextElement());
             if (! pi.getGame().isLocal)
             {
                 pi.over(err);
             }
         }
-        
+
         disconnect();
 
         if (canLocal)
@@ -3759,15 +3808,19 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             nick.requestFocus();
         }
     }
-    
+
+    /**
+     * For local practice games, read messages from the local server
+     * to be treated and reacted to.
+     */
     protected class SOCPlayerLocalStringReader implements Runnable
     {
         LocalStringConnection locl;
-        
+
         /** 
-         * Listen to local in a new thread.
-         * Starts its own thread.
-         * @param localConn
+         * Start a new thread and listen to local server.
+         *
+         * @param localConn Active connection to local server
          */
         protected SOCPlayerLocalStringReader (LocalStringConnection localConn)
         {
@@ -3777,7 +3830,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             thr.setDaemon(true);
             thr.start();
         }
-        
+
         /**
          * continuously read from the local string server in a separate thread
          */
@@ -3804,16 +3857,20 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             }
         }
     }
-    
+
+    /**
+     * For local practice games, each robot gets its own thread.
+     * Equivalent to main thread in SOCRobotClient in network games.
+     */
     protected class SOCPlayerLocalRobotRunner implements Runnable
     {
         SOCRobotClient rob;
-        
+
         protected SOCPlayerLocalRobotRunner (SOCRobotClient rc)
         {
             rob = rc;
         }
-        
+
         public void run()
         {
             Thread.currentThread().setName("robotrunner-" + rob.getNickname());

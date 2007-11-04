@@ -1675,12 +1675,12 @@ public class SOCDisplaylessPlayerClient implements Runnable
     }
 
     /**
-     * disconnect from the net
+     * disconnect from the net, and from any local practice server
      */
     protected void disconnect()
     {
         connected = false;
-        
+
         // reader will die once 'connected' is false, and socket is closed
 
         if (sLocal != null)

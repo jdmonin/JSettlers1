@@ -48,7 +48,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     boolean up = false;
     protected Exception error = null;
     protected int port;  // -1 for local mode (LocalStringServerSocket, etc)
-    protected String strSocketName;
+    protected String strSocketName;  // null for network mode
 
     /**
      * total number of connections made
@@ -322,8 +322,11 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             D.ebugPrintln("treater returning; server not up"); // JM uncommented
         }
     }
-    
-    class NetStringServerSocket implements StringServerSocket
+
+    /**
+     * Uses ServerSocket to implement StringServerSocket over a network.
+     */
+    protected class NetStringServerSocket implements StringServerSocket
     {
         private ServerSocket implServSocket;
         private Server server;
@@ -333,17 +336,17 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             implServSocket = new ServerSocket(port);
             server = serv;
         }
-        
+
         public StringConnection accept() throws EOFException, IOException
         {
             Socket s = implServSocket.accept();
             return new Connection(s, server);  // Good old net, not generic StringConnection
         }
-        
+
         public void close() throws IOException
         {
             implServSocket.close();
         }
     }
-    
+
 }

@@ -32,42 +32,36 @@ public interface StringConnection
 {
 
     /**
-     * DOCUMENT ME!
-     *
-     * @return DOCUMENT ME!
+     * @return Hostname of the remote end of the connection
      */
     public abstract String host();
 
     /**
-     * DOCUMENT ME!
+     * Send data over the connection.
      *
-     * @param str DOCUMENT ME!
+     * @param str Data to send
      *
-     * @return DOCUMENT ME!
+     * @throws IllegalStateException if not yet accepted by server
      */
     public abstract void put(String str)
         throws IllegalStateException;
-    
+
     /** For server-side thread which reads and treats incoming messages */
     public abstract void run();
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @return DOCUMENT ME!
-     */
+    /** Are we currently connected and active? */
     public abstract boolean isConnected();
-    
+
     /** start ability to read from the net; called only by the server.
      * (In a non-local version, another thread may be started by this method.)
      * 
      * @return true if able to connect, false if an error occurred.
      */    
     public abstract boolean connect(); 
-    
+
     /** close the socket, set EOF */
     public abstract void disconnect();
-    
+
     /**
      * @return The app-specific data for this connection.
      */
@@ -78,6 +72,9 @@ public interface StringConnection
      */
     public abstract void setData(Object data);
 
+    /**
+     * @return Any error encountered, or null
+     */
     public abstract Exception getError();
 
 }

@@ -124,9 +124,9 @@ public class SOCGame implements Serializable, Cloneable
      * true if this game is ACTIVE
      */
     private boolean active;
-    
+
     /**
-     * true if the game's network is local (used only at client)
+     * true if the game's network is local for practice (used only at client)
      */
     public boolean isLocal;
 

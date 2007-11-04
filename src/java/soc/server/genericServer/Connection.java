@@ -45,7 +45,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected final static int TIMEOUT_VALUE = 3600000; // approx. 1 hour
 
     /**
-     * the abritrary app-specific data associated with this connection
+     * the arbitrary app-specific data associated with this connection
      */
     protected Object data;    
     DataInputStream in = null;
@@ -75,8 +75,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             setName ("connection-(null)");
     }
 
-    /* (non-Javadoc)
-     * @see soc.server.genericServer.StringConnection#host()
+    /**
+     * @return Hostname of the remote end of the connection
      */
     public String host()
     {
@@ -151,8 +151,10 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         }
     }
 
-    /* (non-Javadoc)
-     * @see soc.server.genericServer.StringConnection#put(java.lang.String)
+    /**
+     * Send data over the connection.
+     *
+     * @param str Data to send
      */
     public final void put(String str)
     {
@@ -162,8 +164,6 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             outQueue.addElement(str);
             outQueue.notify();
         }
-
-        // return true;  // JM 
     }
 
     /**
@@ -246,12 +246,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     {
         return data;
     }
-    
-    public Exception getError()
-    {
-        return error;
-    }
-    
+
     /**
      * Set the data for this connection
      * 
@@ -260,6 +255,14 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     public void setData(Object dat)
     {
         data = dat;
+    }
+
+    /**
+     * @return Any error encountered, or null
+     */
+    public Exception getError()
+    {
+        return error;
     }
 
     /** close the socket, stop the reader */
@@ -291,8 +294,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         out = null;
     }
 
-    /* (non-Javadoc)
-     * @see soc.server.genericServer.StringConnection#isConnected()
+    /**
+     * Are we currently connected and active?
      */
     public boolean isConnected()
     {

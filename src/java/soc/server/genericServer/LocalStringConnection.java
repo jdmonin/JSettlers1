@@ -35,13 +35,13 @@ public class LocalStringConnection
     implements StringConnection, Runnable
 {
     protected static Object EOF_MARKER = new Object();
-    
+
     protected Vector in, out;
     protected boolean in_reachedEOF;
     protected boolean out_setEOF;
-    protected boolean accepted;  // TODO consider sync for touching methods
+    protected boolean accepted;
     private LocalStringConnection ourPeer;
-    
+
     protected Server ourServer;  // Optional. Notifies at EOF.
     protected Exception error;
 
@@ -49,7 +49,7 @@ public class LocalStringConnection
      * the abritrary app-specific data associated with this connection
      */
     protected Object data;
-    
+
     /**
      * After creation, call connect().
      *
@@ -99,13 +99,10 @@ public class LocalStringConnection
     /**
      * TODO docu
      * Synchronized on in-buffer.
-     * Also sets data.
      * 
      * @return Next string in the in-buffer
      * @throws EOFException Our input buffer has reached EOF
      * @throws IllegalStateException Server has not yet accepted our connection
-     * 
-     * @see #getData()
      */
     public String readNext() throws EOFException, IllegalStateException
     {
@@ -121,7 +118,7 @@ public class LocalStringConnection
         }
 
         Object obj;
-        
+
         synchronized (in)
         {
             while (in.isEmpty())
@@ -142,7 +139,7 @@ public class LocalStringConnection
             }
             obj = in.elementAt(0);
             in.removeElementAt(0);
-            
+
             if (obj == EOF_MARKER)
             {
                 in_reachedEOF = true;
@@ -154,10 +151,14 @@ public class LocalStringConnection
         }
         return (String) obj;
     }
-    
+
     /**
-     * Send to other end.
-     * Ignored if out EOF is set. 
+     * Send data over the connection.
+     * Ignored if setEOF() has been called.
+     *
+     * @param str Data to send
+     *
+     * @throws IllegalStateException if not yet accepted by server
      */
     public void put(String dat) throws IllegalStateException
     {
@@ -175,16 +176,26 @@ public class LocalStringConnection
         }
     }
 
-    /** close the socket, set EOF */
+    /** close the socket, discard pending buffered data, set EOF */
     public void disconnect()
     {
         D.ebugPrintln("DISCONNECTING " + data);
         accepted = false;
-        out.clear();
-        in.clear();
-        in_reachedEOF = true;
-        setEOF();
-        // connected = false;  JM TODO
+        synchronized (out)
+        {
+            // let the remote-end know we're closing
+            out.clear();
+            out.addElement(EOF_MARKER);
+            out_setEOF = true;
+            out.notifyAll();
+        }
+        synchronized (in)
+        {
+            in.clear();
+            in.addElement(EOF_MARKER);
+            in_reachedEOF = true;
+            in.notifyAll();
+        }
     }
 
     public void connect(String serverSocketName) throws ConnectException, IllegalStateException
@@ -197,14 +208,13 @@ public class LocalStringConnection
         // will set ourPeer and use our in/out if it works.
 
         // ** connectTo will Thread.wait until accepted by server.
-        
+
         accepted = true;
-        
-        // TODO write an isConnected (what does it mean? (vs EOFs))
+
         // TODO should we be throwing away connectTo's return?
         //     Is it returning the right kind of thing?
     }
-    
+
     /**
      * Remember, the peer's in is our out, and vice versa. 
      * 
@@ -239,7 +249,7 @@ public class LocalStringConnection
             throw new IllegalStateException("Already accepted");
         accepted = true;
     }
-    
+
     /**
      * Signal the end of outbound data.
      * Not the same as closing, because we don't terminate the inbound side.
@@ -248,10 +258,9 @@ public class LocalStringConnection
      */
     public void setEOF()
     {
-        // TODO close method, let the remote-end know we're closing
-        
         synchronized (out)
         {
+            // let the remote-end know we're closing
             out.addElement(EOF_MARKER);
             out_setEOF = true;
             out.notifyAll();
@@ -281,7 +290,7 @@ public class LocalStringConnection
     {
         return data;
     }
-    
+
     /**
      * Set the data for this connection
      * 
@@ -299,7 +308,7 @@ public class LocalStringConnection
     {
         return ourServer;
     }
-    
+
     /**
      * Server-side: Set the generic server for this connection.
      * If a server is set, its removeConnection method is called if our input reaches EOF.
@@ -312,19 +321,24 @@ public class LocalStringConnection
         ourServer = srv;
     }
 
+    /**
+     * @return Any error encountered, or null
+     */
     public Exception getError()
     {
         return error;
     }
-    
+
     /**
-     * Always returns localhost; StringConnection interface.
+     * Hostname of the remote side of the connection -
+     * Always returns localhost; this method required for
+     * StringConnection interface.
      */
     public String host()
     {
         return "localhost";
     }
-    
+
     /**
      * Local version; nothing special to do to start reading messages.
      */
@@ -333,9 +347,7 @@ public class LocalStringConnection
         return accepted;
     }
 
-    /* TODO
-     * @see soc.server.genericServer.StringConnection#isConnected()
-     */
+    /** Are we currently connected and active? */
     public boolean isConnected()
     {
         return accepted && ! out_setEOF;
@@ -345,10 +357,10 @@ public class LocalStringConnection
     public void run()
     {
         Thread.currentThread().setName("connection-srv-localstring");
-        
+
         if (ourServer == null)
             return;
-        
+
         ourServer.addConnection(this);
 
         try
@@ -376,5 +388,4 @@ public class LocalStringConnection
             ourServer.removeConnection(this);
         }
     }
-    
 }

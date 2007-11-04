@@ -40,7 +40,6 @@ import soc.message.*;
 
 import soc.server.database.SOCDBHelper;
 
-// import soc.server.genericServer.Connection;
 import soc.server.genericServer.Server;
 import soc.server.genericServer.StringConnection;
 
@@ -90,6 +89,29 @@ public class SOCServer extends Server
      * A list of robots connected to this server
      */
     protected Vector robots = new Vector();
+
+    /**
+     * Robot default parameters; copied for each newly connecting robot.
+     * Changing this will not change parameters of any robots already connected.
+     *
+     * @see soc.robot.SOCRobotDM
+     */
+    public static SOCRobotParameters ROBOT_PARAMS_DEFAULT
+        = new SOCRobotParameters(120, 35, 0.13f, 1.0f, 1.0f, 3.0f, 1.0f, 1, 1);
+        // Formerly a literal in handleIMAROBOT.
+        // Strategy type 1 == SOCRobotDM.FAST_STRATEGY.
+        // If you change values here, see SOCPlayerClient.startPracticeGame
+        // for assumptions which may also need to be changed.
+
+    /**
+     * Unused similar robot default parameters.
+     * Same as ROBOT_PARAMS_DEFAULT but with SMART_STRATEGY, not FAST_STRATEGY.
+     *
+     * @see #ROBOT_PARAMS_DEFAULT
+     * @see soc.robot.SOCRobotDM
+     */
+    public static SOCRobotParameters ROBOT_PARAMS_SMARTER
+        = new SOCRobotParameters(120, 35, 0.13f, 1.0f, 1.0f, 3.0f, 1.0f, 0, 1);
 
     /**
      * list of chat channels
@@ -170,7 +192,7 @@ public class SOCServer extends Server
         maxConnections = mc;
         initSocServer(databaseUserName, databasePassword);
     }
-    
+
     /**
      * Create a Settlers of Catan server listening on local stringport s.
      * You must start its thread yourself.
@@ -186,7 +208,7 @@ public class SOCServer extends Server
         maxConnections = mc;
         initSocServer(databaseUserName, databasePassword);
     }    
-        
+
     /**
      * Common init for both constructors.
      * 
@@ -2069,7 +2091,7 @@ public class SOCServer extends Server
 
             if (params == null)
             {
-                params = new SOCRobotParameters(120, 35, 0.13f, 1.0f, 1.0f, 3.0f, 1.0f, 1, 1);
+                params = new SOCRobotParameters(ROBOT_PARAMS_DEFAULT);
             }
 
             c.put(SOCUpdateRobotParams.toCmd(params));
