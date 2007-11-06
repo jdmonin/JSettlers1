@@ -542,7 +542,6 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             ex = e;
             String msg = "Could not connect to the server: " + ex;
             System.err.println(msg);
-            messageLabel.setText(msg);
             if (ex_L == null)
             {
                 pgm.setVisible(true);
@@ -550,6 +549,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 messageLabel_top.setVisible(true);
                 messageLabel.setText(NET_UNAVAIL_CAN_PRACTICE_MSG);
                 validate();
+                pgm.requestFocus();
+            }
+            else
+            {
+                messageLabel.setText(msg);
             }
         }
     }
@@ -958,7 +962,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * Treat the incoming messages
      *
      * @param mes    the message
-     * @param isLocal Server is local (vs network)
+     * @param isLocal Server is local (practice game, not network)
      */
     public void treat(SOCMessage mes, boolean isLocal)
     {
@@ -2711,6 +2715,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
+        if (ex_L != null)
+            pgm.requestFocus();
     }
 
     /**
@@ -3595,7 +3601,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * Make up a game name, and start a practice game.
+     * Create a game name, and start a practice game.
      */
     public void startPracticeGame()
     {
@@ -3617,11 +3623,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             practiceServer.start();
 
             // We need some opponents.
-            // Let the server randomize if we get smart or fast ones.
+            // Let the server randomize whether we get smart or fast ones.
             SOCRobotClient[] robo_fast = new SOCRobotClient[5];
             SOCRobotClient[] robo_smrt = new SOCRobotClient[2];
 
-            // ASSUMPTION: Server ROBOT_DEFAULTS use SOCRobotDM.FAST_STRATEGY.
+            // ASSUMPTION: Server ROBOT_PARAMS_DEFAULT uses SOCRobotDM.FAST_STRATEGY.
 
             // Make some faster ones first.
             for (int i = 0; i < 5; ++i)
@@ -3744,6 +3750,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
+        if (canLocal)
+            pgm.requestFocus();
     }
 
     /**
@@ -3810,8 +3818,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * For local practice games, read messages from the local server
-     * to be treated and reacted to.
+     * For local practice games, reader thread to get messages from the
+     * local server to be treated and reacted to.
      */
     protected class SOCPlayerLocalStringReader implements Runnable
     {

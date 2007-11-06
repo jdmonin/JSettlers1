@@ -1774,7 +1774,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             updateMode();
             ptrOldX = 0;
             ptrOldY = 0;
-            mouseMoved(evt);  // Should establish hilight using click's x,y
+            mouseMoved(evt);  // mouseMoved will establish hilight using click's x,y
         }
         
         evt.consume();

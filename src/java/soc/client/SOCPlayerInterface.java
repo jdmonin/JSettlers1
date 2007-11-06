@@ -108,7 +108,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * the game associated with this interface
      */
     protected SOCGame game;
-    
+
     /**
      * number of columns in the text output area
      */
