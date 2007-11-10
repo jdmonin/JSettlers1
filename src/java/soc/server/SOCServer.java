@@ -977,7 +977,7 @@ public class SOCServer extends Server
     /**
      * Send a message to a player and record it
      *
-     * @param c   the player StringConnection
+     * @param c   the player connection
      * @param mes the message to send
      */
     public void messageToPlayer(StringConnection c, SOCMessage mes)
@@ -1298,7 +1298,7 @@ public class SOCServer extends Server
         {
             SOCMessage mes = (SOCMessage) SOCMessage.toMsg(s);
 
-            D.ebugPrintln(c.getData()+" - "+mes);  // JM: uncommented
+            // D.ebugPrintln(c.getData()+" - "+mes);
             if (mes != null)
             {
                 SOCGame ga;
@@ -3755,6 +3755,7 @@ public class SOCServer extends Server
                                 SOCSettlement pp = new SOCSettlement(player, player.getLastSettlementCoord());
                                 ga.undoPutInitSettlement(pp);
                                 messageToGame(ga.getName(), mes);  // Re-send to all clients to announce it
+                                    // (Safe since we've validated all message parameters)
                                 messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " cancelled their settlement placement."));
                                 sendGameState(ga);  // This send is redundant, if client reaction changes game state
                             }

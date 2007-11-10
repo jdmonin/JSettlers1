@@ -198,21 +198,25 @@ public class LocalStringConnection
         }
     }
 
+    /**
+     * Connect to specified stringport. Calling thread waits until accepted.  
+     * 
+     * @param serverSocketName  stringport name to connect to
+     * @throws ConnectException If stringport name is not found, or is EOF,
+     *                          or if its connect/accept queue is full.
+     * @throws IllegalStateException If this object is already connected
+     */
     public void connect(String serverSocketName) throws ConnectException, IllegalStateException
     {
         if (accepted)
             throw new IllegalStateException("Already accepted by a server");
 
         LocalStringConnection p = null;
-        p = LocalStringServerSocket.connectTo(serverSocketName, this);
-        // will set ourPeer and use our in/out if it works.
-
+        LocalStringServerSocket.connectTo(serverSocketName, this);
+        
         // ** connectTo will Thread.wait until accepted by server.
 
         accepted = true;
-
-        // TODO should we be throwing away connectTo's return?
-        //     Is it returning the right kind of thing?
     }
 
     /**
@@ -238,6 +242,8 @@ public class LocalStringConnection
     /**
      * Intended for server to call: Set our accepted flag.
      * Peer must be non-null to set accepted.
+     * If our EOF is set, will not set accepted, but will not throw exception.
+     * (This happens if the server socket closes while we're in its accept queue.)
      * 
      * @throws IllegalStateException If we can't be, or already are, accepted
      */
@@ -247,7 +253,8 @@ public class LocalStringConnection
             throw new IllegalStateException("No peer, can't be accepted");
         if (accepted)
             throw new IllegalStateException("Already accepted");
-        accepted = true;
+        if (! (out_setEOF || in_reachedEOF))
+            accepted = true;
     }
 
     /**

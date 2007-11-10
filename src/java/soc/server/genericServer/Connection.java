@@ -45,7 +45,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected final static int TIMEOUT_VALUE = 3600000; // approx. 1 hour
 
     /**
-     * the arbitrary app-specific data associated with this connection
+     * the arbitrary app-specific data associated with this connection.
+     * Protected to force callers to use getData() part of StringConnection interface.
      */
     protected Object data;    
     DataInputStream in = null;

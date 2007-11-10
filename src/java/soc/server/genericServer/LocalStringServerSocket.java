@@ -23,11 +23,10 @@ package soc.server.genericServer;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.SocketException;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
-
-import soc.game.SOCBoard;
 
 /**
  * 
@@ -84,8 +83,7 @@ public class LocalStringServerSocket implements StringServerSocket
     public static LocalStringConnection connectTo(String name)
         throws ConnectException, IllegalArgumentException
     {
-        LocalStringConnection cn = new LocalStringConnection();
-        return connectTo (name, cn);
+        return connectTo (name, new LocalStringConnection());
     }
 
     /**
@@ -100,6 +98,8 @@ public class LocalStringServerSocket implements StringServerSocket
      *                          or if its connect/accept queue is full.
      * @throws IllegalArgumentException If name is null, client is null,
      *                          or client is already peered/connected.
+     *
+     * @return client parameter object, connected to a LocalStringServer
      */
     public static LocalStringConnection connectTo(String name, LocalStringConnection client)
         throws ConnectException, IllegalArgumentException
@@ -154,6 +154,9 @@ public class LocalStringServerSocket implements StringServerSocket
 
         if (client != servSidePeer.getPeer())
             throw new IllegalStateException("Internal error: Peer is wrong");
+        
+        if (client.isOutEOF())
+            throw new ConnectException("Server at EOF, closed waiting to be accepted");
 
         return client;
     }
@@ -208,14 +211,14 @@ public class LocalStringServerSocket implements StringServerSocket
      * (Synchronizes on accept queue.)
      * 
      * @return The server-side peer to the inbound client connection
-     * @throws EOFException if our setEOF() has been called, thus
+     * @throws SocketException if our setEOF() has been called, thus
      *    new clients won't receive any data from us
      * @throws IOException if a network problem occurs (Which won't happen with this local communication)
      */
-    public StringConnection accept() throws EOFException, IOException
+    public StringConnection accept() throws SocketException, IOException
     {
         if (out_setEOF)
-            throw new EOFException("Server socket already at EOF");
+            throw new SocketException("Server socket already at EOF");
 
         LocalStringConnection cliPeer;
 
@@ -224,7 +227,7 @@ public class LocalStringServerSocket implements StringServerSocket
             while (acceptQueue.isEmpty())
             {
                 if (out_setEOF)
-                    throw new EOFException();
+                    throw new SocketException("Server socket already at EOF");
                 else
                 {
                     try
@@ -240,14 +243,25 @@ public class LocalStringServerSocket implements StringServerSocket
 
         LocalStringConnection servPeer = cliPeer.getPeer();        
         cliPeer.setAccepted();
+
+        if (out_setEOF)
+        {
+            servPeer.disconnect();
+            cliPeer.disconnect();
+        }
+
         synchronized (servPeer)
         {
             // Sync vs. critical section in connectTo;
             // client has been waiting there for our accept.
-            
-            servPeer.setAccepted();
+
+            if (! out_setEOF)
+                servPeer.setAccepted();
             servPeer.notifyAll();
         }
+
+        if (out_setEOF)
+            throw new SocketException("Server socket already at EOF");
 
         allConnected.addElement(servPeer);
 
@@ -375,13 +389,28 @@ public class LocalStringServerSocket implements StringServerSocket
      * Do not let inbound data drain.
      * Accept no new inbound connections.
      * Send EOF marker in all current outbound connections.
+     * Like java.net.ServerSocket, any thread currently blocked in
+     * accept() will throw a SocketException.
      *
      * @see #setEOF()
      */
     public void close() throws IOException
     {
-        // TODO javadoc net serversocket for when throw IOException
         setEOF(true);
+
+        // Notify any threads waiting for accept.
+        // In those threads, our connectTo method will see
+        // the EOF and throw SocketException.
+        Enumeration waits = acceptQueue.elements();
+        while (waits.hasMoreElements())
+        {
+            LocalStringConnection cliPeer = (LocalStringConnection) waits.nextElement();
+            cliPeer.disconnect();
+            synchronized (cliPeer)
+            {
+                cliPeer.notifyAll();
+            }
+        }
     }
 
 }

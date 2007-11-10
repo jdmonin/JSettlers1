@@ -22,6 +22,7 @@ package soc.server.genericServer;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.net.SocketException;
 
 /**
  * StringServerSocket allows server applications to communicate with clients,
@@ -37,10 +38,10 @@ public interface StringServerSocket
      * 
      * @return The server-side peer to the inbound client connection
      * @throws IOException  if network has a problem accepting
-     * @throws EOFException if our setEOF() has been called, thus
+     * @throws SocketException if our setEOF() has been called, thus
      *    new clients won't receive any data from us
      */
-    public abstract StringConnection accept() throws EOFException, IOException;
+    public abstract StringConnection accept() throws SocketException, IOException;
 
     public abstract void close() throws IOException;
 

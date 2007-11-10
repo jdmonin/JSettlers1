@@ -22,12 +22,12 @@ package soc.server.genericServer;
 
 import soc.debug.D; // JM
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 
 import java.util.Date;
 import java.util.Enumeration;
@@ -170,7 +170,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /** treat a request from the given connection */
     public void treat(String s, StringConnection c)
     {
-        D.ebugPrintln("IN got: " + s);  // JM
+        // D.ebugPrintln("IN got: " + s);
         synchronized (inQueue)
         {
             inQueue.addElement(new Command(s, c));
@@ -319,7 +319,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 }
             }
 
-            D.ebugPrintln("treater returning; server not up"); // JM uncommented
+            // D.ebugPrintln("treater returning; server not up");
         }
     }
 
@@ -337,7 +337,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             server = serv;
         }
 
-        public StringConnection accept() throws EOFException, IOException
+        public StringConnection accept() throws SocketException, IOException
         {
             Socket s = implServSocket.accept();
             return new Connection(s, server);  // Good old net, not generic StringConnection
