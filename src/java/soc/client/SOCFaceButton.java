@@ -33,6 +33,7 @@ import java.awt.MediaTracker;
 import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.net.URL;
 
 
 /**
@@ -51,15 +52,20 @@ public class SOCFaceButton extends Canvas
      * number of /numbered/ face images, /plus 1/ for indexing
      */
     public static final int NUM_FACES = 74;
+
     /**
      * number of robot faces, which are separately numbered.
      * Robot face 0 is just robot.gif, otherwise robot1.gif, robot2.gif, etc.
      * Internally, robot faces are negative faceIds.
      */
     public static final int NUM_ROBOT_FACES = 2;
+
     /** Shared images */
     private static Image[] images;
     private static Image[] robotImages;
+    
+    /** For status in drawFace */
+    private static MediaTracker tracker;
 
     /**
      * Human face images are positive numbers, 1-based (range 1 to NUM_FACES).
@@ -81,7 +87,7 @@ public class SOCFaceButton extends Canvas
     {
         if (images == null)
         {
-            MediaTracker tracker = new MediaTracker(c);
+            tracker = new MediaTracker(c);
             Toolkit tk = c.getToolkit();
             Class clazz = c.getClass();
         
@@ -102,10 +108,15 @@ public class SOCFaceButton extends Canvas
             
             for (int i = 1; i < NUM_ROBOT_FACES; i++)
             {
-                // Client possibly only has robot.gif
-                // TODO TODO TODO here, how to  handle that?
-                robotImages[i] = tk.getImage(clazz.getResource(IMAGEDIR + "/robot" + i + ".gif"));
-                tracker.addImage(robotImages[i], 0);
+                // Client possibly only has robot.gif.
+                // Check getResource vs null, and use MediaTracker;
+                // drawFace can check tracker.statusID vs MediaTracker.COMPLETE.
+                URL imgSrc = clazz.getResource(IMAGEDIR + "/robot" + i + ".gif");
+                if (imgSrc != null)
+                {
+                    robotImages[i] = tk.getImage(imgSrc);
+                    tracker.addImage(robotImages[i], i);
+                }
             }
 
             try
@@ -230,14 +241,19 @@ public class SOCFaceButton extends Canvas
                 currentImageNum = findex;
             }
             fimage = images[findex];
-        } else {
+        }
+        else
+        {
             findex = -currentImageNum;
             if ((findex >= NUM_ROBOT_FACES) || (null == robotImages[findex]))
             {
                 findex = 0;
                 currentImageNum = -findex;
             }
-            fimage = robotImages[findex];
+            if (0 == (tracker.statusID(findex, false) & (MediaTracker.ABORTED | MediaTracker.ERRORED)))
+                fimage = robotImages[findex];
+            else
+                fimage = robotImages[0];
         }
         g.drawImage(fimage, 0, 0, getBackground(), this);
     }
