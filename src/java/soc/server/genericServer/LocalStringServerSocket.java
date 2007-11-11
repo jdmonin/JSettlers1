@@ -154,7 +154,7 @@ public class LocalStringServerSocket implements StringServerSocket
 
         if (client != servSidePeer.getPeer())
             throw new IllegalStateException("Internal error: Peer is wrong");
-        
+
         if (client.isOutEOF())
             throw new ConnectException("Server at EOF, closed waiting to be accepted");
 
@@ -327,14 +327,6 @@ public class LocalStringServerSocket implements StringServerSocket
     }
 
     /**
-     * @param socketName The socketName to set.
-     */
-    public void setSocketName(String socketName)
-    {
-        this.socketName = socketName;
-    }
-
-    /**
      * Close down server socket, but don't disconnect anyone:
      * Accept no new inbound connections.
      * Send EOF marker in all current outbound connections.
@@ -376,6 +368,12 @@ public class LocalStringServerSocket implements StringServerSocket
         }
     }
 
+    /**
+     * Have we closed our outbound side?
+     *
+     * @see #close()
+     * @see #setEOF()
+     */
     public boolean isOutEOF()
     {
         synchronized (sync_out_setEOF)

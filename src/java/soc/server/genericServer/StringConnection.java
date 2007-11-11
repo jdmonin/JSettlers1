@@ -68,7 +68,12 @@ public interface StringConnection
     public abstract Object getData();
 
     /**
-     * Set tapp-specific data for this connection, or null.
+     * Set the app-specific data for this connection.
+     *
+     * This is anything your application wants to associate with the connection.
+     * The StringConnection system itself does not reference or use this data.
+     *
+     * @param data The new data, or null
      */
     public abstract void setData(Object data);
 

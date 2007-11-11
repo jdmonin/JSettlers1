@@ -43,6 +43,14 @@ public interface StringServerSocket
      */
     public abstract StringConnection accept() throws SocketException, IOException;
 
+    /**
+     * Close down server socket immediately:
+     * Do not let inbound data drain.
+     * Accept no new inbound connections.
+     * Send EOF marker in all current outbound connections.
+     * Like java.net.ServerSocket, any thread currently blocked in
+     * accept() must throw a SocketException.
+     */
     public abstract void close() throws IOException;
 
 }

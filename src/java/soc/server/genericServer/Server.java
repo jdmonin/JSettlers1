@@ -78,12 +78,12 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         
         setName("server-" + port);  // Thread name for debugging
     }
-    
+
     public Server(String stringSocketName)
     {
         if (stringSocketName == null)
             throw new IllegalArgumentException("stringSocketName null");
-        
+
         this.port = -1;
         this.strSocketName = stringSocketName;
         numberOfConnections = 0;

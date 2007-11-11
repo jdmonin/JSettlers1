@@ -1,7 +1,7 @@
 /**
  * Local (StringConnection) network system.
  * Copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -28,8 +28,13 @@ import java.util.Vector;
 import soc.disableDebug.D;
 
 /**
- * @author Jeremy D. Monin <jeremy@nand.net>
+ * Symmetric buffered connection sending strings between two local peers.
+ * Uses vectors and thread synchronization, no actual network traffic.
  *
+ * This class has a run method, but you must start the thread yourself.
+ * Constructors will not create or start a thread.
+ *
+ * @author Jeremy D. Monin <jeremy@nand.net>
  */
 public class LocalStringConnection
     implements StringConnection, Runnable
@@ -42,7 +47,7 @@ public class LocalStringConnection
     protected boolean accepted;
     private LocalStringConnection ourPeer;
 
-    protected Server ourServer;  // Optional. Notifies at EOF.
+    protected Server ourServer;  // Optional. Notifies at EOF (calls removeConnection).
     protected Exception error;
 
     /**
@@ -51,7 +56,12 @@ public class LocalStringConnection
     protected Object data;
 
     /**
-     * After creation, call connect().
+     * Create a new, unused LocalStringConnection.
+     *
+     * After construction, call connect to use this object.
+     *
+     * This class has a run method, but you must start the thread yourself.
+     * Constructors will not create or start a thread.
      *
      * @see #connect(String)
      */
@@ -68,10 +78,13 @@ public class LocalStringConnection
     }
 
     /**
-     * Constructor for a peer; we'll share two Vectors for in/out queues.
-     * 
+     * Constructor for an existing peer; we'll share two Vectors for in/out queues.
+     *
+     * This class has a run method, but you must start the thread yourself.
+     * Constructors will not create or start a thread.
+     *
      * @param peer The peer to use.
-     * 
+     *
      * @throws EOFException If peer is at EOF already 
      * @throws IllegalArgumentException if peer is null, or already
      *   has a peer.
@@ -84,6 +97,7 @@ public class LocalStringConnection
             throw new IllegalArgumentException("peer already has a peer");
         if (peer.isOutEOF() || peer.isInEOF())
             throw new EOFException("peer EOF at constructor");
+
         in = peer.out;
         out = peer.in;
         in_reachedEOF = false;
@@ -97,7 +111,9 @@ public class LocalStringConnection
     }
 
     /**
-     * TODO docu
+     * Read the next string sent from the remote end,
+     * blocking if necessary to wait.
+     *
      * Synchronized on in-buffer.
      * 
      * @return Next string in the in-buffer
@@ -153,7 +169,7 @@ public class LocalStringConnection
     }
 
     /**
-     * Send data over the connection.
+     * Send data over the connection.  Does not block.
      * Ignored if setEOF() has been called.
      *
      * @param str Data to send
@@ -169,6 +185,7 @@ public class LocalStringConnection
         }
         if (out_setEOF)
             return;
+
         synchronized (out)
         {
             out.addElement(dat);
@@ -176,7 +193,7 @@ public class LocalStringConnection
         }
     }
 
-    /** close the socket, discard pending buffered data, set EOF */
+    /** close the socket, discard pending buffered data, set EOF. */
     public void disconnect()
     {
         D.ebugPrintln("DISCONNECTING " + data);
@@ -213,14 +230,14 @@ public class LocalStringConnection
 
         LocalStringConnection p = null;
         LocalStringServerSocket.connectTo(serverSocketName, this);
-        
+
         // ** connectTo will Thread.wait until accepted by server.
 
         accepted = true;
     }
 
     /**
-     * Remember, the peer's in is our out, and vice versa. 
+     * Remember, the peer's in is our out, and vice versa.
      * 
      * @return Returns our peer, or null if not yet connected.
      */
@@ -230,9 +247,9 @@ public class LocalStringConnection
     }
 
     /**
-     * Is or was accepted by a server
+     * Is currently accepted by a server
      * 
-     * @return Returns the isAccepted.
+     * @return Are we currently connected, accepted, and ready to send/receive data?
      */
     public boolean isAccepted()
     {
@@ -274,6 +291,9 @@ public class LocalStringConnection
         }
     }
 
+    /**
+     * Have we received an EOF marker inbound?
+     */
     public boolean isInEOF()
     {
         synchronized (in)
@@ -282,6 +302,11 @@ public class LocalStringConnection
         }
     }
 
+    /**
+     * Have we closed our outbound side?
+     *
+     * @see #setEOF()
+     */
     public boolean isOutEOF()
     {
         synchronized (out)
@@ -292,6 +317,8 @@ public class LocalStringConnection
 
     /**
      * @return The app-specific data for this generic connection
+     *
+     * @see #setData(Object)
      */
     public Object getData()
     {
@@ -299,8 +326,11 @@ public class LocalStringConnection
     }
 
     /**
-     * Set the data for this connection
-     * 
+     * Set the app-specific data for this connection.
+     *
+     * This is anything your application wants to associate with the connection.
+     * The StringConnection system itself does not reference or use this data.
+     *
      * @param dat The new data, or null
      */
     public void setData(Object dat)
@@ -309,6 +339,8 @@ public class LocalStringConnection
     }
 
     /**
+     * Server-side: Reference to the server handling this connection.
+     *
      * @return The generic server (optional) for this connection
      */
     public Server getServer()
@@ -348,6 +380,11 @@ public class LocalStringConnection
 
     /**
      * Local version; nothing special to do to start reading messages.
+     * Call connect(serverSocketName) instead of this method.
+     *
+     * @see #connect(String)
+     *
+     * @return Whether we've connected and been accepted by a StringServerSocket.
      */
     public boolean connect()
     {
@@ -360,7 +397,10 @@ public class LocalStringConnection
         return accepted && ! out_setEOF;
     }
 
-    /** For server-side (ourServ != null); continuously read and treat input */
+    /**
+     * For server-side (ourServer != null); continuously read and treat input.
+     * You must create and start the thread.
+     */
     public void run()
     {
         Thread.currentThread().setName("connection-srv-localstring");
