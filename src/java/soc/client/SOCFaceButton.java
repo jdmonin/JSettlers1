@@ -47,7 +47,7 @@ public class SOCFaceButton extends Canvas
     public static final int DEFAULT_FACE = 1;  // Human face # 1 (face1.gif)
 
     private static final String IMAGEDIR = "/soc/client/images";
-    
+
     /**
      * number of /numbered/ face images, /plus 1/ for indexing
      */
@@ -63,7 +63,7 @@ public class SOCFaceButton extends Canvas
     /** Shared images */
     private static Image[] images;
     private static Image[] robotImages;
-    
+
     /** For status in drawFace */
     private static MediaTracker tracker;
 
@@ -105,7 +105,7 @@ public class SOCFaceButton extends Canvas
                 images[i] = tk.getImage(clazz.getResource(IMAGEDIR + "/face" + i + ".gif"));
                 tracker.addImage(images[i], 0);
             }
-            
+
             for (int i = 1; i < NUM_ROBOT_FACES; i++)
             {
                 // Client possibly only has robot.gif.
@@ -229,7 +229,9 @@ public class SOCFaceButton extends Canvas
      */
     private void drawFace(Graphics g)
     {
-        g.clearRect(0, 0, WIDTH, HEIGHT);
+        /**
+         * before drawing, ensure this face number is loaded
+         */
         int findex;
         Image fimage;
         if (currentImageNum > 0)
@@ -245,16 +247,16 @@ public class SOCFaceButton extends Canvas
         else
         {
             findex = -currentImageNum;
-            if ((findex >= NUM_ROBOT_FACES) || (null == robotImages[findex]))
+            if ((findex >= NUM_ROBOT_FACES) || (null == robotImages[findex])
+                || (0 != (tracker.statusID(findex, false) & (MediaTracker.ABORTED | MediaTracker.ERRORED))))
             {
                 findex = 0;
                 currentImageNum = -findex;
             }
-            if (0 == (tracker.statusID(findex, false) & (MediaTracker.ABORTED | MediaTracker.ERRORED)))
-                fimage = robotImages[findex];
-            else
-                fimage = robotImages[0];
+            fimage = robotImages[findex];
         }
+
+        g.clearRect(0, 0, WIDTH, HEIGHT);
         g.drawImage(fimage, 0, 0, getBackground(), this);
     }
 
