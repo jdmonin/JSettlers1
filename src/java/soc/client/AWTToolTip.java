@@ -4,7 +4,7 @@
  *   -- Need to grab more socboardpanel.BoardToolTip code
  *   -- Need to re-impl mousemotionlistener to move out of the way
  *
- * $Id: ExpandTooltip.java,v 1.1.1.1 2001/02/07 15:23:49 rtfm Exp $
+ * $Id: ExpandTooltip.java,v 1.6 2007/11/06 05:18:00 jm Exp $
  *
  * (c)2000 IoS Gesellschaft fr innovative Softwareentwicklung mbH
  * http://www.IoS-Online.de    mailto:info@IoS-Online.de
@@ -354,6 +354,15 @@ public class AWTToolTip
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ * 
+ * Revision 1.6  2007/11/06 05:18:00  jm
+ * - JSettlers package
+ * - Canvas, not Window
+ * - Simple constructor, simple layout
+ * - Find applet as parent, not just frame
+ * - Add to layout at mouseenter/mouseleave, not constructor (add wantsShown, etc)
+ * - Override update(Graphics) for less flicker
+ * - Add setTip
  *
  * Revision 1.5  2000/01/27 13:35:29  ch
  * Added to methods
