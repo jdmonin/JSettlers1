@@ -180,7 +180,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
         port = p;
         strSocketName = null;
     }
-    
+
     /**
      * Constructor for connecting to a local game (practice) on a local stringport.
      *

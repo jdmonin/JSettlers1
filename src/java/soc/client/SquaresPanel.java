@@ -53,7 +53,7 @@ public class SquaresPanel extends Panel implements MouseListener
     {
         this (in, null);        
     }
-    
+
     /**
      * Creates a new SquaresPanel object, as part of a SOCHandPanel.
      *
@@ -63,27 +63,27 @@ public class SquaresPanel extends Panel implements MouseListener
     public SquaresPanel(boolean in, SOCHandPanel hand)
     {
         super(null);
-    
+
         interactive = in;
         notAllZero = false;
         parentHand = hand;
-    
+
         setFont(new Font("Helvetica", Font.PLAIN, 10));
-    
+
         give = new ColorSquare[5];
         give[0] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.CLAY);
         give[1] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.ORE);
         give[2] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
         give[3] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
         give[4] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WOOD);
-    
+
         get = new ColorSquare[5];
         get[0] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.CLAY);
         get[1] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.ORE);
         get[2] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.SHEEP);
         get[3] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WHEAT);
         get[4] = new ColorSquareLarger(ColorSquare.NUMBER, in, ColorSquare.WOOD);
-    
+
         for (int i = 0; i < 5; i++)
         {
             add(get[i]);
@@ -93,7 +93,7 @@ public class SquaresPanel extends Panel implements MouseListener
             get[i].addMouseListener(this);
             give[i].addMouseListener(this);
         }
-    
+
         int lineH = ColorSquareLarger.HEIGHT_L - 1;
         int sqW = ColorSquareLarger.WIDTH_L - 1;
         setSize((5 * sqW) + 1, (2 * lineH) + 1);

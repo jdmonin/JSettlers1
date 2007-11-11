@@ -1540,7 +1540,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * handle the "join game authorization" message
      * @param mes  the message
-     * @param isLocal server is local (vs. normal network)
+     * @param isLocal server is local for practice (vs. normal network)
      */
     protected void handleJOINGAMEAUTH(SOCJoinGameAuth mes, boolean isLocal)
     {
@@ -3727,7 +3727,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             // Local practice games can continue.
 
             SOCPlayerInterface pi = ((SOCPlayerInterface) e.nextElement());
-            if (! pi.getGame().isLocal)
+            if (! (canLocal && pi.getGame().isLocal))
             {
                 pi.over(err);
             }

@@ -644,7 +644,7 @@ public class SOCRobotBrain extends Thread
         decisionMaker = new SOCRobotDM(this);
         negotiator = new SOCRobotNegotiator(this);
         dummyCancelPlayerData = new SOCPlayer(-2, game);
-        
+
         // Verify expected face (fast or smart robot)
         int faceId;
         switch (getRobotParameters().getStrategyType())
@@ -652,8 +652,9 @@ public class SOCRobotBrain extends Thread
         case SOCRobotDM.SMART_STRATEGY:
             faceId = -1;  // smarter robot face
             break;
+
         default:
-            faceId = 0;  // default robot face
+            faceId = 0;   // default robot face
         }
         if (ourPlayerData.getFaceId() != faceId)
         {
@@ -674,7 +675,7 @@ public class SOCRobotBrain extends Thread
             Thread.currentThread().setName("robotBrain-" + client.getNickname() + "-" + game.getName());
         }
         catch (Throwable th) {}
-        
+
         if (pinger != null)
         {
             pinger.start();

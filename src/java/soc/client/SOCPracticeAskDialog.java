@@ -34,8 +34,8 @@ import java.awt.event.ActionListener;
 
 
 /**
- * This is the dialog to ask players if they want to join an existing practice game,
- * or start a new one.
+ * This is the dialog to ask players if they want to join an
+ * existing practice game, or start a new one.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
@@ -74,7 +74,7 @@ class SOCPracticeAskDialog extends Dialog implements ActionListener
 
         Panel pBtns = new Panel();
         pBtns.setLayout(new FlowLayout(FlowLayout.CENTER));
-        
+
         pBtns.add(showBut);
         showBut.addActionListener(this);
 
@@ -107,7 +107,7 @@ class SOCPracticeAskDialog extends Dialog implements ActionListener
     {
         try {
             Object target = e.getSource();
-    
+
             if (target == showBut)
             {
                 dispose();

@@ -1088,8 +1088,9 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                 case SOCRobotDM.SMART_STRATEGY:
                     faceId = -1;  // smarter robot face
                     break;
+
                 default:
-                    faceId = 0;  // default robot face
+                    faceId = 0;   // default robot face
                 }
 
                 brain.setOurPlayerData();
