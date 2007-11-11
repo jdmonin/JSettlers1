@@ -55,7 +55,7 @@ public class ColorSquare extends Canvas implements MouseListener
     public final static Color SHEEP = new Color(51, 204, 51);
     public final static Color WHEAT = new Color(204, 204, 51);
     public final static Color WOOD = new Color(204, 153, 102);
-    public final static Color GREY = new Color(204, 204, 204);
+    public final static Color GREY = new Color(204, 204, 204);  // Must not equal ORE
     public final static Color DESERT = new Color(255, 255, 153);
     public final static int NUMBER = 0;
     public final static int YES_NO = 1;
@@ -71,7 +71,11 @@ public class ColorSquare extends Canvas implements MouseListener
     int upperBound;
     int lowerBound;
     boolean interactive;
-    SquaresPanel sqparent;
+    protected SquaresPanel sqparent;
+    /** Tooltip; added at paint time if ttipText not null */
+    protected AWTToolTip ttip;
+    /** Text of tooltip, or null for none */
+    protected String ttipText;
 
     /** Size per instance, for ColorSquareLarger */
     protected int squareW, squareH;
@@ -143,52 +147,71 @@ public class ColorSquare extends Canvas implements MouseListener
     public ColorSquare(int k, boolean in, Color c, int upper, int lower)
     {
         super();
-
+    
         setSize(WIDTH, HEIGHT);
         setFont(new Font("Geneva", Font.PLAIN, 10));
-
+    
         setBackground(c);
         kind = k;
         interactive = in;
         sqparent = null;
-
+        ttip = null;
+    
         switch (k)
         {
         case NUMBER:
             valueVis = true;
             intValue = 0;
-
+    
             break;
-
+    
         case YES_NO:
             valueVis = true;
             boolValue = false;
-
+    
             break;
-
+    
         case CHECKBOX:
             valueVis = true;
             boolValue = false;
-
+    
             break;
-
+    
         case BOUNDED_INC:
             valueVis = true;
             boolValue = false;
             upperBound = upper;
             lowerBound = lower;
-
+    
             break;
-
+    
         case BOUNDED_DEC:
             valueVis = true;
             boolValue = false;
             upperBound = upper;
             lowerBound = lower;
-
+    
             break;
         }
-
+        
+        // Color-based tooltip
+        if (c.equals(GREY))
+        {
+            // Most common case.
+            // Do nothing.
+            // If needed, can call setTooltipText explicitly.
+        }
+        else if (c == CLAY)
+            ttip = new AWTToolTip ("Clay", this);
+        else if (c == ORE)
+            ttip = new AWTToolTip ("Ore", this);
+        else if (c == SHEEP)
+            ttip = new AWTToolTip ("Sheep", this);
+        else if (c == WHEAT)
+            ttip = new AWTToolTip ("Wheat", this);
+        else if (c == WOOD) 
+            ttip = new AWTToolTip ("Wood", this);
+    
         this.addMouseListener(this);
     }
 
@@ -208,6 +231,42 @@ public class ColorSquare extends Canvas implements MouseListener
         squareW = w;
         squareH = h;
         squareSize = new Dimension(w, h);
+    }
+    
+    /**
+     * If we have a tooltip, return its text.
+     * 
+     * @return tooltip text, or null if none
+     */
+    public String getTooltipText()
+    {
+        if (ttip == null)
+            return null;
+        return ttip.getTip();
+    }
+    
+    /**
+     * Change tooltip text or show or hide tooltip.
+     * (Set tip text to null to hide it.)
+     *
+     * @param tip New tip text; will create tooltip if needed.
+     *     If tip is null, tooltip is removed.
+     */
+    public void setTooltipText(String tip)
+    {
+        if (tip == null)
+        {
+            if (ttip != null)
+            {
+                ttip.destroy();
+                ttip = null;
+            }
+            return;
+        }
+        if (ttip == null)
+            ttip = new AWTToolTip(tip, this);
+        else
+            ; // JM TODO ttip.setTip(tip);  // Handles its own repaint
     }
 
     /**
@@ -237,6 +296,11 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public void paint(Graphics g)
     {
+        /* if ((ttip == null) && (ttipText != null))
+        {
+            ttip = new AWTToolTip (ttipText, this);
+        } */
+
             g.setPaintMode();
             g.clearRect(0, 0, squareW, squareH);
             g.setColor(Color.black);

@@ -151,7 +151,15 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Button sendBut;
     protected Button clearBut;
     protected Button bankBut;
+
+    /**
+     * Checkboxes to send to the other three players.
+     * Enabled/disabled at removeStartBut().
+     * 
+     * @see #playerSendMap
+     */
     protected ColorSquare[] playerSend;
+
     /** displays auto-roll countdown, or prompts to roll/play card.
      * @see #setRollPrompt(String) 
      */
@@ -171,6 +179,12 @@ public class SOCHandPanel extends Panel implements ActionListener
     /** Is this panel's player the game's current player?  Used for hilight - set in updateAtTurn() */
     protected boolean playerIsCurrent; 
     protected boolean inPlay;
+
+    /** Three player numbers to send trade offers to.
+     *  For i from 0 to 2, playerSendMap[i] is playerNumber for checkbox i.
+     * 
+     * @see #playerSend
+     */
     protected int[] playerSendMap;
     protected TradeOfferPanel offer;
 
@@ -289,16 +303,19 @@ public class SOCHandPanel extends Panel implements ActionListener
 
         roadSq = new ColorSquare(ColorSquare.GREY, 0);
         add(roadSq);
+        roadSq.setTooltipText("Pieces available to place");
         roadLab = new Label("Roads:");
         add(roadLab);
 
         settlementSq = new ColorSquare(ColorSquare.GREY, 0);
         add(settlementSq);
+        settlementSq.setTooltipText("Pieces available to place");
         settlementLab = new Label("Stlmts:");
         add(settlementLab);
   
         citySq = new ColorSquare(ColorSquare.GREY, 0);
         add(citySq);
+        citySq.setTooltipText("Pieces available to place");
         cityLab = new Label("Cities:");
         add(cityLab);
 
@@ -306,16 +323,19 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(knightsLab);
         knightsSq = new ColorSquare(ColorSquare.GREY, 0);
         add(knightsSq);
+        knightsSq.setTooltipText("Size of this army");
 
         resourceLab = new Label("Resources: ");
         add(resourceLab);
         resourceSq = new ColorSquare(ColorSquare.GREY, 0);
         add(resourceSq);
+        resourceSq.setTooltipText("Amount in hand");
 
         developmentLab = new Label("Dev. Cards: ");
         add(developmentLab);
         developmentSq = new ColorSquare(ColorSquare.GREY, 0);
         add(developmentSq);
+        developmentSq.setTooltipText("Amount in hand");
         
         seatLockBut = new Button(UNLOCKSEAT);
         seatLockBut.addActionListener(this);
@@ -1268,6 +1288,12 @@ public class SOCHandPanel extends Panel implements ActionListener
             boolean seatTaken = ! game.isSeatVacant(playerSendMap[i]);
             playerSend[i].setBoolValue(seatTaken);
             playerSend[i].setEnabled(seatTaken);
+            if (seatTaken)
+            {
+                String pname = game.getPlayer(playerSendMap[i]).getName();
+                if (pname != null)
+                    playerSend[i].setTooltipText(pname);
+            }
         }
     }
     
