@@ -50,7 +50,7 @@ import java.util.TimerTask;
  * This panel displays a player's information.
  * If the player is us, then more information is
  * displayed than in another player's hand panel.
- * 
+ *
  * Custom layout: @see #doLayout()
  */
 public class SOCHandPanel extends Panel implements ActionListener
@@ -69,10 +69,10 @@ public class SOCHandPanel extends Panel implements ActionListener
     public static final int SHEEP = 11;
     public static final int WHEAT = 12;
     public static final int WOOD = 13;
-    
+
     /** Auto-roll timer countdown, 5 seconds unless changed at program start. */
-    public static int AUTOROLL_TIME = 5; 
-    
+    public static int AUTOROLL_TIME = 5;
+
     protected static final int[] zero = { 0, 0, 0, 0, 0 };
     protected static final String SITLOCKED = "Locked: No robot";
     protected static final String SIT = "Sit Here";
@@ -91,13 +91,13 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String GIVE = "I Give:";  // No trailing space (room for wider colorsquares)
     protected static final String GET = "I Get:";
     protected static final String AUTOROLL_COUNTDOWN = "Auto-Roll in: ";
-    protected static final String ROLL_OR_PLAY_CARD = "Roll or Play Card";    
-    
+    protected static final String ROLL_OR_PLAY_CARD = "Roll or Play Card";
+
     /** Panel text color, and player name color when not current player */
     protected static final Color COLOR_FOREGROUND = Color.BLACK;
     /** Player name background color when current player (foreground does not change) */
     protected Color pnameActiveBG;
-    
+
     protected Button sitBut;
     protected Button robotBut;
     protected Button startBut;
@@ -155,16 +155,16 @@ public class SOCHandPanel extends Panel implements ActionListener
     /**
      * Checkboxes to send to the other three players.
      * Enabled/disabled at removeStartBut().
-     * 
+     *
      * @see #playerSendMap
      */
     protected ColorSquare[] playerSend;
 
     /** displays auto-roll countdown, or prompts to roll/play card.
-     * @see #setRollPrompt(String) 
+     * @see #setRollPrompt(String)
      */
     protected Label rollPromptCountdownLab;
-    protected boolean rollPromptInUse; 
+    protected boolean rollPromptInUse;
     protected Timer autoRollTimer;  // Created just once
     protected TimerTask autoRollTimerTask;  // Created every turn when countdown needed
     protected Button rollBut;
@@ -177,12 +177,12 @@ public class SOCHandPanel extends Panel implements ActionListener
     /** Does this panel represent our client's own hand? */
     protected boolean playerIsClient;
     /** Is this panel's player the game's current player?  Used for hilight - set in updateAtTurn() */
-    protected boolean playerIsCurrent; 
+    protected boolean playerIsCurrent;
     protected boolean inPlay;
 
     /** Three player numbers to send trade offers to.
      *  For i from 0 to 2, playerSendMap[i] is playerNumber for checkbox i.
-     * 
+     *
      * @see #playerSend
      */
     protected int[] playerSendMap;
@@ -194,7 +194,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected boolean interactive;
 
     private boolean chatExcepTested = false;  // For testing with BANK button
-    
+
     /**
      * make a new hand panel
      *
@@ -238,7 +238,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         interactive = in;
 
         // Note no AWT layout is used - custom layout, see doLayout().
-        
+
         setBackground(playerInterface.getPlayerColor(player.getPlayerNumber()));
         setForeground(COLOR_FOREGROUND);
         setFont(new Font("Helvetica", Font.PLAIN, 10));
@@ -260,17 +260,17 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(vpLab);
         vpSq = new ColorSquare(ColorSquare.GREY, 0);
         add(vpSq);
-        
+
         larmyLab = new Label("", Label.CENTER);
         larmyLab.setForeground(new Color(142, 45, 10));
         larmyLab.setFont(new Font("SansSerif", Font.BOLD, 12));
         add(larmyLab);
-        
+
         lroadLab = new Label("", Label.CENTER);
         lroadLab.setForeground(new Color(142, 45, 10));
         lroadLab.setFont(new Font("SansSerif", Font.BOLD, 12));
         add(lroadLab);
-        
+
         clayLab = new Label("Clay:");
         add(clayLab);
         claySq = new ColorSquare(ColorSquare.CLAY, 0);
@@ -285,7 +285,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(sheepLab);
         sheepSq = new ColorSquare(ColorSquare.SHEEP, 0);
         add(sheepSq);
-        
+
         wheatLab = new Label("Wheat:");
         add(wheatLab);
         wheatSq = new ColorSquare(ColorSquare.WHEAT, 0);
@@ -312,7 +312,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         settlementSq.setTooltipText("Pieces available to place");
         settlementLab = new Label("Stlmts:");
         add(settlementLab);
-  
+
         citySq = new ColorSquare(ColorSquare.GREY, 0);
         add(citySq);
         citySq.setTooltipText("Pieces available to place");
@@ -336,7 +336,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         developmentSq = new ColorSquare(ColorSquare.GREY, 0);
         add(developmentSq);
         developmentSq.setTooltipText("Amount in hand");
-        
+
         seatLockBut = new Button(UNLOCKSEAT);
         seatLockBut.addActionListener(this);
         seatLockBut.setEnabled(interactive);
@@ -362,27 +362,27 @@ public class SOCHandPanel extends Panel implements ActionListener
         playCardBut.addActionListener(this);
         playCardBut.setEnabled(interactive);
         add(playCardBut);
-        
+
         giveLab = new Label(GIVE);
         add(giveLab);
-        
+
         getLab = new Label(GET);
         add(getLab);
 
         sqPanel = new SquaresPanel(interactive, this);
         add(sqPanel);
         sqPanel.setVisible(false); // else it's visible in all (dunno why?)
-        
+
         sendBut = new Button(SEND);
         sendBut.addActionListener(this);
         sendBut.setEnabled(interactive);
         add(sendBut);
-        
+
         clearBut = new Button(CLEAR);
         clearBut.addActionListener(this);
         clearBut.setEnabled(interactive);
         add(clearBut);
-        
+
         bankBut = new Button(BANK);
         bankBut.addActionListener(this);
         bankBut.setEnabled(interactive);
@@ -406,7 +406,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 cnt++;
             }
         }
-        
+
         rollPromptCountdownLab = new Label(" ");
         add(rollPromptCountdownLab);
         rollPromptInUse = false;   // Nothing yet (no game in progress)
@@ -417,7 +417,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         rollBut.addActionListener(this);
         rollBut.setEnabled(interactive);
         add(rollBut);
-        
+
         doneBut = new Button(DONE);
         doneBut.addActionListener(this);
         doneBut.setEnabled(interactive);
@@ -549,7 +549,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 try
                 {
                     int z = Color.BLACK.getRed();
-                    int dz = 15 / z; 
+                    int dz = 15 / z;
                 }
                 catch (Throwable th)
                 {
@@ -603,7 +603,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                     }
                     else
                     {
-                        // can only offer to current player 
+                        // can only offer to current player
                         to[game.getCurrentPlayerNumber()] = true;
                     }
 
@@ -638,7 +638,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
 
             setRollPrompt(null);  // Clear prompt if Play Card clicked (vs Roll)
-            
+
             if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
             {
                 if (item.equals("Soldier"))
@@ -675,16 +675,16 @@ public class SOCHandPanel extends Panel implements ActionListener
             playerInterface.chatPrintStackTrace(th);
         }
     }
-    
+
     /** Handle a click on the roll button.
      *  Called from actionPerformed() and the auto-roll timer task.
-     */ 
+     */
     public void clickRollButton()
     {
         if (rollPromptInUse)
             setRollPrompt(null);  // Clear it
         client.rollDice(game);
-        rollBut.setEnabled(false);  // Only one roll per turn        
+        rollBut.setEnabled(false);  // Only one roll per turn
     }
 
     /**
@@ -717,7 +717,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void addTakeOverBut()
     {
-        takeOverBut.setVisible(true);        
+        takeOverBut.setVisible(true);
     }
 
     /**
@@ -780,27 +780,27 @@ public class SOCHandPanel extends Panel implements ActionListener
 
         larmyLab.setVisible(false);
         lroadLab.setVisible(false);
-        
+
         if (playerIsClient)
         {
             // Clean up, since we're leaving the game
             if (playerInterface.getClientHand() == this)
                 playerInterface.setClientHand(null);
-	    playerIsClient = false;
+            playerIsClient = false;
         }
 
         if (game.getPlayer(client.getNickname()) == null &&
             game.getGameState() == game.NEW)
-       {
-           if (sitButIsLock)
-           {
-               sitBut.setLabel(SIT);  // revert from lockout to sit-here
-               sitButIsLock = false;
-           }
-           sitBut.setVisible(true);
-       }
+        {
+            if (sitButIsLock)
+            {
+                sitBut.setLabel(SIT);  // revert from lockout to sit-here
+                sitButIsLock = false;
+            }
+            sitBut.setVisible(true);
+        }
 
-        /* This is our hand */
+        /* Hide items in case this was our hand */
         claySq.setVisible(false);
         clayLab.setVisible(false);
         oreSq.setVisible(false);
@@ -811,7 +811,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         wheatLab.setVisible(false);
         woodSq.setVisible(false);
         woodLab.setVisible(false);
-            
+
         //cardLab.setVisible(false);
         cardList.setVisible(false);
         playCardBut.setVisible(false);
@@ -831,7 +831,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         rollBut.setVisible(false);
         doneBut.setVisible(false);
         quitBut.setVisible(false);
-        
+
         setRollPrompt(null);  // Clear it
         if (autoRollTimerTask != null)
         {
@@ -885,9 +885,11 @@ public class SOCHandPanel extends Panel implements ActionListener
         if (player.getName().equals(client.getNickname()))
         {
             D.ebugPrintln("SOCHandPanel.addPlayer: This is our hand");
-            
+
             playerIsClient = true;
             playerInterface.setClientHand(this);
+
+            knightsSq.setTooltipText("Size of our army");
 
             // show 'Victory Points' and hide "Start Button" if game in progress
             if (game.getGameState() == game.NEW)
@@ -899,7 +901,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 vpLab.setVisible(true);
                 vpSq.setVisible(true);
             }
-            
+
             claySq.setVisible(true);
             clayLab.setVisible(true);
             oreSq.setVisible(true);
@@ -924,16 +926,16 @@ public class SOCHandPanel extends Panel implements ActionListener
             bankBut.setVisible(true);
 
             for (int i = 0; i < (SOCGame.MAXPLAYERS - 1); i++)
-            {                
+            {
                 playerSend[i].setBoolValue(true);
                 playerSend[i].setEnabled(true);
-                playerSend[i].setVisible(true);                
+                playerSend[i].setVisible(true);
             }
             rollBut.setVisible(true);
             doneBut.setVisible(true);
             quitBut.setVisible(true);
 
-            // Remove all of the sit and take over buttons. 
+            // Remove all of the sit and take over buttons.
             // If game still forming, can lock seats (for fewer players/robots).
             boolean gameForming = (game.getGameState() == game.NEW);
             int pnum = player.getPlayerNumber();
@@ -957,6 +959,8 @@ public class SOCHandPanel extends Panel implements ActionListener
             D.ebugPrintln("player.isRobot() = " + player.isRobot());
             D.ebugPrintln("game.isSeatLocked(" + player.getPlayerNumber() + ") = " + game.isSeatLocked(player.getPlayerNumber()));
             D.ebugPrintln("game.getPlayer(client.getNickname()) = " + game.getPlayer(client.getNickname()));
+
+            knightsSq.setTooltipText("Size of this opponent's army");
 
             if (player.isRobot() && (game.getPlayer(client.getNickname()) == null) && (!game.isSeatLocked(player.getPlayerNumber())))
             {
@@ -995,7 +999,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      *
      * Called by autoRollOrPromptPlayer when that condition is met.
      * Countdown begins with AUTOROLL_TIME seconds.
-     * 
+     *
      * @see #autoRollOrPromptPlayer()
      */
     protected void autoRollSetupTimer()
@@ -1006,25 +1010,25 @@ public class SOCHandPanel extends Panel implements ActionListener
             return;
         if (autoRollTimer == null)
             autoRollTimer = new Timer(true);  // use daemon thread
-    
+
         // Set up to run once per second, it will cancel
         //   itself after AUTOROLL_TIME seconds.
         autoRollTimerTask = new HandPanelAutoRollTask();
         autoRollTimer.scheduleAtFixedRate(autoRollTimerTask, 0, 1000 /* ms */ );
     }
-    
+
     /**
      * Calls updateTakeOverButton, and checks if current player (for hilight).
-     * 
+     *
      * @see #updateTakeOverButton()
      */
     public void updateAtTurn()
-    {        
+    {
         playerIsCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
         if (playerIsCurrent)
         {
             if (pnameActiveBG == null)
-                pnameCalcColors();            
+                pnameCalcColors();
             pname.setBackground(pnameActiveBG);
             updateRollButton();
         }
@@ -1032,7 +1036,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         {
             pname.setBackground(this.getBackground());
         }
-        
+
         updateTakeOverButton();
         if (playerIsClient)
         {
@@ -1043,7 +1047,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             playCardBut.setEnabled(normalTurnStarting && (cardList.getItemCount() > 0));
             bankBut.disable();  // enabled by updateAtPlay1()
         }
-                            
+
         // Although this method is called at the start of our turn,
         // the call to autoRollOrPromptPlayer() is not made here.
         // That call is made when the server says it's our turn to
@@ -1053,7 +1057,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         // the server sends such messages at other times (states)
         // besides start-of-turn.
     }
-    
+
     /**
      * Client is current player; state changed from PLAY to PLAY1.
      * (Dice has been rolled, or card played.)
@@ -1064,7 +1068,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
        if (! playerIsClient)
            return;
-       
+
        bankBut.enable();
     }
 
@@ -1085,11 +1089,11 @@ public class SOCHandPanel extends Panel implements ActionListener
             playCardBut.disable();
             bankBut.disable();  // enabled by updateAtPlay1()
         }
-        
+
         clearBut.disable();  // No trade offer has been set yet
         sendBut.disable();
     }
-    
+
     /**
      * During this player's first turn, calculate the player name label's
      * background color for current player.
@@ -1109,16 +1113,16 @@ public class SOCHandPanel extends Panel implements ActionListener
         sendBut.setEnabled
             (notAllZero && ((gs == SOCGame.PLAY) || (gs == SOCGame.PLAY1)));
     }
-    
-    /** 
+
+    /**
      * If the player (client) has no playable
      * cards, begin auto-roll countdown,
      * Otherwise, prompt them to roll or pick a card.
-     * 
+     *
      * Call only if panel's player is the client, and the game's current player.
-     * 
+     *
      * Called when server sends a SOCRollDicePrompt message.
-     * 
+     *
      * @see #updateAtTurn()
      * @see #autoRollSetupTimer()
      */
@@ -1131,7 +1135,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         else
             autoRollSetupTimer();
     }
-    
+
     /**
      * DOCUMENT ME!
      */
@@ -1162,7 +1166,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         synchronized (cardList.getTreeLock())
         {
             cardList.removeAll();
-            
+
             // add items to the list for each new and old card, of each type
             for (int i = 0; i < cardTypes.length; i++)
             {
@@ -1183,8 +1187,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                 }
             }
         }
-        
-        playCardBut.setEnabled (hasCards && playerIsCurrent); 
+
+        playCardBut.setEnabled (hasCards && playerIsCurrent);
     }
 
     /**
@@ -1220,7 +1224,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 pname.setVisible(false);  // Hide "Locked: No robot" text
         }
     }
-    
+
     /**
      * Remove the sit-here/lockout-robot button, only if its label
      * is currently "lockout". (sitButIsLock == true).  This button
@@ -1234,7 +1238,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         if (sitButIsLock)
             removeSitBut();
     }
-    
+
     /**
      * If game is still forming (state NEW), and player has
      * just chosen a seat, can lock empty seats for a game
@@ -1276,15 +1280,15 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
         // First, hide or show victory-point buttons
         {
-            boolean seatTaken = ! game.isSeatVacant(getPlayer().getPlayerNumber()); 
+            boolean seatTaken = ! game.isSeatVacant(getPlayer().getPlayerNumber());
             vpLab.setVisible(seatTaken);
             vpSq.setVisible(seatTaken);
         }
 
         startBut.setVisible(false);
-        
+
         for (int i = 0; i < (SOCGame.MAXPLAYERS - 1); i++)
-        {                
+        {
             boolean seatTaken = ! game.isSeatVacant(playerSendMap[i]);
             playerSend[i].setBoolValue(seatTaken);
             playerSend[i].setEnabled(seatTaken);
@@ -1296,7 +1300,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
         }
     }
-    
+
     /**
      * DOCUMENT ME!
      */
@@ -1361,7 +1365,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 playerSend[i].setBoolValue(seatTaken);
                 playerSend[i].setEnabled(seatTaken);
             }
-            
+
             clearBut.disable();
             sendBut.disable();
         }
@@ -1385,7 +1389,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             takeOverBut.setLabel("* Seat Locked *");
         }
     }
-    
+
     /** Client is current player, turn has just begun.
      * Enable any previously disabled buttons.
      */
@@ -1587,9 +1591,9 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
         return (playerIsClient && playerIsCurrent);
     }
-    
+
     /** Set or clear the roll prompt / auto-roll countdown display.
-     * 
+     *
      * @param prompt The message to display, or null to clear it.
      */
     protected void setRollPrompt(String prompt)
@@ -1762,24 +1766,24 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
         }
     }
-    
-    
-    /** 
+
+
+    /**
      * Used for countdown before auto-roll of the current player.
      * Updates on-screen countdown, fires auto-roll at 0.
-     * 
+     *
      * @see #SOCHandPanel.AUTOROLL_TIME
      * @see #SOCHandPanel.autoRollSetupTimer()
      */
     protected class HandPanelAutoRollTask extends java.util.TimerTask
     {
         int timeRemain;  // seconds displayed, seconds at start of "run" tick
-        
+
         protected HandPanelAutoRollTask()
         {
             timeRemain = AUTOROLL_TIME;
         }
-        
+
         public void run()
         {
             // for debugging
@@ -1790,7 +1794,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 }
                 catch (Throwable th) {}
             }
-            
+
             // autoroll function
             if (timeRemain > 0)
             {
@@ -1799,11 +1803,11 @@ public class SOCHandPanel extends Panel implements ActionListener
                 clickRollButton();  // Clear prompt, click Roll
                 cancel();  // End of countdown for this timer
             }
-            
+
             --timeRemain;  // for next tick
         }
-        
+
     }  // inner class HandPanelAutoRollTask
-    
-    
+
+
 }  // class SOCHandPanel

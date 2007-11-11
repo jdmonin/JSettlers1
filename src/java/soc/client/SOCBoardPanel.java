@@ -272,7 +272,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private Image buffer;
 
     /**
-     * modes of interaction; for correlation to game state, see {@see #updateMode()}.
+     * modes of interaction; for correlation to game state, see {@link #updateMode()}.
      */
     private int mode;
 

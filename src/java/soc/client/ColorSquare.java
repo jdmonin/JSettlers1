@@ -47,7 +47,7 @@ public class ColorSquare extends Canvas implements MouseListener
      * moving the robber. Specifying the color here is
      * simpler than trying to read it at runtime from the
      * hex graphics, which may have a texture.
-     * 
+     *
      * @see soc.client.SOCBoardPanel#drawRobber(Graphics, int, boolean)
      */
     public final static Color CLAY = new Color(204, 102, 102);
@@ -55,7 +55,7 @@ public class ColorSquare extends Canvas implements MouseListener
     public final static Color SHEEP = new Color(51, 204, 51);
     public final static Color WHEAT = new Color(204, 204, 51);
     public final static Color WOOD = new Color(204, 153, 102);
-    public final static Color GREY = new Color(204, 204, 204);  // Must not equal ORE
+    public final static Color GREY = new Color(204, 204, 204);  // Must not equal ORE, for ore's auto-tooltip to show
     public final static Color DESERT = new Color(255, 255, 153);
     public final static int NUMBER = 0;
     public final static int YES_NO = 1;
@@ -72,17 +72,14 @@ public class ColorSquare extends Canvas implements MouseListener
     int lowerBound;
     boolean interactive;
     protected SquaresPanel sqparent;
-    /** Tooltip; added at paint time if ttipText not null */
     protected AWTToolTip ttip;
-    /** Text of tooltip, or null for none */
-    protected String ttipText;
 
     /** Size per instance, for ColorSquareLarger */
     protected int squareW, squareH;
     protected Dimension squareSize;
-    
+
     /**
-     * Creates a new ColorSquare object without a visible value.
+     * Creates a new grey ColorSquare object without a visible value.
      *
      * @see #ColorSquare(int, boolean, Color, int, int)
      */
@@ -95,6 +92,9 @@ public class ColorSquare extends Canvas implements MouseListener
     /**
      * Creates a new ColorSquare object with specified background color. Type
      * <code>NUMBER</code>, non-interactive, upper=99, lower=0.
+     *<P>
+     * A tooltip with the resource name is created if c is one of the
+     * resource colors defined in ColorSquare (CLAY, WHEAT, etc).
      *
      * @param c background color
      * @see #ColorSquare(int, boolean, Color, int, int)
@@ -108,6 +108,9 @@ public class ColorSquare extends Canvas implements MouseListener
      * Creates a new ColorSquare object with specified background color and
      * initial value. Type <code>NUMBER</code>, non-interactive, upper=99,
      * lower=0.
+     *<P>
+     * A tooltip with the resource name is created if c is one of the
+     * resource colors defined in ColorSquare (CLAY, WHEAT, etc).
      *
      * @param c background color
      * @param v initial int value
@@ -122,6 +125,9 @@ public class ColorSquare extends Canvas implements MouseListener
     /**
      * Creates a new ColorSquare of the specified kind and background
      * color. Possibly interactive. For kind = NUMBER, upper=99, lower=0.
+     *<P>
+     * A tooltip with the resource name is created if c is one of the
+     * resource colors defined in ColorSquare (CLAY, WHEAT, etc).
      *
      * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
      * @param in interactive flag allowing user interaction
@@ -137,6 +143,9 @@ public class ColorSquare extends Canvas implements MouseListener
      * Creates a new ColorSquare of the specified kind and background
      * color. Possibly interactive, with upper and lower bounds specified for
      * NUMBER kinds.
+     *<P>
+     * A tooltip with the resource name is created if c is one of the
+     * resource colors defined in ColorSquare (CLAY, WHEAT, etc).
      *
      * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
      * @param in interactive flag allowing user interaction
@@ -147,53 +156,53 @@ public class ColorSquare extends Canvas implements MouseListener
     public ColorSquare(int k, boolean in, Color c, int upper, int lower)
     {
         super();
-    
+
         setSize(WIDTH, HEIGHT);
         setFont(new Font("Geneva", Font.PLAIN, 10));
-    
+
         setBackground(c);
         kind = k;
         interactive = in;
         sqparent = null;
         ttip = null;
-    
+
         switch (k)
         {
         case NUMBER:
             valueVis = true;
             intValue = 0;
-    
+
             break;
-    
+
         case YES_NO:
             valueVis = true;
             boolValue = false;
-    
+
             break;
-    
+
         case CHECKBOX:
             valueVis = true;
             boolValue = false;
-    
+
             break;
-    
+
         case BOUNDED_INC:
             valueVis = true;
             boolValue = false;
             upperBound = upper;
             lowerBound = lower;
-    
+
             break;
-    
+
         case BOUNDED_DEC:
             valueVis = true;
             boolValue = false;
             upperBound = upper;
             lowerBound = lower;
-    
+
             break;
         }
-        
+
         // Color-based tooltip
         if (c.equals(GREY))
         {
@@ -209,9 +218,9 @@ public class ColorSquare extends Canvas implements MouseListener
             ttip = new AWTToolTip ("Sheep", this);
         else if (c == WHEAT)
             ttip = new AWTToolTip ("Wheat", this);
-        else if (c == WOOD) 
+        else if (c == WOOD)
             ttip = new AWTToolTip ("Wood", this);
-    
+
         this.addMouseListener(this);
     }
 
@@ -232,10 +241,10 @@ public class ColorSquare extends Canvas implements MouseListener
         squareH = h;
         squareSize = new Dimension(w, h);
     }
-    
+
     /**
      * If we have a tooltip, return its text.
-     * 
+     *
      * @return tooltip text, or null if none
      */
     public String getTooltipText()
@@ -244,7 +253,7 @@ public class ColorSquare extends Canvas implements MouseListener
             return null;
         return ttip.getTip();
     }
-    
+
     /**
      * Change tooltip text or show or hide tooltip.
      * (Set tip text to null to hide it.)
@@ -266,7 +275,18 @@ public class ColorSquare extends Canvas implements MouseListener
         if (ttip == null)
             ttip = new AWTToolTip(tip, this);
         else
-            ; // JM TODO ttip.setTip(tip);  // Handles its own repaint
+            ttip.setTip(tip);  // Handles its own repaint
+    }
+
+    /** Show or hide the colorsquare.
+     *
+     *  If we have a tooltip, will also show/hide that tooltip.
+     */
+    public void setVisible(boolean newVis)
+    {
+        if (ttip != null)
+            ttip.setVisible(newVis);
+        super.setVisible(newVis);
     }
 
     /**
@@ -296,11 +316,6 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public void paint(Graphics g)
     {
-        /* if ((ttip == null) && (ttipText != null))
-        {
-            ttip = new AWTToolTip (ttipText, this);
-        } */
-
             g.setPaintMode();
             g.clearRect(0, 0, squareW, squareH);
             g.setColor(Color.black);
@@ -324,7 +339,7 @@ public class ColorSquare extends Canvas implements MouseListener
                     numW = fm.stringWidth(Integer.toString(intValue));
 
                     x = (squareW - numW) / 2;
-                    
+
                     // y = numA + (HEIGHT - numH) / 2; // proper way
                     // y = 12; // way that works
                     y = (squareH + ((int)(.6 * numH))) / 2;  // Semi-proper
@@ -433,8 +448,8 @@ public class ColorSquare extends Canvas implements MouseListener
     {
         return boolValue;
     }
-    
-    /** 
+
+    /**
      * A SquaresPanel can be associated with it.
      * @return square parent panel, or null.
      */
@@ -443,7 +458,7 @@ public class ColorSquare extends Canvas implements MouseListener
         return sqparent;
     }
 
-    /** 
+    /**
      * A SquaresPanel can be associated with it.
      * @return square parent panel, or null.
      */

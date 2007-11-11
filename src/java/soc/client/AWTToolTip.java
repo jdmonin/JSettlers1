@@ -1,10 +1,5 @@
 /*
- * STATE STATE STATE -- JM -- Bad display flicker when mouse ptr tip is in tooltip box
- *   -> adjust showAtMouse to check that bounding-box
- *   -- Need to grab more socboardpanel.BoardToolTip code
- *   -- Need to re-impl mousemotionlistener to move out of the way
- *
- * $Id: ExpandTooltip.java,v 1.6 2007/11/06 05:18:00 jm Exp $
+ * $Id: ExpandTooltip.java,v 1.6 2007/11/10 23:05:00 jm Exp $
  *
  * (c)2000 IoS Gesellschaft fr innovative Softwareentwicklung mbH
  * http://www.IoS-Online.de    mailto:info@IoS-Online.de
@@ -22,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -38,11 +33,11 @@ import java.awt.event.*;
 /**
  * A short tooltip for a component.
  */
-public class AWTToolTip 
+public class AWTToolTip
   extends Canvas
   implements MouseListener, MouseMotionListener
 {
-  
+
   /** The Window is closed after the mouse has been moved
    *  closeAfterMoveX poinntes horizontally or closeAfterMoveY
    *  points vertically away from the point where it has been clicked
@@ -51,21 +46,21 @@ public class AWTToolTip
    */
   public int closeAfterMoveX = 100;
   public int closeAfterMoveY = 20;
-    
+
   private String tip;
-    
+
   protected Component parentComp;
   protected Container mainParentComp;
   protected LayoutManager mainParentLayout;
-    
+
   /** Position of parentComp within painParentComp */
   protected int parentX, parentY;
 
-  private int mousePosAtWinShowX;
-  private int mousePosAtWinShowY;
+  /** Mouse location within parentComp */
+  private int mousePosAtWinShowX, mousePosAtWinShowY;
 
   private boolean autoPopup = false;
-  
+
   public static int OFFSET_X = 10;
   public static int OFFSET_Y = 10;
 
@@ -75,7 +70,7 @@ public class AWTToolTip
 
   /** JM add: Our location within parentComp */
   private int boxX, boxY;
-  
+
   /** JM add: Our size */
   private int boxW, boxH;
 
@@ -95,7 +90,7 @@ public class AWTToolTip
     if (_tip == null)
       throw new IllegalArgumentException("tip null");
     if (_comp == null)
-      throw new IllegalArgumentException("comp null");    
+      throw new IllegalArgumentException("comp null");
     parentComp = _comp;
     autoPopup = true;
     tip = _tip;
@@ -108,7 +103,7 @@ public class AWTToolTip
     mainParentComp = null;
     mainParentLayout = null;
   }
-  
+
   /**
    * @return the tooltip text.
    */
@@ -118,40 +113,56 @@ public class AWTToolTip
   }
 
   /**
-   * Displays the Tooltip at the given Point(x,y).
-   * @param x x-coordinate of the point.
-   * @param y y-coordinate of the point.
-   JM
-  protected void show(int x, int y)
+   * Change the tooltip text. Handles repaint and (if needed) reposition
+   *
+   * @param newTip New tip text
+   *
+   * @throws IllegalArgumentException if newTip is null
+   */
+  public void setTip(String newTip) throws IllegalArgumentException
   {
-    Point p = parentComp.getLocationOnScreen();
-    mousePosAtWinShowX = x;
-    mousePosAtWinShowY = y;
-    p.translate( mousePosAtWinShowX, mousePosAtWinShowY );
-    boxX = p.x + 1;
-    boxY = p.y + 1;
-    setLocation(boxX, boxY );
-    super.show();
+    if (newTip == null)
+      throw new IllegalArgumentException("newTip null");
+    tip = newTip;
+
+    if ( (! (wantsShown || isShown)) || (mainParentComp == null))
+      return;
+
+    if (! isShown)
+    {
+      wantsShown = true;
+    }
+    else
+    {
+      int x = mousePosAtWinShowX;
+      int y = mousePosAtWinShowY;
+      removeFromParent();
+      wantsShown = true;
+      addToParent(x, y);
+    }
   }
-  */
-  
+
   /**
    * Show tip at appropriate location when mouse
-   * is at (x,y) within mainparent (NOT within parentComp). 
+   * is at (x,y) within mainparent (NOT within parentComp).
    */
   protected void showAtMouse(int x, int y)
   {
       if (mainParentComp == null)
           return;  // Not showing
-      
+
       boxX = OFFSET_X + x;
       boxY = OFFSET_Y + y;
-      
+
+      // Remember for next time
+      mousePosAtWinShowX = x - parentX;
+      mousePosAtWinShowY = y - parentY;
+
       // Goals:
       // - Don't have it extend off the screen
       // - Mouse pointer tip should not be within our bounding box (flickers)
-      
-      if ( ((x >= boxX) && (x < (boxX + boxW))) 
+
+      if ( ((x >= boxX) && (x < (boxX + boxW)))
           || (mainParentComp.getSize().width <= ( boxX + boxW )) )
       {
           // Try to float it to left of mouse pointer
@@ -161,27 +172,27 @@ public class AWTToolTip
               // Not enough room, just place flush against right-hand side
               boxX = mainParentComp.getSize().width - boxW;
           }
-      }    
-      if ( ((y >= boxY) && (y < (boxY + boxH))) 
-              || (mainParentComp.getSize().height <= ( boxY + boxH )) )
+      }
+      if ( ((y >= boxY) && (y < (boxY + boxH)))
+          || (mainParentComp.getSize().height <= ( boxY + boxH )) )
+      {
+          // Try to float it to above mouse pointer
+          boxY = y - boxH - OFFSET_Y;
+          if (boxY < 0)
           {
-              // Try to float it to above mouse pointer
-              boxY = y - boxH - OFFSET_Y;
-              if (boxY < 0)
-              {
-                  // Not enough room, just place flush against top
-                  boxY = 0;
-              }
-          }    
-      setLocation(boxX, boxY);
+              // Not enough room, just place flush against top
+              boxY = 0;
+          }
+      }
 
+      setLocation(boxX, boxY);
   }
 
   public void update(Graphics g)
   {
       paint(g);
   }
-  
+
   public void paint(Graphics g)
   {
     if (! (wantsShown && isShown))
@@ -222,7 +233,7 @@ public class AWTToolTip
     p.add( l );
     return p;
   }
-  
+
   protected void removeFromParent()
   {
     if (isShown)
@@ -234,12 +245,15 @@ public class AWTToolTip
       isShown = false;
     }
   }
-  
-  /** x
-   * JM TODO docs
-   * 
+
+  /** Add and show tooltip, with mouse at this location.
+   *
    * @param x Mouse position within parentComp when adding
-   *      (NOT within mainparent) 
+   *      (NOT within mainparent)
+   * @param y Mouse position within parentComp when adding
+   *      (NOT within mainparent)
+   *
+   * @see #removeFromParent()
    */
   protected void addToParent(int x, int y)
   {
@@ -251,15 +265,15 @@ public class AWTToolTip
     mainParentComp = getParentContainer(parentComp);
     mainParentLayout = mainParentComp.getLayout();
     mainParentComp.setLayout(null);  // Allow free placement
-    
+
     FontMetrics fm = getFontMetrics(parentComp.getFont());
     boxW = fm.stringWidth(tip) + 6;
     boxH = fm.getHeight();
     setSize(boxW, boxH);
 
     parentX = parentComp.getLocationOnScreen().x - mainParentComp.getLocationOnScreen().x;
-    parentY = parentComp.getLocationOnScreen().y - mainParentComp.getLocationOnScreen().y; 
-    showAtMouse(x + parentX, y + parentY);          
+    parentY = parentComp.getLocationOnScreen().y - mainParentComp.getLocationOnScreen().y;
+    showAtMouse(x + parentX, y + parentY);
 
     mainParentComp.add(this, 0);
     mainParentComp.validate();
@@ -278,7 +292,7 @@ public class AWTToolTip
     {
       c = c.getParent();
       if (c == null)
-        throw new IllegalStateException("Assert failed, parent should not be null"); 
+        throw new IllegalStateException("Assert failed, parent should not be null");
     }
     return (Container) c;
   }
@@ -300,14 +314,14 @@ public class AWTToolTip
     wantsShown = false;
     removeFromParent();
   }
-    
+
   /**
    * MouseListener-Methods
    */
   public void mouseClicked( MouseEvent e ) {
-      removeFromParent();
+    removeFromParent();
   }
-    
+
   public void mouseExited( MouseEvent e) {
     removeFromParent();
   }
@@ -328,13 +342,19 @@ public class AWTToolTip
   /**
    * MouseMotionListener-Methods
    */
-  
+
   /**
    * Must keep out of the way of the mouse pointer.
    * On some Win32, flickers if (x,y) of mouse is in our bounding box.
+   * showAtMouse is called here to move the box if needed.
+   *
+   * @see #showAtMouse(int, int)
    */
   public void mouseMoved( MouseEvent e)
   {
+    if (! isShown)
+      return;
+
     int x = e.getX();
     int y = e.getY();
     if ( java.lang.Math.abs( x - mousePosAtWinShowX )> closeAfterMoveX ||
@@ -354,8 +374,8 @@ public class AWTToolTip
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
- * 
- * Revision 1.6  2007/11/06 05:18:00  jm
+ *
+ * Revision 1.6  2007/11/10 23:05:00  jm
  * - JSettlers package
  * - Canvas, not Window
  * - Simple constructor, simple layout
