@@ -67,7 +67,7 @@ class SOCPracticeAskDialog extends Dialog implements ActionListener
         createBut = new Button("Create another");
 
         setLayout (new BorderLayout());
-        setSize(280, 60 + 2 * ColorSquareLarger.HEIGHT_L);
+        setSize(280, 60 + 2 * ColorSquare.HEIGHT);
 
         msg = new Label("A practice game is already being played.", Label.CENTER);
         add(msg, BorderLayout.CENTER);

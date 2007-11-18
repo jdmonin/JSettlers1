@@ -79,6 +79,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         setName("server-" + port);  // Thread name for debugging
     }
 
+    /** start listening to the given local string port (practice game) */
     public Server(String stringSocketName)
     {
         if (stringSocketName == null)

@@ -1,5 +1,5 @@
 /**
- * Local (StringConnection) network system.
+ * Local (StringConnection) network system.  Version 1.0.0.
  * Copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or

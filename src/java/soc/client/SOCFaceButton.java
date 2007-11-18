@@ -229,11 +229,12 @@ public class SOCFaceButton extends Canvas
      */
     private void drawFace(Graphics g)
     {
+        Image fimage;
+
         /**
          * before drawing, ensure this face number is loaded
          */
         int findex;
-        Image fimage;
         if (currentImageNum > 0)
         {
             findex = currentImageNum;

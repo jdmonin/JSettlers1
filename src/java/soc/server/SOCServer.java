@@ -94,6 +94,7 @@ public class SOCServer extends Server
      * Robot default parameters; copied for each newly connecting robot.
      * Changing this will not change parameters of any robots already connected.
      *
+     * @see #handleIMAROBOT(StringConnection, SOCImARobot)
      * @see soc.robot.SOCRobotDM
      */
     public static SOCRobotParameters ROBOT_PARAMS_DEFAULT
@@ -104,7 +105,7 @@ public class SOCServer extends Server
         // for assumptions which may also need to be changed.
 
     /**
-     * Unused similar robot default parameters.
+     * Smarter robot default parameters. (For practice games; not referenced by server)
      * Same as ROBOT_PARAMS_DEFAULT but with SMART_STRATEGY, not FAST_STRATEGY.
      *
      * @see #ROBOT_PARAMS_DEFAULT
@@ -219,7 +220,7 @@ public class SOCServer extends Server
     {
         System.err.println("Java Settlers Server " + Version.version() +
                            ", " + Version.copyright());
-        System.err.println("Network layer based on code by Cristian Bogdan.");
+        System.err.println("Network layer based on code by Cristian Bogdan; local network by Jeremy Monin.");
         
         /* Check for problems during super setup (such as port already in use) */
         if (error != null)
@@ -1143,7 +1144,7 @@ public class SOCServer extends Server
             }
             catch (Exception e)
             {
-                D.ebugPrintln("Caught exception in SOCServer.newConnection(StringConnection) - " + e);
+                D.ebugPrintln("Caught exception in SOCServer.newConnection(Connection) - " + e);
                 e.printStackTrace(System.out);
 
                 return;
@@ -1243,7 +1244,7 @@ public class SOCServer extends Server
             }
             catch (Exception e)
             {
-                D.ebugPrintln("Caught exception in SOCServer.newConnection(StringConnection) - " + e);
+                D.ebugPrintln("Caught exception in SOCServer.newConnection(Connection) - " + e);
                 e.printStackTrace(System.out);
             }
         }
@@ -3067,19 +3068,19 @@ public class SOCServer extends Server
                                     //
                                     StringConnection playerCon = null;
                                     Enumeration conEnum = conns.elements();
-    
+
                                     while (conEnum.hasMoreElements())
                                     {
                                         StringConnection con = (StringConnection) conEnum.nextElement();
-    
+
                                         if (ga.getPlayer(i).getName().equals((String) con.getData()))
                                         {
                                             playerCon = con;
-    
+
                                             break;
                                         }
                                     }
-    
+
                                     if (playerCon != null)
                                     {
                                         SOCResourceSet resources = ga.getPlayer(i).getResources();

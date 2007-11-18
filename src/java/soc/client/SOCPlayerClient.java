@@ -37,10 +37,12 @@ import soc.game.SOCTradeOffer;
 import soc.message.*;
 
 import soc.robot.SOCRobotClient;
+
 import soc.server.SOCServer;
 import soc.server.genericServer.LocalStringConnection;
 import soc.server.genericServer.LocalStringServerSocket;
 import soc.server.genericServer.StringConnection;
+
 import soc.util.Version;
 
 import java.applet.Applet;
@@ -476,7 +478,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         System.out.println("Java Settlers Client " + Version.version() +
                            ", " + Version.copyright());
-        System.out.println("Network layer based on code by Cristian Bogdan.");
+        System.out.println("Network layer based on code by Cristian Bogdan; local network by Jeremy Monin.");
 
         String param = null;
         int intValue;
@@ -2715,7 +2717,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
         cardLayout.show(this, MESSAGE_PANEL);
         validate();
-        if (ex_L != null)
+        if (ex_L == null)
             pgm.requestFocus();
     }
 
@@ -3732,7 +3734,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 pi.over(err);
             }
         }
-
+        
         disconnect();
 
         if (canLocal)
