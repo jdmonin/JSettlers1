@@ -181,10 +181,12 @@ public class TradeOfferPanel extends Panel
             giveLab = new Label("I Give: ");
             giveLab.setBackground(insideBGColor);
             add(giveLab);
+            new AWTToolTip("Opponent gives to you", giveLab);
 
             getLab = new Label("I Get: ");
             getLab.setBackground(insideBGColor);
             add(getLab);
+            new AWTToolTip("You give to opponent", getLab);
 
             giveInt = new int[5];
             getInt = new int[5];
@@ -226,13 +228,15 @@ public class TradeOfferPanel extends Panel
             offerSquares.setVisible(false);
             add(offerSquares);
 
-            giveLab2 = new Label("I Give: ");
+            giveLab2 = new Label("You Give: ");
             giveLab2.setVisible(false);
             add(giveLab2);
+            new AWTToolTip("You give to opponent", giveLab2);
 
-            getLab2 = new Label("I Get: ");
+            getLab2 = new Label("You Get: ");
             getLab2.setVisible(false);
             add(getLab2);
+            new AWTToolTip("Opponent gives to you", getLab2);
 
             // correct the interior when we can get our player color
             offerBox = new ShadowedBox(pi.getPlayerColor(from), Color.white);
@@ -358,7 +362,7 @@ public class TradeOfferPanel extends Panel
                 top = (h / (int)(.5 * ColorSquareLarger.HEIGHT_L)) + 5;
                 
                 int lineH = ColorSquareLarger.HEIGHT_L;
-                int giveW = fm.stringWidth("I Give: ") + 2;
+                int giveW = fm.stringWidth("You Give: ") + 2;
 
                 toWhom1.setBounds(inset, top, w - 20, 14);
                 toWhom2.setBounds(inset, top + 14, w - 20, 14);
