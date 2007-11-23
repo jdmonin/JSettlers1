@@ -1883,29 +1883,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (ga != null)
         {
+            int pnum = mes.getPlayerNumber();
+
             /**
              * check if this is the first player
              */
             if (ga.getFirstPlayer() == -1)
             {
-                ga.setFirstPlayer(mes.getPlayerNumber());
+                ga.setFirstPlayer(pnum);
             }
 
             ga.setCurrentDice(0);
-            ga.setCurrentPlayerNumber(mes.getPlayerNumber());
-            ga.getPlayer(mes.getPlayerNumber()).getDevCards().newToOld();
+            ga.setCurrentPlayerNumber(pnum);
+            ga.getPlayer(pnum).getDevCards().newToOld();
 
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-            pi.getPlayerHandPanel(mes.getPlayerNumber()).updateDevCards();
-
-            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-            {
-                // hilight current player, update takeover button
-                pi.getPlayerHandPanel(i).updateAtTurn();
-            }
-
-            pi.getBoardPanel().updateMode();
-            pi.getBoardPanel().repaint();
+            pi.updateAtTurn(pnum);
         }
     }
 

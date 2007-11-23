@@ -614,6 +614,27 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
+     * Game's current player has changed.  Update displays.
+     *
+     * @param pnum New current player number; should match game.getCurrentPlayerNumber()
+     */
+    public void updateAtTurn(int pnum)
+    {
+        getPlayerHandPanel(pnum).updateDevCards();
+        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+        {
+            // hilight current player, update takeover button
+            getPlayerHandPanel(i).updateAtTurn();
+        }
+
+        boardPanel.updateMode();
+        boardPanel.repaint();
+
+        // No need for a buildingPanel.updateAtTurn;
+        //   its updateButtonStatus is called from client.handleGAMESTATE.
+    }
+
+    /**
      * show the discard dialog
      *
      * @param nd  the number of discards
