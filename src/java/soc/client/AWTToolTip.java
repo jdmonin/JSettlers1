@@ -284,11 +284,11 @@ public class AWTToolTip
   /**
    * Gets the top-level container of c.
    * @param c The Component.
-   * @return The parent-frame or applet, or null.
+   * @return The parent-frame, dialog, or applet, or null.
    */
   public static Container getParentContainer( Component c )
   {
-    while (! ((c instanceof Frame) || c instanceof Applet))
+    while (! ((c instanceof Frame) || (c instanceof Applet) || (c instanceof Dialog)))
     {
       c = c.getParent();
       if (c == null)
@@ -379,7 +379,7 @@ public class AWTToolTip
  * - JSettlers package
  * - Canvas, not Window
  * - Simple constructor, simple layout
- * - Find applet as parent, not just frame
+ * - Find applet or dialog as parent, not just frame
  * - Add to layout at mouseenter/mouseleave, not constructor (add wantsShown, etc)
  * - Override update(Graphics) for less flicker
  * - Add setTip

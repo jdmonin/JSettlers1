@@ -21,6 +21,7 @@
 package soc.client;
 
 import soc.game.SOCGame;
+import soc.game.SOCPlayer;
 
 import java.awt.Button;
 import java.awt.Color;
@@ -38,8 +39,15 @@ import java.awt.event.ActionListener;
  */
 class SOCChoosePlayerDialog extends Dialog implements ActionListener
 {
+    /** Player names on each button */
     Button[] buttons;
+
+    /** Player index of each to choose */    
     int[] players;
+
+    /** Show Count of resources of each player */
+    Label[] player_res_lbl;
+
     int number;
     Label msg;
     SOCPlayerInterface pi;
@@ -62,20 +70,42 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
         setForeground(Color.black);
         setFont(new Font("Geneva", Font.PLAIN, 12));
         setLayout(null);
-        setSize(350, 100);
+        setSize(350, 120);
 
         msg = new Label("Please choose a player to steal from:", Label.CENTER);
         add(msg);
 
         buttons = new Button[number];
+        player_res_lbl = new Label[number];
 
         SOCGame ga = pi.getGame();
 
         for (int i = 0; i < number; i++)
         {
-            buttons[i] = new Button(ga.getPlayer(players[i]).getName());
+            SOCPlayer pl = ga.getPlayer(players[i]);            
+
+            buttons[i] = new Button(pl.getName());
             add(buttons[i]);
             buttons[i].addActionListener(this);
+
+            int rescount = pl.getResources().getTotal();            
+            player_res_lbl[i] = new Label(rescount + " res.", Label.CENTER);
+            add(player_res_lbl[i]);
+            String restooltip;
+            switch (rescount)
+            {
+            case 0:
+                restooltip = "This player has no resources.";
+                break;
+
+            case 1:
+                restooltip = "This player has 1 resource.";
+                break;
+
+            default:
+                restooltip = "This player has " + rescount + " resources.";
+            }
+            new AWTToolTip(restooltip, player_res_lbl[i]);
         }
     }
 
@@ -122,6 +152,7 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
             for (int i = 0; i < number; i++)
             {
                 buttons[i].setBounds(x + space + (i * (bwidth + space)), (getInsets().bottom + height) - (20 + space), bwidth, 20);
+                player_res_lbl[i].setBounds(x + space + (i * (bwidth + space)), (getInsets().bottom + height) - space, bwidth, 16);
             }
         }
         catch (NullPointerException e) {}

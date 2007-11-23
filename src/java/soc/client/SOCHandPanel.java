@@ -193,7 +193,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     protected boolean interactive;
 
-    private boolean chatExcepTested = false;  // For testing with BANK button
+    private boolean chatExcepTested = true;  // JM: For testing with BANK button
 
     /**
      * make a new hand panel
@@ -889,7 +889,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             playerIsClient = true;
             playerInterface.setClientHand(this);
 
-            knightsSq.setTooltipText("Size of our army");
+            knightsSq.setTooltipText("Size of your army");
 
             // show 'Victory Points' and hide "Start Button" if game in progress
             if (game.getGameState() == game.NEW)
