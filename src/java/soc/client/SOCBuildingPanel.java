@@ -387,14 +387,17 @@ public class SOCBuildingPanel extends Panel implements ActionListener
 
             if (isCurrent && (gstate == SOCGame.PLACING_ROAD))
             {
+                roadBut.setEnabled(true);
                 roadBut.setLabel("Cancel");
             }
             else if (game.couldBuildRoad(player.getPlayerNumber()))
             {
+                roadBut.setEnabled(isCurrent);
                 roadBut.setLabel("Buy");
             }
             else
             {
+                roadBut.setEnabled(false);
                 roadBut.setLabel("---");
             }
 
@@ -402,36 +405,44 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                 ((gstate == SOCGame.PLACING_SETTLEMENT) || (gstate == SOCGame.START1B)
                  || (gstate == SOCGame.START2B)))
             {
+                settlementBut.setEnabled(true);
                 settlementBut.setLabel("Cancel");
             }
             else if (game.couldBuildSettlement(player.getPlayerNumber()))
             {
+                settlementBut.setEnabled(isCurrent);
                 settlementBut.setLabel("Buy");
             }
             else
             {
+                settlementBut.setEnabled(false);
                 settlementBut.setLabel("---");
             }
 
             if (isCurrent && (gstate == SOCGame.PLACING_CITY))
             {
+                cityBut.setEnabled(true);
                 cityBut.setLabel("Cancel");
             }
             else if (game.couldBuildCity(player.getPlayerNumber()))
             {
+                cityBut.setEnabled(isCurrent);
                 cityBut.setLabel("Buy");
             }
             else
             {
+                cityBut.setEnabled(false);
                 cityBut.setLabel("---");
             }
 
             if (game.couldBuyDevCard(player.getPlayerNumber()))
             {
+                cardBut.setEnabled(isCurrent);
                 cardBut.setLabel("Buy");
             }
             else
             {
+                cardBut.setEnabled(false);
                 cardBut.setLabel("---");
             }
         }
