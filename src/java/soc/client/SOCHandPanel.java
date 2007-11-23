@@ -85,7 +85,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String QUIT = "Quit";
     protected static final String DONE = "Done";
     protected static final String CLEAR = "Clear";
-    protected static final String SEND = "Send";
+    protected static final String SEND = "Offer";
     protected static final String BANK = "Bank/Port";
     protected static final String CARD = "  Play Card  ";
     protected static final String GIVE = "I Give:";  // No trailing space (room for wider colorsquares)
