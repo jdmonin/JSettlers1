@@ -329,6 +329,15 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
+     * The game's count of development cards remaining has changed.
+     * Update the display.
+     */
+    public void updateDevCardCount()
+    {
+       buildingPanel.updateDevCardCount();
+    }
+
+    /**
      * @return the building panel
      */
     public SOCBuildingPanel getBuildingPanel()

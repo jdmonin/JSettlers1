@@ -259,6 +259,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         vpLab = new Label("Points: ");
         add(vpLab);
         vpSq = new ColorSquare(ColorSquare.GREY, 0);
+        vpSq.setTooltipText("Total victory points for this opponent");
+        vpSq.setTooltipHighWarningLevel("Close to winning", 8);  // TODO assumes playing until 10 (hardcoded in SOCGame.checkForWinner)
         add(vpSq);
 
         larmyLab = new Label("", Label.CENTER);
@@ -304,18 +306,24 @@ public class SOCHandPanel extends Panel implements ActionListener
         roadSq = new ColorSquare(ColorSquare.GREY, 0);
         add(roadSq);
         roadSq.setTooltipText("Pieces available to place");
+        roadSq.setTooltipLowWarningLevel("Almost out of roads to place", 2);
+        roadSq.setTooltipZeroText("No more roads available");
         roadLab = new Label("Roads:");
         add(roadLab);
 
         settlementSq = new ColorSquare(ColorSquare.GREY, 0);
         add(settlementSq);
         settlementSq.setTooltipText("Pieces available to place");
+        settlementSq.setTooltipLowWarningLevel("Almost out of settlements to place", 1);
+        settlementSq.setTooltipZeroText("No more settlements available");
         settlementLab = new Label("Stlmts:");
         add(settlementLab);
 
         citySq = new ColorSquare(ColorSquare.GREY, 0);
         add(citySq);
         citySq.setTooltipText("Pieces available to place");
+        citySq.setTooltipLowWarningLevel("Almost out of cities to place", 1);
+        citySq.setTooltipZeroText("No more cities available");
         cityLab = new Label("Cities:");
         add(cityLab);
 
@@ -330,6 +338,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         resourceSq = new ColorSquare(ColorSquare.GREY, 0);
         add(resourceSq);
         resourceSq.setTooltipText("Amount in hand");
+        resourceSq.setTooltipHighWarningLevel("If 7 is rolled, would discard half these resources", 8);
 
         developmentLab = new Label("Dev. Cards: ");
         add(developmentLab);
@@ -890,6 +899,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             playerInterface.setClientHand(this);
 
             knightsSq.setTooltipText("Size of your army");
+            vpSq.setTooltipText("Your victory point total");
 
             // show 'Victory Points' and hide "Start Button" if game in progress
             if (game.getGameState() == game.NEW)
@@ -1480,8 +1490,15 @@ public class SOCHandPanel extends Panel implements ActionListener
         {
         case VICTORYPOINTS:
 
-            vpSq.setIntValue(player.getTotalVP());
-
+            {
+                int newVP = player.getTotalVP();
+                vpSq.setIntValue(newVP);
+                if (newVP >= 10)
+                {
+                    // FIXME: Assumes 10 is the hardcoded number of winning points
+                    vpSq.setTooltipText("Winner with " + newVP + " victory points");
+                }
+            }
             break;
 
         case LONGESTROAD:

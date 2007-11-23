@@ -70,9 +70,11 @@ public class SOCBuildingPanel extends Panel implements ActionListener
     Label cardT;
     Label cardV;
     Label cardC;
+    Label cardCountLab;
     ColorSquare cardWheat;
     ColorSquare cardSheep;
     ColorSquare cardOre;
+    ColorSquare cardCount;
     SOCPlayerInterface pi;
 
     /**
@@ -165,6 +167,14 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         add(cardBut);
         cardBut.setActionCommand(CARD);
         cardBut.addActionListener(this);
+        cardCountLab = new Label("available");
+        cardCountLab.setAlignment(Label.LEFT);
+        add(cardCountLab);
+        cardCount = new ColorSquare(ColorSquare.GREY, 0);        
+        cardCount.setTooltipText("Development cards available to buy");
+        cardCount.setTooltipLowWarningLevel("Almost out of development cards to buy", 3);
+        cardCount.setTooltipZeroText("No more development cards available to buy");
+        add(cardCount);
     }
 
     /**
@@ -271,6 +281,14 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         cardOre.setLocation(curX, curY);
         cardBut.setSize(butW, lineH);
         cardBut.setLocation(dim.width - (butW + margin), curY);
+        curX = dim.width - butW - margin;
+        int cardCLabW = fm.stringWidth(cardCountLab.getText());
+        curX -= (6 + cardCLabW);
+        cardCountLab.setLocation(curX, curY);
+        cardCountLab.setSize(cardCLabW + 2, lineH);
+        curX -= (ColorSquare.WIDTH + 3);
+        // cardCount.setSize(ColorSquare.WIDTH, ColorSquare.HEIGHT);
+        cardCount.setLocation(curX, curY);
     }
 
     /**
@@ -418,4 +436,15 @@ public class SOCBuildingPanel extends Panel implements ActionListener
             }
         }
     }
+
+    /**
+     * The game's count of development cards remaining has changed.
+     * Update the display.
+     */
+    public void updateDevCardCount()
+    {
+        int newCount = pi.getGame().getNumDevCards();
+        cardCount.setIntValue(newCount);
+    }
+
 }

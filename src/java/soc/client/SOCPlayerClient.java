@@ -2585,6 +2585,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         if (ga != null)
         {
             ga.setNumDevCards(mes.getNumDevCards());
+            SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
+            if (pi != null)
+                pi.updateDevCardCount();
         }
     }
 

@@ -64,6 +64,16 @@ public class ColorSquare extends Canvas implements MouseListener
     public final static int BOUNDED_DEC = 4;
     public final static int WIDTH = 16;
     public final static int HEIGHT = 16;
+
+    /** The warning-level color (high, low, or zero)
+     * 
+     *  @see #setHighWarningLevel(int)
+     *  @see #setLowWarningLevel(int)
+     *  @see #setTooltipZeroText(String)
+     */
+    public static Color WARN_LEVEL_COLOR = new Color(200, 0, 0);  // For warning level
+    public static Color WARN_LEVEL_COLOR_BG_FROMGREY = new Color(255, 255, 0);  // For warning level if grey normally
+
     int intValue;
     boolean boolValue;
     boolean valueVis;
@@ -73,6 +83,27 @@ public class ColorSquare extends Canvas implements MouseListener
     boolean interactive;
     protected SquaresPanel sqparent;
     protected AWTToolTip ttip;
+
+    /**
+     * Normal background color is GREY (when not high or low "warning" color).
+     * Background does not change for warning, unless this is true.
+     */
+    protected boolean warn_bg_grey;
+
+    /** Text for normal vs low-warning-level. Unused unless a low-bound or high-bound or zero-level-text is set. */
+    protected String ttip_text;
+    /** Optional text for low-warning-level and high-warning-level (intValue). */
+    protected String ttip_text_warnLow, ttip_text_warnHigh;
+    /** Optional text for zero level (intValue). */
+    protected String ttip_text_zero;
+    /** Low-level or high-level warning level has been set (intValue). */
+    protected boolean hasWarnLow, hasWarnHigh;
+    /** At low-level warning, or at zero if ttip_text_zero was set. */
+    protected boolean isWarnLow;
+    /** At high-level warning. */
+    protected boolean isWarnHigh;
+    protected int warnLowBound;  // TODO rename any warn-thing from "bound" incl comments
+    protected int warnHighBound;  // TODO rename any warn-thing from "bound" incl comments
 
     /** Size per instance, for ColorSquareLarger */
     protected int squareW, squareH;
@@ -165,6 +196,14 @@ public class ColorSquare extends Canvas implements MouseListener
         interactive = in;
         sqparent = null;
         ttip = null;
+        ttip_text = null;
+        ttip_text_warnLow = null;
+        ttip_text_zero = null;
+        hasWarnLow = false;
+        isWarnLow = false;
+        hasWarnHigh = false;
+        isWarnHigh = false;
+        warn_bg_grey = c.equals(GREY);
 
         switch (k)
         {
@@ -225,6 +264,17 @@ public class ColorSquare extends Canvas implements MouseListener
     }
 
     /**
+     * Overrides standard to allow special warning behavior if GREY.
+     *
+     * @param c DOCUMENT ME! - JM TODO
+     */
+    public void setBackground(Color c)
+    {
+        warn_bg_grey = c.equals(GREY);
+        super.setBackground(c);
+    }
+
+    /**
      * DOCUMENT ME!
      *
      * @param c DOCUMENT ME!
@@ -259,10 +309,14 @@ public class ColorSquare extends Canvas implements MouseListener
      * (Set tip text to null to hide it.)
      *
      * @param tip New tip text; will create tooltip if needed.
-     *     If tip is null, tooltip is removed.
+     *     If tip is null, tooltip is removed, and any warning-level tip text
+     *     or zero-level text is also set to null.
+     *
+     * @see #setTooltipWarningLevel(String, int)
      */
     public void setTooltipText(String tip)
     {
+        ttip_text = tip;
         if (tip == null)
         {
             if (ttip != null)
@@ -270,12 +324,288 @@ public class ColorSquare extends Canvas implements MouseListener
                 ttip.destroy();
                 ttip = null;
             }
+            ttip_text_warnLow = null;
+            ttip_text_zero = null;
             return;
         }
         if (ttip == null)
             ttip = new AWTToolTip(tip, this);
         else
-            ttip.setTip(tip);  // Handles its own repaint
+            ttip.setTip(tip);  // Handles its own repaint        
+    }
+
+    /**
+     * Set low-level warning (TODO docu text)
+     *
+     * @param warnLevel If the colorsquare value is at warnLevel or lower,
+     *     indicate with the warning color.
+     *
+     * @see #clearLowWarningLevel()
+     * @see #setTooltipZeroText(String)
+     *
+     * @throws IllegalArgumentException if warnLevel is above high level, or is zero.
+     *     To set text for value 0, use {@link #setTooltipZeroText(String)} instead.
+     *     To clear the warning level, use {@link #clearLowWarningLevel()} instead.
+     */
+    public void setLowWarningLevel(int warnLevel)
+        throws IllegalArgumentException
+    {
+        if (warnLevel == 0)
+        {
+            if (ttip_text == null)
+                throw new IllegalArgumentException("To clear, call clearLowWarningLevel instead");
+            else
+                throw new IllegalArgumentException("To set zero text, call setTooltipZeroText instead");
+        }
+        if (hasWarnHigh && (warnLevel >= warnHighBound))
+            throw new IllegalArgumentException("Asked for low warning (" + warnLevel
+                + ") higher than existing high warning (" + warnHighBound + ")");
+
+        boolean wasWarnLow = isWarnLow;
+        hasWarnLow = true;
+        warnLowBound = warnLevel;
+        isWarnLow = ((intValue <= warnLevel)
+                || ((intValue == 0) && (ttip_text_zero != null)));
+        if (isWarnLow != wasWarnLow)
+        {
+            repaint();
+            if ((intValue == 0) && (ttip_text_zero != null))
+                ttip.setTip(ttip_text_zero);
+            else if (ttip_text_warnLow != null)
+            {
+                if (isWarnLow)
+                    ttip.setTip(ttip_text_warnLow);
+                else
+                    ttip.setTip(ttip_text);
+            }
+        }
+    }
+
+    /**
+     * If a tooltip low-warning has been set, it is also cleared
+     * TODO docu
+     */
+    public void clearLowWarningLevel()
+    {
+        hasWarnLow = false;
+        if (isWarnLow)
+        {
+            isWarnLow = false;            
+            repaint();
+            if (ttip_text_warnLow != null)
+            {
+                ttip_text_warnLow = null;
+                if ((intValue == 0) && (ttip_text_zero != null))
+                    ttip.setTip(ttip_text_zero);
+                else
+                    ttip.setTip(ttip_text);
+            }
+        }
+    }
+
+    /**
+     * Set low-level warning, and set or clear its tooltip text.
+     * If warnTip not null, we must already have a standard tooltip text.
+     * Does not affect zero-level or high-level tooltip text.
+     *
+     * @param warnTip   TODO docu - or null to clear tip text
+     * @param warnLevel TODO docu - at or below
+     *
+     * @see #setHighWarningLevel(int)
+     * @see #setLowWarningLevel(int)
+     * @see #setTooltipText(String)
+     * @see #setTooltipZeroText(String)
+     *
+     * @throws IllegalStateException if setTooltipText has not yet been called,
+     *     and warnTip is not null
+     *
+     * @throws IllegalArgumentException if warnLevel is above high level, or is zero.
+     *     To set text for value 0, use {@link #setTooltipZeroText(String)} instead.
+     *     To clear the warning level, use {@link #clearLowWarningLevel()} instead.
+     */
+    public void setTooltipLowWarningLevel(String warnTip, int warnLevel)
+        throws IllegalStateException, IllegalArgumentException
+    {
+        if ((ttip_text == null) && (warnTip != null))
+            throw new IllegalStateException("Must call setTooltipText first");
+        if (warnLevel == 0)
+        {
+            if (ttip_text == null)
+                throw new IllegalArgumentException("To clear, call clearLowWarningLevel instead");
+            else
+                throw new IllegalArgumentException("To set zero text, call setTooltipZeroText instead");
+        }
+        if (hasWarnHigh && (warnLevel >= warnHighBound))
+            throw new IllegalArgumentException("Asked for low warning (" + warnLevel
+                + ") higher than existing high warning (" + warnHighBound + ")");
+
+        boolean wasWarnLow = isWarnLow;
+        boolean willWarnLow = (intValue <= warnLevel);
+
+        ttip_text_warnLow = warnTip;  // Remember new warnTip text
+
+        // TODO simplify, docu
+        if ((warnTip == null) && (ttip_text != null))
+        {
+            // No more warnTip text.
+            if ((intValue == 0) && (ttip_text_zero != null))
+                ttip.setTip(ttip_text_zero);  // Revert to zero-level tooltip text
+            else if (wasWarnLow)
+                ttip.setTip(ttip_text);  // Revert to non-warning tooltip text
+        }
+        else if ((warnTip != null) && wasWarnLow && willWarnLow)
+        {
+            // If the status won't change (we're still at warning level),
+            // change the text, because setLowWarningLevel won't.
+            // Change text unless we're at zero and there's a zero text.
+            if ((intValue != 0) || (ttip_text_zero == null))
+                ttip.setTip(warnTip);
+        }
+
+        setLowWarningLevel(warnLevel);  // Remember new warning level
+    }
+
+    /**
+     * Set high-level warning (TODO docu text)
+     *
+     * @param warnLevel If the colorsquare value is at warnLevel or higher,
+     *     indicate with the warning color.
+     *
+     * @see #clearHighWarningLevel()
+     *
+     * @throws IllegalArgumentException if warnLevel is below low-warning level.
+     */
+    public void setHighWarningLevel(int warnLevel)
+        throws IllegalArgumentException
+    {
+        if (hasWarnLow && (warnLevel <= warnLowBound))
+            throw new IllegalArgumentException("Asked for high warning (" + warnLevel
+                + ") lower than existing low warning (" + warnLowBound + ")");
+
+        boolean wasWarnHigh = isWarnHigh;
+        hasWarnHigh = true;
+        warnHighBound = warnLevel;
+        isWarnHigh = (intValue >= warnLevel);
+        if (isWarnHigh != wasWarnHigh)
+        {
+            repaint();
+            if (ttip_text_warnHigh != null)
+            {
+                if (isWarnHigh)
+                    ttip.setTip(ttip_text_warnHigh);
+                else
+                    ttip.setTip(ttip_text);
+            }
+        }
+    }
+
+    /**
+     * If a tooltip high-warning has been set, it is also cleared
+     * TODO docu
+     */
+    public void clearHighWarningLevel()
+    {
+        hasWarnHigh = false;
+        if (isWarnHigh)
+        {
+            isWarnHigh = false;            
+            repaint();
+            if (ttip_text_warnHigh != null)
+            {
+                ttip_text_warnHigh = null;
+                ttip.setTip(ttip_text);
+            }
+        }
+    }
+
+    /**
+     * Set high-level warning, and set or clear its tooltip text.
+     * If warnTip not null, we must already have a standard tooltip text.
+     * Does not affect zero-level or low-level tooltip text.
+     *
+     * @param warnTip   TODO docu - or null to clear tip text
+     * @param warnLevel TODO docu - at or above
+     *
+     * @see #setHighWarningLevel(int)
+     * @see #setLowWarningLevel(int)
+     * @see #setTooltipText(String)
+     *
+     * @throws IllegalStateException if setTooltipText has not yet been called,
+     *     and warnTip is not null
+     *
+     * @throws IllegalArgumentException if warnLevel is below low-warning level.
+     */
+    public void setTooltipHighWarningLevel(String warnTip, int warnLevel)
+        throws IllegalStateException, IllegalArgumentException
+    {
+        if ((ttip_text == null) && (warnTip != null))
+            throw new IllegalStateException("Must call setTooltipText first");
+        if (hasWarnLow && (warnLevel <= warnLowBound))
+            throw new IllegalArgumentException("Asked for high warning (" + warnLevel
+                + ") lower than existing low warning (" + warnLowBound + ")");
+
+        boolean wasWarnHigh = isWarnHigh;
+        boolean willWarnHigh = (intValue >= warnLevel);
+
+        ttip_text_warnHigh = warnTip;  // Remember new warnTip text
+
+        // TODO simplify, docu
+        if ((warnTip == null) && (ttip_text != null))
+        {
+            // No more warnTip text.
+            if (wasWarnHigh)
+                ttip.setTip(ttip_text);  // Revert to non-warning tooltip text
+        }
+        else if ((warnTip != null) && wasWarnHigh && willWarnHigh)
+        {
+            // If the status won't change (we're still at warning level),
+            // change the text, because setHighWarningLevel won't.
+            ttip.setTip(warnTip);
+        }
+
+        setHighWarningLevel(warnLevel);  // Remember new warning level
+    }
+
+    /**
+     * Set or clear zero-level tooltip text.
+     * Setting this text will also make the tooltip color the warning color
+     * when at value 0.
+     *
+     * @param zeroTip   TODO docu - or null to clear tip text
+     *
+     * @see #setTooltipText(String)
+     * @see #setTooltipWarningLevel(String, int)
+     *
+     * @throws IllegalStateException if setTooltipText has not yet been called,
+     *     and zeroTip is not null
+     */
+    public void setTooltipZeroText(String zeroTip)
+        throws IllegalStateException
+    {
+        if ((ttip_text == null) && (zeroTip != null))
+            throw new IllegalStateException("Must call setTooltipText first");
+
+        boolean isZero = (intValue == 0);
+
+        ttip_text_zero = zeroTip;  // Remember new zeroTip text
+
+        // TODO simplify, docu
+        if ((zeroTip == null) && (ttip_text != null))
+        {
+            // No more zeroTip text.
+            if (isZero)
+            {
+                if (hasWarnLow && isWarnLow)
+                    ttip.setTip(ttip_text_warnLow);  // Revert to low-level tooltip text
+                else
+                    ttip.setTip(ttip_text);  // Revert to non-warning tooltip text
+            }
+        }
+        else if ((zeroTip != null) && isZero)
+        {
+            // New zeroTip text. We may have been at low-level or standard tooltip text.
+            ttip.setTip(zeroTip);
+        }
     }
 
     /** Show or hide the colorsquare.
@@ -317,7 +647,15 @@ public class ColorSquare extends Canvas implements MouseListener
     public void paint(Graphics g)
     {
             g.setPaintMode();
-            g.clearRect(0, 0, squareW, squareH);
+            if (warn_bg_grey && (isWarnLow || isWarnHigh))
+            {
+                g.setColor(WARN_LEVEL_COLOR_BG_FROMGREY);
+                g.fillRect(1, 1, squareW - 2, squareH - 2);
+            }
+            else
+            {
+                g.clearRect(0, 0, squareW, squareH);
+            }
             g.setColor(Color.black);
             g.drawRect(0, 0, squareW - 1, squareH - 1);
 
@@ -326,6 +664,9 @@ public class ColorSquare extends Canvas implements MouseListener
 
             if (valueVis)
             {
+                if (isWarnLow || isWarnHigh)
+                    g.setColor(WARN_LEVEL_COLOR);
+
                 FontMetrics fm = this.getFontMetrics(this.getFont());
                 int numW;
                 int numH = fm.getHeight();
@@ -385,10 +726,7 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public void addValue(int v)
     {
-        intValue += v;
-        repaint();
-        if (sqparent != null)
-            sqparent.squareChanged(this, intValue);
+        setIntValue(intValue + v);
     }
 
     /**
@@ -398,10 +736,7 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public void subtractValue(int v)
     {
-        intValue -= v;
-        repaint();
-        if (sqparent != null)
-            sqparent.squareChanged(this, intValue);
+        setIntValue (intValue - v);
     }
 
     /**
@@ -412,9 +747,37 @@ public class ColorSquare extends Canvas implements MouseListener
     public void setIntValue(int v)
     {
         boolean chg = (intValue != v);
+        if (! chg)
+            return;  // <-- Early return: No change in intValue
+
         intValue = v;
+
+        // Zero isn't flagged graphically, unless its tooltip text is set
+        boolean isZero = ((intValue == 0) && (ttip_text_zero != null));
+        // Previous and new low/high warning flags
+        boolean wasWarnLow = isWarnLow;
+        boolean wasWarnHigh = isWarnHigh;
+        isWarnLow = (isZero || (hasWarnLow && ((intValue <= warnLowBound))));
+        isWarnHigh = (hasWarnHigh && (intValue >= warnHighBound));
+
         repaint();
-        if (chg && (sqparent != null))
+
+        // Possible tooltip text update
+        if ((ttip_text != null) &&
+            (isZero || (isWarnLow != wasWarnLow) || (isWarnHigh != wasWarnHigh)))
+        {
+            if (isZero)
+                ttip.setTip(ttip_text_zero);
+            else if (isWarnHigh && (ttip_text_warnHigh != null))
+                ttip.setTip(ttip_text_warnHigh);
+            else if (isWarnLow && (ttip_text_warnLow != null))
+                ttip.setTip(ttip_text_warnLow);
+            else
+                ttip.setTip(ttip_text);
+        }
+
+        // Callback (TODO docu/refactor)
+        if (sqparent != null)
             sqparent.squareChanged(this, intValue);
     }
 
