@@ -497,6 +497,13 @@ public class TradeOfferPanel extends Panel
         
         private void setCounterOfferVisible(boolean visible)
         {
+            boolean haveResources = true;
+            if(offered)
+            {
+                SOCPlayer player = hp.getGame().getPlayer(hp.getClient().getNickname());
+                haveResources = player.getResources().contains(get);
+            }
+
             giveLab2.setVisible(visible);
             getLab2.setVisible(visible);
             offerSquares.setVisible(visible);
@@ -506,7 +513,7 @@ public class TradeOfferPanel extends Panel
             cancelBut.setVisible(visible);
             offerBox.setVisible(visible);
 
-            acceptBut.setVisible(offered && ! visible);
+            acceptBut.setVisible(haveResources && offered && ! visible);
             rejectBut.setVisible(offered && ! visible);
             offerBut.setVisible(offered && ! visible);
 
