@@ -710,11 +710,11 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     {
         lrPaths.removeAllElements();
 
-        Enumeration enum = vec.elements();
+        Enumeration pathEnum = vec.elements();
 
-        while (enum.hasMoreElements())
+        while (pathEnum.hasMoreElements())
         {
-            SOCLRPathData pd = (SOCLRPathData) enum.nextElement();
+            SOCLRPathData pd = (SOCLRPathData) pathEnum.nextElement();
             D.ebugPrintln("restoring pd for player " + playerNumber + " :" + pd);
             lrPaths.addElement(pd);
         }
@@ -1812,11 +1812,11 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     {
         clearPotentialSettlements();
 
-        Enumeration enum = psList.elements();
+        Enumeration settlementEnum = psList.elements();
 
-        while (enum.hasMoreElements())
+        while (settlementEnum.hasMoreElements())
         {
-            Integer number = (Integer) enum.nextElement();
+            Integer number = (Integer) settlementEnum.nextElement();
             potentialSettlements[number.intValue()] = true;
         }
     }
