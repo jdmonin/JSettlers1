@@ -60,6 +60,7 @@ import soc.message.SOCMoveRobber;
 import soc.message.SOCPlayerElement;
 import soc.message.SOCPotentialSettlements;
 import soc.message.SOCPutPiece;
+import soc.message.SOCRejectConnection;
 import soc.message.SOCRejectOffer;
 import soc.message.SOCResourceCount;
 import soc.message.SOCRobotDismiss;
@@ -68,6 +69,7 @@ import soc.message.SOCSetPlayedDevCard;
 import soc.message.SOCSetTurn;
 import soc.message.SOCSitDown;
 import soc.message.SOCStartGame;
+import soc.message.SOCStatusMessage;
 import soc.message.SOCTurn;
 import soc.message.SOCUpdateRobotParams;
 
@@ -273,6 +275,14 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         {
             switch (mes.getType())
             {
+            /**
+             * status message
+             */
+            case SOCMessage.STATUSMESSAGE:
+                handleSTATUSMESSAGE((SOCStatusMessage) mes);
+
+                break;
+
             /**
              * server ping
              */
@@ -561,6 +571,15 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                 handleROBOTDISMISS((SOCRobotDismiss) mes);
 
                 break;
+
+            /**
+             * handle the reject connection message - JM TODO: placement within switch? (vs displaylesscli, playercli) 
+             */
+            case SOCMessage.REJECTCONNECTION:
+                handleREJECTCONNECTION((SOCRejectConnection) mes);
+
+                break;
+
             }
         }
         catch (Throwable e)
@@ -653,6 +672,15 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         {
             D.ebugPrintln("**** sent SOCJoinGame ****");
         }
+    }
+
+    /**
+     * handle the "status message" message by printing it to System.err
+     * @param mes  the message
+     */
+    protected void handleSTATUSMESSAGE(SOCStatusMessage mes)
+    {
+        System.err.println("Robot " + getNickname() + ": Status from server: " + mes.getStatus());
     }
 
     /**

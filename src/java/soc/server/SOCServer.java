@@ -113,6 +113,10 @@ public class SOCServer extends Server
      */
     public static SOCRobotParameters ROBOT_PARAMS_SMARTER
         = new SOCRobotParameters(120, 35, 0.13f, 1.0f, 1.0f, 3.0f, 1.0f, 0, 1);
+    
+    /** Status Message to send, nickname already logged into the system */
+    public static final String MSG_NICKNAME_ALREADY_IN_USE
+        = "Someone with that nickname is already logged into the system.";
 
     /**
      * list of chat channels
@@ -1943,7 +1947,7 @@ public class SOCServer extends Server
              */
             if ((c.getData() == null) && (!checkNickname(mes.getNickname())))
             {
-                c.put(SOCStatusMessage.toCmd("Someone with that nickname is already logged into the system."));
+                c.put(SOCStatusMessage.toCmd(MSG_NICKNAME_ALREADY_IN_USE));
 
                 return;
             }
@@ -2076,6 +2080,20 @@ public class SOCServer extends Server
     {
         if (c != null)
         {
+            /**
+             * Check that the nickname is ok
+             */
+            if ((c.getData() == null) && (!checkNickname(mes.getNickname())))
+            {
+                c.put(SOCStatusMessage.toCmd(MSG_NICKNAME_ALREADY_IN_USE));
+                SOCRejectConnection rcCommand = new SOCRejectConnection(MSG_NICKNAME_ALREADY_IN_USE);
+                c.put(rcCommand.toCmd());
+                System.err.println("Robot login attempt, name already in use: " + mes.getNickname());
+                // c.disconnect();
+
+                return;
+            }
+
             SOCRobotParameters params = null;
             //
             // send the current robot parameters
@@ -2122,7 +2140,7 @@ public class SOCServer extends Server
              */
             if ((c.getData() == null) && (!checkNickname(mes.getNickname())))
             {
-                c.put(SOCStatusMessage.toCmd("Someone with that nickname is already logged into the system."));
+                c.put(SOCStatusMessage.toCmd(MSG_NICKNAME_ALREADY_IN_USE));
 
                 return;
             }

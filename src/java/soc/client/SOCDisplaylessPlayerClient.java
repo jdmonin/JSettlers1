@@ -131,6 +131,11 @@ public class SOCDisplaylessPlayerClient implements Runnable
     protected Exception ex = null;
     protected boolean connected = false;
 
+    /** 
+     * were we rejected from server? (full or robot name taken)
+     */
+    protected boolean rejected = false;
+
     /**
      * the nickname
      */
@@ -1586,6 +1591,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
      */
     protected void handleREJECTCONNECTION(SOCRejectConnection mes)
     {
+        rejected = true;
         disconnect();
     }
 
