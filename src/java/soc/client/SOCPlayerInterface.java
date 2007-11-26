@@ -252,7 +252,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         FontMetrics fm = this.getFontMetrics(textInput.getFont());
         textInput.setSize(SOCBoardPanel.getPanelX(), fm.getHeight() + 4);
-        textInput.setBackground(new Color(255, 230, 162));
+        textInput.setBackground(Color.white);  // new Color(255, 230, 162));
         textInput.setForeground(Color.black);
         textInput.setEditable(false);
         textInput.setText("Please wait...");
