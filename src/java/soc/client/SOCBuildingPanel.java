@@ -78,6 +78,13 @@ public class SOCBuildingPanel extends Panel implements ActionListener
     SOCPlayerInterface pi;
 
     /**
+     * Client's player data.  Initially null; call setPlayer once seat is chosen.
+     *
+     * @see #setPlayer()
+     */
+    SOCPlayer player;
+
+    /**
      * make a new building panel
      *
      * @param pi  the player interface that this panel is in
@@ -87,6 +94,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         super();
         setLayout(null);
 
+        this.player = null;
         this.pi = pi;
 
         setBackground(new Color(156, 179, 94));
@@ -110,6 +118,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         roadClay = new ColorSquare(ColorSquare.CLAY, 1);
         add(roadClay);
         roadBut = new Button("---");
+        roadBut.setEnabled(false);
         add(roadBut);
         roadBut.setActionCommand(ROAD);
         roadBut.addActionListener(this);
@@ -130,6 +139,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         settlementSheep = new ColorSquare(ColorSquare.SHEEP, 1);
         add(settlementSheep);
         settlementBut = new Button("---");
+        settlementBut.setEnabled(false);
         add(settlementBut);
         settlementBut.setActionCommand(STLMT);
         settlementBut.addActionListener(this);
@@ -146,6 +156,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         cityOre = new ColorSquare(ColorSquare.ORE, 3);
         add(cityOre);
         cityBut = new Button("---");
+        cityBut.setEnabled(false);
         add(cityBut);
         cityBut.setActionCommand(CITY);
         cityBut.addActionListener(this);
@@ -164,6 +175,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         cardOre = new ColorSquare(ColorSquare.ORE, 1);
         add(cardOre);
         cardBut = new Button("---");
+        cardBut.setEnabled(false);
         add(cardBut);
         cardBut.setActionCommand(CARD);
         cardBut.addActionListener(this);
@@ -301,14 +313,12 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         try {
         String target = e.getActionCommand();
         SOCGame game = pi.getGame();
-        SOCPlayerClient client = pi.getClient();
-        SOCPlayer ourPlayerData = game.getPlayer(client.getNickname());
 
-        if (ourPlayerData != null)
+        if (player != null)
         {
-            if (game.getCurrentPlayerNumber() == ourPlayerData.getPlayerNumber())
+            if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
             {
-                clickBuildingButton(game, client, target, false);
+                clickBuildingButton(game, pi.getClient(), target, false);
             }
         }
         } catch (Throwable th) {
@@ -378,21 +388,22 @@ public class SOCBuildingPanel extends Panel implements ActionListener
     public void updateButtonStatus()
     {
         SOCGame game = pi.getGame();
-        SOCPlayer player = game.getPlayer(pi.getClient().getNickname());
 
         if (player != null)
         {
-            boolean isCurrent = (game.getCurrentPlayerNumber() == player.getPlayerNumber());
+            int pnum = player.getPlayerNumber();
+            boolean isCurrent = (game.getCurrentPlayerNumber() == pnum);
             int gstate = game.getGameState();
+            boolean currentCanBuy = isCurrent && (gstate == SOCGame.PLAY1);
 
             if (isCurrent && (gstate == SOCGame.PLACING_ROAD))
             {
                 roadBut.setEnabled(true);
                 roadBut.setLabel("Cancel");
             }
-            else if (game.couldBuildRoad(player.getPlayerNumber()))
+            else if (game.couldBuildRoad(pnum))
             {
-                roadBut.setEnabled(isCurrent);
+                roadBut.setEnabled(currentCanBuy);
                 roadBut.setLabel("Buy");
             }
             else
@@ -408,9 +419,9 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                 settlementBut.setEnabled(true);
                 settlementBut.setLabel("Cancel");
             }
-            else if (game.couldBuildSettlement(player.getPlayerNumber()))
+            else if (game.couldBuildSettlement(pnum))
             {
-                settlementBut.setEnabled(isCurrent);
+                settlementBut.setEnabled(currentCanBuy);
                 settlementBut.setLabel("Buy");
             }
             else
@@ -424,9 +435,9 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                 cityBut.setEnabled(true);
                 cityBut.setLabel("Cancel");
             }
-            else if (game.couldBuildCity(player.getPlayerNumber()))
+            else if (game.couldBuildCity(pnum))
             {
-                cityBut.setEnabled(isCurrent);
+                cityBut.setEnabled(currentCanBuy);
                 cityBut.setLabel("Buy");
             }
             else
@@ -435,9 +446,9 @@ public class SOCBuildingPanel extends Panel implements ActionListener
                 cityBut.setLabel("---");
             }
 
-            if (game.couldBuyDevCard(player.getPlayerNumber()))
+            if (game.couldBuyDevCard(pnum))
             {
-                cardBut.setEnabled(isCurrent);
+                cardBut.setEnabled(currentCanBuy);
                 cardBut.setLabel("Buy");
             }
             else
@@ -458,4 +469,19 @@ public class SOCBuildingPanel extends Panel implements ActionListener
         cardCount.setIntValue(newCount);
     }
 
+    /**
+     * Set our player data based on client's nickname,
+     * via game.getPlayer(client.getNickname()).
+     *
+     * @throws IllegalStateException If the player data has already been set
+     */
+    public void setPlayer()
+        throws IllegalStateException
+    {
+        if (player != null)
+            throw new IllegalStateException("Player data is already set");
+
+        SOCGame game = pi.getGame();
+        player = game.getPlayer(pi.getClient().getNickname());
+    }
 }

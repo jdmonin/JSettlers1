@@ -780,6 +780,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
                     if (n.length() == 0)
                     {
+                        status.setText("First enter a nickname, then join a channel or game.");
                         return;
                     }
 
@@ -1707,11 +1708,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             pi.addPlayer(mes.getNickname(), mes.getPlayerNumber());
 
             /**
-             * let the board panel find our player object if we sat down
+             * let the board panel & building panel find our player object if we sat down
              */
             if (nickname.equals(mes.getNickname()))
             {
                 pi.getBoardPanel().setPlayer();
+                pi.getBuildingPanel().setPlayer();
 
                 /**
                  * chenge the face (this is so that old faces don't 'stick')
