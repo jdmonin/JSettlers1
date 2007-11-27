@@ -34,40 +34,40 @@ import java.awt.event.ActionListener;
 
 
 /**
- * This is the dialog to ask players if they want to join an
- * existing practice game, or start a new one.
+ * This is the dialog to confirm when someone clicks the Quit Game button.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
-class SOCPracticeAskDialog extends AskDialog
+class SOCQuitConfirmDialog extends AskDialog
 {
     /**
-     * Creates a new SOCPracticeAskDialog.
+     * Creates a new SOCQuitConfirmDialog.
      *
      * @param cli      Player client interface
      * @param gamePI   Current game's player interface
      */
-    public SOCPracticeAskDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI)
+    public SOCQuitConfirmDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI)
     {
-        super(cli, gamePI, "Practice game in progress",
-            "A practice game is already being played.",
-            "Show this game", "Create another", true, false);
+        super(cli, gamePI, "Really quit game "
+                + gamePI.getGame().getName() + "?",
+            "Do you want to quit the game being played?",
+            "Quit this game", "Continue playing", false, true);
     }
 
     /**
-     * React to the Show button.
+     * React to the Quit button. (call playerInterface.leaveGame)
      */
     public void button1Chosen()
     {
-        pi.show();    
+        pi.leaveGame();
     }
 
     /**
-     * React to the Create button.
+     * React to the Continue button. (Nothing to do)
      */
     public void button2Chosen()
     {
-        pcli.startPracticeGame();
+        // Nothing to do (continue playing)
     }
 
 }

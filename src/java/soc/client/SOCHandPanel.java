@@ -301,6 +301,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         //cardLab = new Label("Cards:");
         //add(cardLab);
         cardList = new List(0, false);
+        cardList.addActionListener(this);  // double-click support
         add(cardList);
 
         roadSq = new ColorSquare(ColorSquare.GREY, 0);
@@ -522,7 +523,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if (target == QUIT)
         {
-            playerInterface.leaveGame();
+            new SOCQuitConfirmDialog(client, playerInterface).show();
         }
         else if (target == DONE)
         {
