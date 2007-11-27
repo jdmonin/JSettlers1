@@ -2237,7 +2237,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             }
 
             // Look first for settlements
-            //   - reminder: socboard.getAdjacentHexesToNode
             id = findNode(x,y);
             if (id > 0)
             {
@@ -2255,11 +2254,24 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     hoverMode = PLACE_SETTLEMENT;
                     hoverPiece = p;
                     hoverID = id;
+
                     StringBuffer sb = new StringBuffer();
-                    if (p.getType() == SOCPlayingPiece.CITY)
-                        sb.append("City: ");
+                    String portDesc = portDescAtNode(id);
+                    if (portDesc != null)
+                    {
+                        sb.append(portDesc);  // "3:1 Port", "2:1 Wood port"
+                        if (p.getType() == SOCPlayingPiece.CITY)
+                            sb.append(" city: ");
+                        else
+                            sb.append(": ");  // port, not port city
+                    }
                     else
-                        sb.append("Settlement: ");
+                    {
+                        if (p.getType() == SOCPlayingPiece.CITY)
+                            sb.append("City: ");
+                        else
+                            sb.append("Settlement: ");
+                    }
                     sb.append(p.getPlayer().getName());
                     setHoverText(sb.toString());
                     hoverTextSet = true;
@@ -2296,55 +2308,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     }
                     else
                     {
-                        int portType;
-                        Integer coordInteger = new Integer(id);
-    
-                        for (portType = SOCBoard.MISC_PORT; portType <= SOCBoard.WOOD_PORT; portType++)
+                        String portDesc = portDescAtNode(id);
+                        if (portDesc != null)
                         {
-                            if (game.getBoard().getPortCoordinates(portType).contains(coordInteger))
-                            {
-                                break;
-                            }
-                        }
-                        if (portType <= SOCBoard.WOOD_PORT)
-                        {
-                            String portDesc;
-                            switch (portType)
-                            {
-                            case SOCBoard.MISC_PORT:
-                                portDesc = "3:1 Port";
-                                break;
-    
-                            case SOCBoard.CLAY_PORT:
-                                portDesc = "2:1 Clay port";
-                                break;
-    
-                            case SOCBoard.ORE_PORT:
-                                portDesc = "2:1 Ore port";
-                                break;
-    
-                            case SOCBoard.SHEEP_PORT:
-                                portDesc = "2:1 Sheep port";
-                                break;
-    
-                            case SOCBoard.WHEAT_PORT:
-                                portDesc = "2:1 Wheat port";
-                                break;
-    
-                            case SOCBoard.WOOD_PORT:
-                                portDesc = "2:1 Wood port";
-                                break;                            
-    
-                            default:
-                                portDesc = "port type " + portType;                        
-                            }
-                        
                             setHoverText(portDesc);
                             hoverTextSet = true;
                             hoverMode = PLACE_INIT_SETTLEMENT;  // const used for hovering-at-port
                             hoverID = id;
-                            
-                        }  // end if-port-found                      
+                        }
                     }
                 }  // end if-node-has-settlement
             }
@@ -2459,6 +2430,65 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             // If no hex, nothing.
             hoverMode = NONE;
             setHoverText(null);
+        }
+
+        /**
+         * Check at this node coordinate for a port, and return its descriptive text.
+         * Does not check for players' settlements or cities, only for the port.
+         *
+         * @param id Node coordinate ID for potential port
+         *
+         * @return Port text description, or null if no port at that node id.
+         *    Text format is "3:1 Port" or "2:1 Wood port".
+         */
+        public String portDescAtNode(int id)
+        {
+            int portType;
+            Integer coordInteger = new Integer(id);
+
+            for (portType = SOCBoard.MISC_PORT; portType <= SOCBoard.WOOD_PORT; portType++)
+            {
+                if (game.getBoard().getPortCoordinates(portType).contains(coordInteger))
+                {
+                    break;
+                }
+            }
+            if (portType > SOCBoard.WOOD_PORT)
+                return null;  // <--- No port found ---
+
+            String portDesc;
+            switch (portType)
+            {
+            case SOCBoard.MISC_PORT:
+                portDesc = "3:1 Port";
+                break;
+
+            case SOCBoard.CLAY_PORT:
+                portDesc = "2:1 Clay port";
+                break;
+
+            case SOCBoard.ORE_PORT:
+                portDesc = "2:1 Ore port";
+                break;
+
+            case SOCBoard.SHEEP_PORT:
+                portDesc = "2:1 Sheep port";
+                break;
+
+            case SOCBoard.WHEAT_PORT:
+                portDesc = "2:1 Wheat port";
+                break;
+
+            case SOCBoard.WOOD_PORT:
+                portDesc = "2:1 Wood port";
+                break;                            
+
+            default:
+                // Just in case
+                portDesc = "port type " + portType;                        
+            }
+
+            return portDesc;
         }
         
     }  // inner class BoardToolTip
