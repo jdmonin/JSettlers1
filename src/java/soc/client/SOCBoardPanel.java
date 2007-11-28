@@ -1110,6 +1110,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             drawCity(g, c.getCoordinates(), c.getPlayer().getPlayerNumber(), false);
         }
 
+        if (player == null)
+            return;  // <--- No hilight when null player (before game started) ---
+
         /**
          * Draw the hilight when in interactive mode
          */
@@ -1395,7 +1398,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
                 // Figure out if this is a legal road
                 // It must be attached to the last stlmt
-                if (!((player.isPotentialRoad(edgeNum)) && ((edgeNum == initstlmt) || (edgeNum == (initstlmt - 0x11)) || (edgeNum == (initstlmt - 0x01)) || (edgeNum == (initstlmt - 0x10)))))
+                if ((player == null) ||
+                     ! ((player.isPotentialRoad(edgeNum)) && ((edgeNum == initstlmt) || (edgeNum == (initstlmt - 0x11)) || (edgeNum == (initstlmt - 0x01)) || (edgeNum == (initstlmt - 0x10)))))
                 {
                     edgeNum = 0;
                 }
@@ -1420,7 +1424,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 ptrOldY = y;
                 edgeNum = findEdge(x, y);
 
-                if (!player.isPotentialRoad(edgeNum))
+                if ((player == null) || !player.isPotentialRoad(edgeNum))
                 {
                     edgeNum = 0;
                 }
@@ -1446,7 +1450,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 ptrOldY = y;
                 nodeNum = findNode(x, y);
 
-                if (!player.isPotentialSettlement(nodeNum))
+                if ((player == null) || !player.isPotentialSettlement(nodeNum))
                 {
                     nodeNum = 0;
                 }
@@ -1477,7 +1481,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 ptrOldY = y;
                 nodeNum = findNode(x, y);
 
-                if (!player.isPotentialCity(nodeNum))
+                if ((player == null) || !player.isPotentialCity(nodeNum))
                 {
                     nodeNum = 0;
                 }
@@ -1642,7 +1646,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             return;  // <--- Ignore click: too soon after popup click ---
         }
 
-        if (hilight > 0)
+        if ((hilight > 0) && (player != null))
         {
             SOCPlayerClient client = playerInterface.getClient();
 
@@ -1766,7 +1770,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 break;
             }
         }
-        else if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
+        else if ((player != null) && (game.getCurrentPlayerNumber() == player.getPlayerNumber()))
         {
             // No hilight. But, they clicked the board, expecting something.
             // It's possible the mode is incorrect.
@@ -2126,7 +2130,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             return ((hoverText != null) || (hoverRoadID != 0)
                     || (hoverSettlementID != 0) || (hoverCityID != 0));
         }
-        
+
+        /**
+         * Show tooltip at appropriate location when mouse
+         * is at (x,y) relative to the board.
+         */
         public void positionToMouse(int x, int y)
         {
             mouseX = x;
@@ -2134,6 +2142,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             boxX = mouseX + offsetX;
             boxY = mouseY;
+            if (offsetX < 5)
+                boxY += 12;
+
             if (SOCBoardPanel.panelx < ( boxX + boxW ))
             {
                 // Try to float it to left of mouse pointer
@@ -2226,7 +2237,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 && (mode != PLACE_INIT_ROAD) && (mode != PLACE_ROBBER)
                 && (mode != GAME_OVER));
             
-            boolean playerIsCurrent = playerInterface.clientIsCurrentPlayer();
+            boolean playerIsCurrent = (player != null) && playerInterface.clientIsCurrentPlayer();
             boolean hoverTextSet = false;  // True once determined
             
             if (! modeAllowsHoverPieces)
@@ -2521,7 +2532,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
        *  or for placement during game (send build, receive gamestate, send putpiece)?
        */
       protected boolean isInitialPlacement;
-      
+
 
       /** the constructor handles everything. The calling class needs only
           to specify which window the menu should appear in. This is
@@ -2577,7 +2588,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
        */
       public void showCancelBuild(int buildType, int x, int y, int hilightAt)
       {
-          menuPlayerIsCurrent = playerInterface.clientIsCurrentPlayer();
+          menuPlayerIsCurrent = (player != null) && playerInterface.clientIsCurrentPlayer();
           wantsCancel = true;
           cancelBuildType = buildType;
           hoverRoadID = 0;
@@ -2645,7 +2656,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
           cancelBuildItem.setEnabled(false);
           cancelBuildItem.setLabel("Cancel build");
          
-          menuPlayerIsCurrent = playerInterface.clientIsCurrentPlayer();
+          menuPlayerIsCurrent = (player != null) && playerInterface.clientIsCurrentPlayer();
           if (menuPlayerIsCurrent)
           {
               int gs = game.getGameState();
@@ -2697,7 +2708,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               hoverSettlementID = hS;
               hoverCityID = hC;
           }
-          
+
           super.show(bp, x, y);
       }
 
@@ -2719,7 +2730,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               tryCancel();
       } 
 
-      /** Assumes player is current when calling */
+      /** Assumes player is current, and player is non-null, when called */
       void tryBuild(int ptype)
       {
           int cpn = playerInterface.getClientPlayerNumber();
@@ -2878,18 +2889,21 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             // Time is up.
             sendOnceFromClientIfCurrentPlayer();
         }
-        
+
         public synchronized void doNotSend()
         {
             wasSentAlready = true;
         }
-        
+
         public synchronized boolean wasItSentAlready()
         {
             return wasSentAlready;
         }
-        
-        /** Internally synchronized around setSentAlready/wasItSentAlready */
+
+        /**
+         * Internally synchronized around setSentAlready/wasItSentAlready.
+         * Assumes player != null because of conditions leading to the call.
+         */
         public void sendOnceFromClientIfCurrentPlayer()
         {
             synchronized (this)
@@ -2898,13 +2912,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     return;
                 doNotSend();  // Since we're about to send it.
             }
-            
+
             // Should only get here once, in one thread.
             if (! playerInterface.clientIsCurrentPlayer())
                 return;  // Stale request, player's already changed
             
             SOCPlayerClient client = playerInterface.getClient();
-            
+
             switch (pieceType)
             {
             case SOCPlayingPiece.ROAD:
