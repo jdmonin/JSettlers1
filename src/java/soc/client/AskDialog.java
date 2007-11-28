@@ -27,6 +27,7 @@ import java.awt.Color;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Label;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
@@ -34,19 +35,41 @@ import java.awt.event.ActionListener;
 
 
 /**
- * This is the dialog to ask players a two-choice question.
+ * This is the generic dialog to ask players a two-choice question.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
 public abstract class AskDialog extends Dialog implements ActionListener
 {
-    protected SOCPlayerClient pcli;  // JM TODO - javadocs
+    /** Player client; passed to constructor, not null */
+    protected SOCPlayerClient pcli;
+
+    /** Player interface; passed to constructor, not null */
     protected SOCPlayerInterface pi;
 
+    /** Prompt message, or null */
     protected Label msg;
+
+    /** Button for first choice.
+     *
+     * @see #button1Chosen()
+     */
     protected Button choice1But;
+
+    /** Button for second choice.
+     *
+     * @see #button2Chosen()
+     */
     protected Button choice2But;
+
+    /** Is this choice the default? */
     protected boolean choice1Default, choice2Default;
+
+    /** Desired size **/
+    protected int wantW, wantH;
+
+    /** Padding beyond desired size; not known until show() **/
+    protected int padW, padH;
 
     /**
      * Creates a new AskDialog.
@@ -60,8 +83,8 @@ public abstract class AskDialog extends Dialog implements ActionListener
      * @param default1 First choice is default  // JM TODO - return key?
      * @param default2 Second choice is default
      *
-     * @throws IllegalArgumentException If choice1 or choice2 is null, or if both
-     *    default1 and default2 are true.
+     * @throws IllegalArgumentException If both default1 and default2 are true,
+     *    or if any of these is null: cli, gamePI, prompt, choice1, choice2.
      */
     public AskDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI,
         String titlebar, String prompt, String choice1, String choice2,
@@ -70,18 +93,22 @@ public abstract class AskDialog extends Dialog implements ActionListener
     {
         super(gamePI, titlebar, true);
 
+        if (cli == null)
+            throw new IllegalArgumentException("cli cannot be null");
+        if (gamePI == null)
+            throw new IllegalArgumentException("gamePI cannot be null");
     	if (choice1 == null)
-                throw new IllegalArgumentException("Choice1 cannot be null");
+            throw new IllegalArgumentException("choice1 cannot be null");
     	if (choice2 == null)
-                throw new IllegalArgumentException("Choice2 cannot be null");
+            throw new IllegalArgumentException("choice2 cannot be null");
     	if (default1 && default2)
-                throw new IllegalArgumentException("Cannot have 2 default buttons");
+            throw new IllegalArgumentException("Cannot have 2 default buttons");
 
         pcli = cli;
         pi = gamePI;
         setBackground(new Color(255, 230, 162));
         setForeground(Color.black);
-        setFont(new Font("Geneva", Font.PLAIN, 12));
+        setFont(new Font("SansSerif", Font.PLAIN, 12));  // JM TODO - font name?
 
         choice1But = new Button(choice1);
         choice2But = new Button(choice2);
@@ -89,10 +116,18 @@ public abstract class AskDialog extends Dialog implements ActionListener
         choice2Default = default2;
 
         setLayout (new BorderLayout());
-        setSize(280, 60 + 2 * ColorSquare.HEIGHT);
 
         msg = new Label(prompt, Label.CENTER);
         add(msg, BorderLayout.CENTER);
+
+        wantW = 6 + getFontMetrics(msg.getFont()).stringWidth(prompt);
+        if (wantW < 280)
+            wantW = 280;
+        wantH = 40 + 2 * ColorSquare.HEIGHT;
+        padW = 0;  // Won't be able to call getInsets and know the values, until show()
+        padH = 0;
+        setSize(wantW + 6, wantH + 20);
+        setLocation(150, 100);
 
         Panel pBtns = new Panel();
         pBtns.setLayout(new FlowLayout(FlowLayout.CENTER));
@@ -104,11 +139,39 @@ public abstract class AskDialog extends Dialog implements ActionListener
         choice2But.addActionListener(this);
 
         add(pBtns, BorderLayout.SOUTH);
-
     }
 
     /**
-     * When dialog becomes visible, set location and set focus to the default button.
+     * Adjust size (insets) and set focus to the default button.
+     */
+    protected void checkSizeAndFocus()
+    {
+        // Can't call getInsets and know the values, until show().
+        // Maybe not even then (STATE).
+        padW = getInsets().left + getInsets().right;
+        padH = getInsets().top + getInsets().bottom;
+        if ((padW > 0) || (padH > 0))
+        {
+            setSize (wantW + padW, wantH + padH);
+        }
+
+        if (choice1Default)
+            choice1But.requestFocus();
+        else if (choice2Default)
+            choice2But.requestFocus();
+    }
+
+    /**
+     * When dialog becomes visible, adjust size (insets) and set focus to the default button.
+     */
+    public void show()
+    {
+        super.show();
+        checkSizeAndFocus();
+    }
+
+    /**
+     * When dialog becomes visible, adjust size (insets) and set focus to the default button.
      *
      * @param b Visible?
      */
@@ -117,14 +180,7 @@ public abstract class AskDialog extends Dialog implements ActionListener
         super.setVisible(b);
 
         if (b)
-        {
-            setLocation(150, 100);  // JM TODO -does not work,shows at (0,0)
-
-            if (choice1Default)
-                choice1But.requestFocus();
-            else if (choice2Default)
-                choice2But.requestFocus();
-        }
+            checkSizeAndFocus();
     }
 
     /**
