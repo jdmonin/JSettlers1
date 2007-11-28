@@ -141,11 +141,13 @@ public class TradeOfferPanel extends Panel
         Label giveLab;
         Label getLab;
 
+        /** Offer received */
         SquaresPanel squares;
         Button offerBut;
         Button acceptBut;
         Button rejectBut;
         ShadowedBox offerBox;
+        /** Counter-offer to send */
         SquaresPanel offerSquares;
         Label giveLab2;
         Label getLab2;
@@ -510,6 +512,8 @@ public class TradeOfferPanel extends Panel
 
             giveLab2.setVisible(visible);
             getLab2.setVisible(visible);
+            if (visible)
+                offerSquares.setValues(zero, zero);  // Clear prev. counteroffer
             offerSquares.setVisible(visible);
 
             sendBut.setVisible(visible);

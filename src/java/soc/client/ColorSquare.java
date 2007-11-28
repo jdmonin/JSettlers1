@@ -746,14 +746,20 @@ public class ColorSquare extends Canvas implements MouseListener
      */
     public void setIntValue(int v)
     {
-        boolean chg = (intValue != v);
-        if (! chg)
+        if (intValue == v)
             return;  // <-- Early return: No change in intValue
 
+        // Must check for zero before change, because
+        // isWarnLow is also true for 0, but they
+        // have different tooltip texts.
+        boolean wasZero = ((intValue == 0) && (ttip_text_zero != null));  
+
+        // Set the new value
         intValue = v;
 
         // Zero isn't flagged graphically, unless its tooltip text is set
         boolean isZero = ((intValue == 0) && (ttip_text_zero != null));
+
         // Previous and new low/high warning flags
         boolean wasWarnLow = isWarnLow;
         boolean wasWarnHigh = isWarnHigh;
@@ -763,12 +769,14 @@ public class ColorSquare extends Canvas implements MouseListener
         repaint();
 
         // Possible tooltip text update
-        if ((ttip_text != null) &&
-            (isZero || (isWarnLow != wasWarnLow) || (isWarnHigh != wasWarnHigh)))
+        if (isZero)
         {
-            if (isZero)
-                ttip.setTip(ttip_text_zero);
-            else if (isWarnHigh && (ttip_text_warnHigh != null))
+            ttip.setTip(ttip_text_zero);            
+        }
+        else if ((ttip_text != null) &&
+            ((isZero != wasZero) || (isWarnLow != wasWarnLow) || (isWarnHigh != wasWarnHigh)))
+        {
+            if (isWarnHigh && (ttip_text_warnHigh != null))
                 ttip.setTip(ttip_text_warnHigh);
             else if (isWarnLow && (ttip_text_warnLow != null))
                 ttip.setTip(ttip_text_warnLow);
