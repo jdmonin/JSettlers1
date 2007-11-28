@@ -36,6 +36,10 @@ import java.awt.TextArea;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.TextEvent;
+import java.awt.event.TextListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -60,6 +64,55 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * where the player types in text
      */
     protected TextField textInput;
+
+    /**
+     * Not yet typed-in; display prompt message.
+     *
+     * @see #textInput
+     * @see #TEXTINPUT_INITIAL_PROMPT_MSG
+     */
+    protected boolean textInputIsInitial;
+
+    /**
+     * At least one text chat line has been sent by the player.
+     * Don't show the initial prompt message if the text field
+     * becomes blank again.
+     *
+     * @see #textInput
+     * @see #TEXTINPUT_INITIAL_PROMPT_MSG
+     */
+    protected boolean textInputHasSent;
+    
+    /**
+     * Number of change-of-turns during game, after which
+     * the initial prompt message fades to light grey.
+     *
+     * @see #textInput
+     * @see #textInputGreyCountFrom
+     */
+    protected int textInputGreyCountdown;
+    
+    /**
+     * Initial value (20 turns) for textInputGreyCountdown
+     *
+     * @see #textInputGreyCountdown
+     */
+    protected static int textInputGreyCountFrom = 20;
+
+    /**
+     * Not yet typed-in; display prompt message.
+     *
+     * @see #textInput
+     */
+    public static final String TEXTINPUT_INITIAL_PROMPT_MSG
+        = "Type here to chat.";
+
+    /**
+     * Used for responding to textfield changes by setting/clearing prompt message.
+     *
+     * @see #textInput
+     */
+    protected SOCPITextfieldListener textInputListener;
 
     /**
      * where text is displayed
@@ -249,17 +302,24 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         textInput = new TextField();
         textInput.setFont(new Font("Monoco", Font.PLAIN, 10));
+        textInputListener = new SOCPITextfieldListener(this); 
+        textInputHasSent = false;
+        textInputGreyCountdown = textInputGreyCountFrom;
+        textInput.addKeyListener(textInputListener);
+        textInput.addTextListener(textInputListener);
 
         FontMetrics fm = this.getFontMetrics(textInput.getFont());
         textInput.setSize(SOCBoardPanel.getPanelX(), fm.getHeight() + 4);
         textInput.setBackground(Color.white);  // new Color(255, 230, 162));
         textInput.setForeground(Color.black);
         textInput.setEditable(false);
+        textInputIsInitial = false;  // due to "please wait"
         textInput.setText("Please wait...");
         add(textInput);
         textInput.addActionListener(this);
 
-        addWindowListener(new MyWindowAdapter());
+        /** If user requests window close, ask if they're sure, leave game if so */
+        addWindowListener(new MyWindowAdapter(this));
     }
 
     /**
@@ -406,6 +466,19 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 return;
             }
 
+            // Remove listeners for lower overhead on future typing
+            if (! textInputHasSent)
+            {
+                textInputHasSent = true;
+                if (textInputListener != null)
+                {
+                    textInput.removeKeyListener(textInputListener);
+                    textInput.removeTextListener(textInputListener);
+                    textInputListener = null;
+                }
+            }
+
+            // Clear and send to game at server
             textInput.setText("");
             client.sendText(game, s + "\n");
         }
@@ -513,7 +586,10 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     public void began()
     {
         textInput.setEditable(true);
-        textInput.setText("");
+        textInput.setText(TEXTINPUT_INITIAL_PROMPT_MSG);
+        textInputIsInitial = true;
+        textInputGreyCountdown = textInputGreyCountFrom;
+        textInput.setForeground(Color.DARK_GRAY);
         textInput.requestFocus();
 
         if ((game.getGameState() == SOCGame.NEW) || (game.getGameState() == SOCGame.READY))
@@ -629,6 +705,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         boardPanel.updateMode();
         boardPanel.repaint();
+        if (textInputGreyCountdown > 0)
+        {
+            --textInputGreyCountdown;
+            if ((textInputGreyCountdown == 0) && textInputIsInitial)
+            {
+                textInput.setForeground(Color.LIGHT_GRAY);
+            }
+        }
 
         // No need for a buildingPanel.updateAtTurn;
         //   its updateButtonStatus is called from client.handleGAMESTATE.
@@ -814,14 +898,72 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         boardPanel.doLayout();
     }
 
-    private class MyWindowAdapter extends WindowAdapter
+    private static class MyWindowAdapter extends WindowAdapter
     {
+        private SOCPlayerInterface pi;
+
+        public MyWindowAdapter(SOCPlayerInterface spi)
+        {
+            pi = spi;
+        }
+
         /**
-         * Leave the game when the window closes.
+         * Ask if they're sure - Leave the game when the window closes.
          */
         public void windowClosing(WindowEvent e)
         {
-            leaveGame();
+            // leaveGame();
+            new SOCQuitConfirmDialog(pi.getClient(), pi).show();
+        }
+    }
+
+    /**
+     * Used for chat textfield setting/clearing initial prompt text
+     * (TEXTINPUT_INITIAL_PROMPT_MSG).
+     * It's expected that after the player sends their first line of chat text,
+     * the listeners will be removed so we don't have the overhead of
+     * calling these methods.
+     */
+    private static class SOCPITextfieldListener extends KeyAdapter implements TextListener
+    {
+        private SOCPlayerInterface pi;
+
+        public SOCPITextfieldListener(SOCPlayerInterface spi)
+        {
+            pi = spi;
+        }
+
+        /** If first keypress in initially empty field, clear that prompt message */
+        public void keyPressed(KeyEvent e)
+        {            
+            if (! pi.textInputIsInitial)
+            {
+                return;
+            }
+            pi.textInput.setText("");  // Clear to make room for text being typed
+            pi.textInputIsInitial = false;  // and _then_ set initial to false
+            pi.textInput.setForeground(Color.BLACK);
+        }
+
+        /**
+         * If input text is cleared, and field is again empty, show the
+         * prompt message unless they've already sent a line of chat.
+         */
+        public void textValueChanged(TextEvent e)
+        {
+            if (pi.textInputIsInitial || pi.textInputHasSent)
+            {
+                return;
+            }
+            if (pi.textInput.getText().length() == 0)
+            {
+                // Former contents were erased,
+                // show the prompt message.
+                pi.textInputIsInitial = true;
+                pi.textInputGreyCountdown = textInputGreyCountFrom;
+                pi.textInput.setText(TEXTINPUT_INITIAL_PROMPT_MSG);
+                pi.textInput.setForeground(Color.DARK_GRAY);
+            }
         }
     }
 }
