@@ -159,7 +159,7 @@ public class AWTToolTip
       mousePosAtWinShowY = y - parentY;
 
       // Goals:
-      // - Don't have it extend off the screen
+      // - Don't have it extend off the visible area
       // - Mouse pointer tip should not be within our bounding box (flickers)
 
       if ( ((x >= boxX) && (x < (boxX + boxW)))
@@ -174,9 +174,10 @@ public class AWTToolTip
           }
       }
       if ( ((y >= boxY) && (y < (boxY + boxH)))
-          || (mainParentComp.getSize().height <= ( boxY + boxH )) )
+          || ((mainParentComp.getSize().height - mainParentComp.getInsets().bottom)
+               <= ( boxY + boxH )) )
       {
-          // Try to float it to above mouse pointer
+          // Try to float it above mouse pointer
           boxY = y - boxH - OFFSET_Y;
           if (boxY < 0)
           {
@@ -374,6 +375,9 @@ public class AWTToolTip
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ *
+ * Revision 1.7  2007/11/27 20:16:00  jm
+ * - Note bottom insets when placing near bottom of window
  *
  * Revision 1.6  2007/11/10 23:05:00  jm
  * - JSettlers package

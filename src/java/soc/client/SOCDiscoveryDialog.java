@@ -62,10 +62,11 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         setLayout(null);
         addNotify();
-        setSize(280, 60 + 3 * ColorSquareLarger.HEIGHT_L);
 
         msg = new Label("Please pick two resources.", Label.CENTER);
         add(msg);
+
+        setSize(280, 60 + 3 * ColorSquareLarger.HEIGHT_L);
 
         add(doneBut);
         doneBut.addActionListener(this);
@@ -113,7 +114,17 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
         int width = getSize().width - getInsets().left - getInsets().right;
         int height = getSize().height - getInsets().top - getInsets().bottom;
         int space = 5;
-        int msgW = this.getFontMetrics(this.getFont()).stringWidth(msg.getText());
+
+        // Account for bottom inset (browser applet warning message)
+        if (height < (35 + 3 * ColorSquareLarger.HEIGHT_L))
+        {
+            int insetPad = getInsets().top + getInsets().bottom;
+            // force taller
+            height = 3 + 35 + 3 * ColorSquareLarger.HEIGHT_L + insetPad;
+            setSize (getSize().width, height);
+            // adj for further calcs
+            height = getSize().height - insetPad;
+        }
 
         int pix = pi.getInsets().left;
         int piy = pi.getInsets().top;
@@ -132,6 +143,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         if (msg != null)
         {
+            int msgW = this.getFontMetrics(this.getFont()).stringWidth(msg.getText());
             msg.setBounds((width - msgW) / 2, getInsets().top, msgW + 4, 20);
         }
 
