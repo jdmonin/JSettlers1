@@ -70,4 +70,12 @@ class SOCPracticeAskDialog extends AskDialog
         pcli.startPracticeGame();
     }
 
+    /**
+     * React to the dialog window closed by user. (same as Show button)
+     */
+    public void windowCloseChosen()
+    {
+        button1Chosen();
+    }
+
 }

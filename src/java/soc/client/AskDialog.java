@@ -32,6 +32,8 @@ import java.awt.Label;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 
 
 /**
@@ -39,7 +41,7 @@ import java.awt.event.ActionListener;
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
-public abstract class AskDialog extends Dialog implements ActionListener
+public abstract class AskDialog extends Dialog implements ActionListener, WindowListener
 {
     /** Player client; passed to constructor, not null */
     protected SOCPlayerClient pcli;
@@ -108,7 +110,7 @@ public abstract class AskDialog extends Dialog implements ActionListener
         pi = gamePI;
         setBackground(new Color(255, 230, 162));
         setForeground(Color.black);
-        setFont(new Font("SansSerif", Font.PLAIN, 12));  // JM TODO - font name?
+        setFont(new Font("Dialog", Font.PLAIN, 12));  // JM TODO - font name?
 
         choice1But = new Button(choice1);
         choice2But = new Button(choice2);
@@ -139,6 +141,8 @@ public abstract class AskDialog extends Dialog implements ActionListener
         choice2But.addActionListener(this);
 
         add(pBtns, BorderLayout.SOUTH);
+        
+        addWindowListener(this);  // To handle close-button
     }
 
     /**
@@ -218,5 +222,38 @@ public abstract class AskDialog extends Dialog implements ActionListener
      * actionPerformed has already called dialog.dispose().
      */
     public abstract void button2Chosen();
+
+    /**
+     * The dialog window was closed by the user, or ESC was pressed. React accordingly.
+     * AskDialog has already called dialog.dispose().
+     */
+    public abstract void windowCloseChosen();
+
+    /**
+     * Dialog close requested by user. Dispose and call windowCloseChosen.
+     */
+    public void windowClosing(WindowEvent e)
+    {
+        dispose();
+        windowCloseChosen();
+    }
+
+    /** Stub required by WindowListener */
+    public void windowActivated(WindowEvent e) { }
+
+    /** Stub required by WindowListener */
+    public void windowClosed(WindowEvent e) { }
+
+    /** Stub required by WindowListener */
+    public void windowDeactivated(WindowEvent e) { }
+
+    /** Stub required by WindowListener */
+    public void windowDeiconified(WindowEvent e) { }
+
+    /** Stub required by WindowListener */
+    public void windowIconified(WindowEvent e) { }
+
+    /** Stub required by WindowListener */
+    public void windowOpened(WindowEvent e) { }
 
 }

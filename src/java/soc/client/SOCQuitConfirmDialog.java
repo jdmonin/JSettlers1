@@ -70,4 +70,12 @@ class SOCQuitConfirmDialog extends AskDialog
         // Nothing to do (continue playing)
     }
 
+    /**
+     * React to the dialog window closed by user. (Nothing to do)
+     */
+    public void windowCloseChosen()
+    {
+        // Nothing to do (continue playing)
+    }
+
 }
