@@ -748,6 +748,28 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             // Are we already in a game with that name?
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gm);
 
+            if ((pi == null)
+                && ((target == pg) || (target == pgm))
+                && (practiceServer != null)
+                && (gm.equalsIgnoreCase(DEFAULT_PRACTICE_GAMENAME)))
+            {
+                // Practice game requested, no game named "Practice" already exists.
+                // Check for other active practice games.
+
+                Enumeration gamesEnum = practiceServer.getGameNames();
+                while (gamesEnum.hasMoreElements())
+                {
+                    String tryGm = (String) gamesEnum.nextElement();
+                    int gs = practiceServer.getGameState(tryGm);
+                    if (gs != SOCGame.OVER)
+                    {
+                        pi = (SOCPlayerInterface) playerInterfaces.get(tryGm);
+                        if (pi != null)
+                            break;  // Active and we have a window with it
+                    }
+                }
+            }
+
             if ((pi != null) && ((target == pg) || (target == pgm)))
             {
                 // Practice game requested, already exists.
@@ -2831,7 +2853,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         // String gameName = thing + STATSPREFEX + "-- -- -- --]";
 
-        if (gmlist.getItem(0).equals(" "))
+        if ((gmlist.countItems() > 0) && (gmlist.getItem(0).equals(" ")))
         {
             gmlist.replaceItem(gameName, 0);
             gmlist.select(0);

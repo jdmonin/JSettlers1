@@ -773,6 +773,29 @@ public class SOCServer extends Server
     }
 
     /**
+     * @return The names (Strings) of games on this server
+     */
+    public Enumeration getGameNames()
+    {
+        return gameList.getGames();
+    }
+
+    /**
+     * Given a game name on this server, return its state.
+     *
+     * @param gm Game name
+     * @return Game's state, or -1 if no game with that name on this server
+     */
+    public int getGameState(String gm)
+    {
+        SOCGame g = gameList.getGameData(gm);
+        if (g != null)
+            return g.getGameState();
+        else
+            return -1;
+    }
+
+    /**
      * the connection c leaves all channels it was in
      *
      * @param c  the connection
