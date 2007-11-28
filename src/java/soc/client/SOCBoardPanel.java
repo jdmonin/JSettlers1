@@ -20,7 +20,6 @@
  **/
 package soc.client;
 
-import soc.client.SOCHandPanel.HandPanelAutoRollTask;
 import soc.game.SOCBoard;
 import soc.game.SOCCity;
 import soc.game.SOCGame;
@@ -47,7 +46,6 @@ import java.awt.event.MouseMotionListener;
 
 import java.util.Enumeration;
 import java.util.Timer;
-import java.util.TimerTask;
 
 
 /**
@@ -1061,16 +1059,16 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             drawHex(g, i);
         }
 
+        int gameState = game.getGameState();
+
         if (board.getRobberHex() != -1)
         {
-            drawRobber(g, board.getRobberHex(), (mode != PLACE_ROBBER));
+            drawRobber(g, board.getRobberHex(), (gameState != SOCGame.PLACING_ROBBER));
         }
 
         int pn;
         int idx;
         int max;
-
-        int gameState = game.getGameState();
 
         if (gameState != SOCGame.NEW)
         {
@@ -1230,15 +1228,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
                 case SOCGame.PLACING_ROBBER:
                     mode = PLACE_ROBBER;
-                    
+
                     break;
                     
                 case SOCGame.NEW:
                 case SOCGame.READY:
                     mode = GAME_FORMING;
-                    
+
                     break;
-                    
+
                 case SOCGame.OVER:
                     mode = GAME_OVER;
 
