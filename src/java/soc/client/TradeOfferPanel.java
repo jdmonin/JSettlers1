@@ -512,8 +512,8 @@ public class TradeOfferPanel extends Panel
 
             giveLab2.setVisible(visible);
             getLab2.setVisible(visible);
-            if (visible)
-                offerSquares.setValues(zero, zero);  // Clear prev. counteroffer
+            if (! visible)
+                offerSquares.setValues(zero, zero);  // Clear counteroffer for next use
             offerSquares.setVisible(visible);
 
             sendBut.setVisible(visible);
