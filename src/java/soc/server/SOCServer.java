@@ -3026,18 +3026,18 @@ public class SOCServer extends Server
                          */
                         if (ga.getCurrentDice() != 7)
                         {
+                            boolean noPlayersGained = true;
+
                             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
                             {
                                 if (! ga.isSeatVacant(i))
                                 {
                                     SOCResourceSet rsrcs = ga.getResourcesGainedFromRoll(ga.getPlayer(i), ga.getCurrentDice());
     
-                                    if (rsrcs.getTotal() == 0)
+                                    if (rsrcs.getTotal() != 0)
                                     {
-                                        messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, ga.getPlayer(i).getName() + " got nothing."));
-                                    }
-                                    else
-                                    {
+                                        noPlayersGained = false;
+
                                         String message = ga.getPlayer(i).getName() + " got ";
                                         int cl;
                                         int or;
@@ -3134,6 +3134,11 @@ public class SOCServer extends Server
                                     }
                                 }  // if (! ga.isSeatVacant(i))
                             }  // for (i)
+
+                            if (noPlayersGained)
+                            {
+                                messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, "No player got anything."));
+                            }
 
                             /*
                                if (D.ebugOn) {
