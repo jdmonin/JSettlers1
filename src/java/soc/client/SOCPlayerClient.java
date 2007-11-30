@@ -145,6 +145,20 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     public static String NET_UNAVAIL_CAN_PRACTICE_MSG = "The server is unavailable. You can still play practice games.";
 
     /**
+     * Hint message if they try to join game without entering a nickname.
+     *
+     * @see #NEED_NICKNAME_BEFORE_JOIN_2
+     */
+    public static String NEED_NICKNAME_BEFORE_JOIN = "First enter a nickname, then join a channel or game.";
+    
+    /**
+     * Stronger hint message if they still try to join game without entering a nickname.
+     *
+     * @see #NEED_NICKNAME_BEFORE_JOIN
+     */
+    public static String NEED_NICKNAME_BEFORE_JOIN_2 = "You must enter a nickname before you can join a channel or game.";
+    
+    /**
      * the nickname
      */
     protected String nickname = null;
@@ -647,6 +661,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
                     if (n.length() == 0)
                     {
+                        if (status.getText().equals(NEED_NICKNAME_BEFORE_JOIN))
+                            // Send stronger hint message
+                            status.setText(NEED_NICKNAME_BEFORE_JOIN_2);
+                        else
+                            // Send first hint message (or re-send first if they've seen _2)
+                            status.setText(NEED_NICKNAME_BEFORE_JOIN);
                         return;
                     }
 
@@ -802,7 +822,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
                     if (n.length() == 0)
                     {
-                        status.setText("First enter a nickname, then join a channel or game.");
+                        if (status.getText().equals(NEED_NICKNAME_BEFORE_JOIN))
+                            // Send stronger hint message
+                            status.setText(NEED_NICKNAME_BEFORE_JOIN_2);
+                        else
+                            // Send first hint message (or re-send first if they've seen _2)
+                            status.setText(NEED_NICKNAME_BEFORE_JOIN);
                         return;
                     }
 
