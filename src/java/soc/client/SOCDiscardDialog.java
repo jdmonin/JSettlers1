@@ -54,6 +54,9 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
     int numDiscards;
     int numChosen;  // Button disabled unless proper number of resources are chosen
 
+    /** Desired size (visible size inside of insets) **/
+    protected int wantW, wantH;
+
     /**
      * Creates a new SOCDiscardDialog object.
      *
@@ -74,8 +77,11 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
         discardBut = new Button("Discard");
 
         setLayout(null);
-        
-        setSize(280, 190);
+
+        // wantH formula based on doLayout
+        wantW = 270;
+        wantH = 15 + 5 + (2 * (20 + 5 + 15 + 5)) + 25 + 5;
+        setSize(wantW + 10, wantH + 20);  // Can calc & add room for insets at doLayout
 
         msg = new Label("Please discard " + Integer.toString(numDiscards) + " resources.", Label.CENTER);
         add(msg);
@@ -160,6 +166,14 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
 
         int keepY;
         int discY;
+
+        /* check visible-size vs insets */
+        if ((width < wantW) || (height < wantH))
+        {
+            setSize (wantW + getInsets().left + getInsets().right,
+                     wantH + getInsets().top + getInsets().bottom);
+            height = getSize().height - getInsets().top - getInsets().bottom;
+        }
 
         /* put the dialog in the center of the game window */
         setLocation(cfx + ((cfwidth - width) / 2), cfy + ((cfheight - height) / 2));
