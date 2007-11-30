@@ -36,6 +36,8 @@ import java.awt.TextArea;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.TextEvent;
@@ -307,6 +309,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         textInputGreyCountdown = textInputGreyCountFrom;
         textInput.addKeyListener(textInputListener);
         textInput.addTextListener(textInputListener);
+        textInput.addFocusListener(textInputListener);
 
         FontMetrics fm = this.getFontMetrics(textInput.getFont());
         textInput.setSize(SOCBoardPanel.getPanelX(), fm.getHeight() + 4);
@@ -318,7 +321,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         add(textInput);
         textInput.addActionListener(this);
 
-        /** If user requests window close, ask if they're sure, leave game if so */
+        /** If player requests window close, ask if they're sure, leave game if so */
         addWindowListener(new MyWindowAdapter(this));
     }
 
@@ -455,6 +458,15 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     {
         if (e.getSource() == textInput)
         {
+            if (textInputIsInitial)
+            {
+                // Player hit enter while chat prompt is showing (TEXTINPUT_INITIAL_PROMPT_MSG).
+                // Just clear the prompt so they can type what they want to say.
+                textInputSetToInitialPrompt(false);
+                textInput.setText(" ");  // Not completely empty, so TextListener won't re-set prompt.
+                return;
+            }
+
             String s = textInput.getText().trim();
 
             if (s.length() > 100)
@@ -572,6 +584,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public void over(String s)
     {
+        if (textInputIsInitial)
+            textInputSetToInitialPrompt(false);  // Clear, set foreground color
         textInput.setEditable(false);
         textInput.setText(s);
         textDisplay.append("* Sorry, lost connection to the server.\n");
@@ -581,15 +595,13 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * start
+     * start game: add "sit" buttons, set chat input (textInput) to initial prompt.
      */
     public void began()
     {
         textInput.setEditable(true);
-        textInput.setText(TEXTINPUT_INITIAL_PROMPT_MSG);
-        textInputIsInitial = true;
-        textInputGreyCountdown = textInputGreyCountFrom;
-        textInput.setForeground(Color.DARK_GRAY);
+        textInput.setText("");
+        textInputSetToInitialPrompt(true);
         textInput.requestFocus();
 
         if ((game.getGameState() == SOCGame.NEW) || (game.getGameState() == SOCGame.READY))
@@ -716,6 +728,44 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         // No need for a buildingPanel.updateAtTurn;
         //   its updateButtonStatus is called from client.handleGAMESTATE.
+    }
+
+    /**
+     * Set or clear the chat text input's initial prompt.
+     * Sets its status, foreground color, and the prompt text if true.
+     *
+     * @param setToInitial If false, clear initial-prompt status, and
+     *    clear contents (if they are the initial-prompt message);
+     *    If true, set initial-prompt status, and set the prompt
+     *    (if contents are blank when trimmed).
+     *
+     * @throws IllegalStateException if setInitial true, but player
+     *    already sent chat text (textInputHasSent).
+     *
+     * @see #TEXTINPUT_INITIAL_PROMPT_MSG
+     */
+    protected void textInputSetToInitialPrompt(boolean setToInitial)
+        throws IllegalStateException
+    {
+        if (setToInitial && textInputHasSent)
+            throw new IllegalStateException("Already sent text, can't re-initial");
+
+        // Always change text before changing flag,
+        // so TextListener doesn't fight this action.
+
+        if (setToInitial)
+        {
+            if (textInput.getText().trim().length() == 0)
+                textInput.setText(TEXTINPUT_INITIAL_PROMPT_MSG);  // Set text before flag
+            textInputIsInitial = true;
+            textInputGreyCountdown = textInputGreyCountFrom;  // Reset fade countdown
+            textInput.setForeground(Color.DARK_GRAY);
+        } else {
+            if (textInput.getText().equals(TEXTINPUT_INITIAL_PROMPT_MSG))
+                textInput.setText("");  // Clear to make room for text being typed
+            textInputIsInitial = false;
+            textInput.setForeground(Color.BLACK);
+        }
     }
 
     /**
@@ -908,7 +958,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         }
 
         /**
-         * Ask if they're sure - Leave the game when the window closes.
+         * Ask if player is sure - Leave the game when the window closes.
          */
         public void windowClosing(WindowEvent e)
         {
@@ -924,7 +974,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * the listeners will be removed so we don't have the overhead of
      * calling these methods.
      */
-    private static class SOCPITextfieldListener extends KeyAdapter implements TextListener
+    private static class SOCPITextfieldListener
+        extends KeyAdapter implements TextListener, FocusListener
     {
         private SOCPlayerInterface pi;
 
@@ -940,14 +991,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             {
                 return;
             }
-            pi.textInput.setText("");  // Clear to make room for text being typed
-            pi.textInputIsInitial = false;  // and _then_ set initial to false
-            pi.textInput.setForeground(Color.BLACK);
+            pi.textInputSetToInitialPrompt(false);
         }
 
         /**
          * If input text is cleared, and field is again empty, show the
-         * prompt message unless they've already sent a line of chat.
+         * prompt message unless player has already sent a line of chat.
          */
         public void textValueChanged(TextEvent e)
         {
@@ -959,11 +1008,35 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             {
                 // Former contents were erased,
                 // show the prompt message.
-                pi.textInputIsInitial = true;
-                pi.textInputGreyCountdown = textInputGreyCountFrom;
-                pi.textInput.setText(TEXTINPUT_INITIAL_PROMPT_MSG);
-                pi.textInput.setForeground(Color.DARK_GRAY);
+                // Do not trim here. (vs focusLost)
+                pi.textInputSetToInitialPrompt(true);
             }
         }
+
+        /**
+         * If input text is cleared, and player leaves the textfield while it's empty,
+         * show the prompt message unless they've already sent a line of chat.
+         */
+        public void focusLost(FocusEvent e)
+        {
+            if (pi.textInputIsInitial || pi.textInputHasSent)
+            {
+                return;
+            }
+            if (pi.textInput.getText().trim().length() == 0)
+            {
+                // Former contents were erased,
+                // show the prompt message.
+                // Trim in case it's " " due to
+                // player previously hitting "enter" in an
+                // initial field (actionPerformed).
+
+                pi.textInputSetToInitialPrompt(true);
+            }
+        }
+
+        /** Stub required for FocusListner. */
+        public void focusGained(FocusEvent e) {}
+
     }
 }
