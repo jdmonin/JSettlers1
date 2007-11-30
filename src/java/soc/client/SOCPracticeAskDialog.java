@@ -21,18 +21,6 @@
  **/
 package soc.client;
 
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.Color;
-import java.awt.Dialog;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-
 /**
  * This is the dialog to ask players if they want to join an
  * existing practice game, or start a new one.
@@ -71,7 +59,7 @@ class SOCPracticeAskDialog extends AskDialog
     }
 
     /**
-     * React to the dialog window closed by user. (same as Show button)
+     * React to the dialog window closed by user, or Esc pressed. (same as Show button)
      */
     public void windowCloseChosen()
     {

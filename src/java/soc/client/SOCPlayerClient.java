@@ -754,7 +754,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 && (gm.equalsIgnoreCase(DEFAULT_PRACTICE_GAMENAME)))
             {
                 // Practice game requested, no game named "Practice" already exists.
-                // Check for other active practice games.
+                // Check for other active practice games. (Could be "Practice 2")
 
                 Enumeration gamesEnum = practiceServer.getGameNames();
                 while (gamesEnum.hasMoreElements())

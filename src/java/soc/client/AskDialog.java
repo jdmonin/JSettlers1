@@ -32,6 +32,8 @@ import java.awt.Label;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 
@@ -41,7 +43,7 @@ import java.awt.event.WindowListener;
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
-public abstract class AskDialog extends Dialog implements ActionListener, WindowListener
+public abstract class AskDialog extends Dialog implements ActionListener, WindowListener, KeyListener
 {
     /** Player client; passed to constructor, not null */
     protected SOCPlayerClient pcli;
@@ -67,10 +69,10 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     /** Is this choice the default? */
     protected boolean choice1Default, choice2Default;
 
-    /** Desired size **/
+    /** Desired size (visible size inside of insets) **/
     protected int wantW, wantH;
 
-    /** Padding beyond desired size; not known until show() **/
+    /** Padding beyond desired size; not known until windowOpened() **/
     protected int padW, padH;
 
     /**
@@ -82,7 +84,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
      * @param prompt   Prompting text shown above buttons, or null
      * @param choice1  First choice button text
      * @param choice2  Second choice button text
-     * @param default1 First choice is default  // JM TODO - return key?
+     * @param default1 First choice is default
      * @param default2 Second choice is default
      *
      * @throws IllegalArgumentException If both default1 and default2 are true,
@@ -110,13 +112,16 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         pi = gamePI;
         setBackground(new Color(255, 230, 162));
         setForeground(Color.black);
-        setFont(new Font("Dialog", Font.PLAIN, 12));  // JM TODO - font name?
+        setFont(new Font("Dialog", Font.PLAIN, 12));
 
         choice1But = new Button(choice1);
         choice2But = new Button(choice2);
         choice1Default = default1;
         choice2Default = default2;
-
+        if (choice1Default)
+            choice1But.setBackground(Color.WHITE);
+        else if (choice2Default)
+            choice2But.setBackground(Color.WHITE);
         setLayout (new BorderLayout());
 
         msg = new Label(prompt, Label.CENTER);
@@ -126,7 +131,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         if (wantW < 280)
             wantW = 280;
         wantH = 40 + 2 * ColorSquare.HEIGHT;
-        padW = 0;  // Won't be able to call getInsets and know the values, until show()
+        padW = 0;  // Won't be able to call getInsets and know the values, until windowOpened()
         padH = 0;
         setSize(wantW + 6, wantH + 20);
         setLocation(150, 100);
@@ -141,12 +146,15 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         choice2But.addActionListener(this);
 
         add(pBtns, BorderLayout.SOUTH);
-        
+
         addWindowListener(this);  // To handle close-button
+        addKeyListener(this);     // To handle Enter, Esc keys.
+        choice1But.addKeyListener(this);  // (win32: Keyboard focus will be on these keys)
+        choice2But.addKeyListener(this);
     }
 
     /**
-     * Adjust size (insets) and set focus to the default button.
+     * Adjust size (vs insets) and set focus to the default button (if any).
      */
     protected void checkSizeAndFocus()
     {
@@ -157,34 +165,13 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         if ((padW > 0) || (padH > 0))
         {
             setSize (wantW + padW, wantH + padH);
+            validate();
         }
 
         if (choice1Default)
             choice1But.requestFocus();
         else if (choice2Default)
             choice2But.requestFocus();
-    }
-
-    /**
-     * When dialog becomes visible, adjust size (insets) and set focus to the default button.
-     */
-    public void show()
-    {
-        super.show();
-        checkSizeAndFocus();
-    }
-
-    /**
-     * When dialog becomes visible, adjust size (insets) and set focus to the default button.
-     *
-     * @param b Visible?
-     */
-    public void setVisible(boolean b)
-    {
-        super.setVisible(b);
-
-        if (b)
-            checkSizeAndFocus();
     }
 
     /**
@@ -199,12 +186,12 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
             if (target == choice1But)
             {
                 dispose();
-                button1Chosen();
+                button1Chosen();  // <--- Callback for button 1 ---
             }
             else if (target == choice2But)
             {
                 dispose();
-                button2Chosen();
+                button2Chosen();  // <--- Callback for button 2 ---
             }
         } catch (Throwable th) {
             pi.chatPrintStackTrace(th);
@@ -235,7 +222,13 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     public void windowClosing(WindowEvent e)
     {
         dispose();
-        windowCloseChosen();
+        windowCloseChosen();  // <--- Callback for close/ESC ---
+    }
+
+    /** Window is appearing - check the size and the default button keyboard focus */
+    public void windowOpened(WindowEvent e)
+    {
+        checkSizeAndFocus();
     }
 
     /** Stub required by WindowListener */
@@ -253,7 +246,38 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     /** Stub required by WindowListener */
     public void windowIconified(WindowEvent e) { }
 
-    /** Stub required by WindowListener */
-    public void windowOpened(WindowEvent e) { }
+    /** Handle Enter or Esc key */
+    public void keyPressed(KeyEvent e)
+    {
+        if (e.isConsumed())
+            return;
+        switch (e.getKeyCode())
+        {
+        case KeyEvent.VK_ENTER:
+            if (choice1Default || choice2Default)
+            {
+                dispose();                
+                e.consume();
+                if (choice1Default)
+                    button1Chosen();  // <--- Callback for button 1 ---
+                else
+                    button2Chosen();  // <--- Callback for button 2 ---
+            }
+            break;
+
+        case KeyEvent.VK_CANCEL:
+        case KeyEvent.VK_ESCAPE:
+            dispose();                
+            e.consume();
+            windowCloseChosen();  // <--- Callback for close/ESC ---
+            break;
+        }
+    }
+
+    /** Stub required by KeyListener */
+    public void keyReleased(KeyEvent arg0) { }
+
+    /** Stub required by KeyListener */
+    public void keyTyped(KeyEvent arg0) { }
 
 }
