@@ -159,6 +159,10 @@ public class SquaresPanel extends Panel implements MouseListener
         ;
     }
 
+    /** Don't "roll" plus/minus if shift or ctrl key is held during click */
+    public static final int shiftKeysMask = MouseEvent.SHIFT_MASK
+        | MouseEvent.CTRL_MASK | MouseEvent.ALT_MASK | MouseEvent.META_MASK;
+
     /**
      * DOCUMENT ME!
      *
@@ -168,8 +172,19 @@ public class SquaresPanel extends Panel implements MouseListener
     {
         Object target = e.getSource();
 
-    if ( ! interactive )
-        return;
+        if ( ! interactive )
+            return;
+
+        if (0 != (shiftKeysMask & e.getModifiers()))
+        {
+            /**
+             * Shift, Ctrl, or a similar key is being held.
+             * Instead of normally "rolling" the give/get pair up/down,
+             * just increment the square being clicked.  This is
+             * done by the square's own mouselistener, not here.
+             */
+            return;
+        }
 
         for (int i = 0; i < 5; i++)
         {
