@@ -118,10 +118,6 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         choice2But = new Button(choice2);
         choice1Default = default1;
         choice2Default = default2;
-        if (choice1Default)
-            choice1But.setBackground(Color.WHITE);
-        else if (choice2Default)
-            choice2But.setBackground(Color.WHITE);
         setLayout (new BorderLayout());
 
         msg = new Label(prompt, Label.CENTER);
@@ -146,6 +142,13 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         choice2But.addActionListener(this);
 
         add(pBtns, BorderLayout.SOUTH);
+
+        // Now that we've added buttons to the dialog layout,
+        // we can get their font and adjust style of default button.
+        if (choice1Default)
+            styleAsDefault(choice1But);
+        else if (choice2Default)
+            styleAsDefault(choice2But);
 
         addWindowListener(this);  // To handle close-button
         addKeyListener(this);     // To handle Enter, Esc keys.
@@ -175,12 +178,44 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     }
 
     /**
+     * Since we can't designate as default visually through the standard AWT API,
+     * try to bold the button text or set its color to white.
+     * Add to dialog layout before calling, so we can query the font.
+     *
+     * @param b  Button to style visually as default
+     */
+    public static void styleAsDefault(Button b)
+    {
+        try
+        {
+            Font bf = b.getFont();            
+            if (bf == null)
+                bf = new Font("Dialog", Font.BOLD, 12);
+            else
+                bf = bf.deriveFont(Font.BOLD);
+            b.setFont(bf);
+        }
+        catch (Throwable th)
+        {
+            // If we can't do that, try to mark via
+            // background color change instead
+            try
+            {
+                b.setBackground(Color.WHITE);
+            }
+            catch (Throwable th2)
+            {}
+        }
+    }
+
+    /**
      * Button 1 or button 2 has been chosen by the user.
      * Call button1Chosen or button2Chosen, and dispose of this dialog.
      */
     public void actionPerformed(ActionEvent e)
     {
-        try {
+        try
+        {
             Object target = e.getSource();
 
             if (target == choice1But)
@@ -251,12 +286,13 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     {
         if (e.isConsumed())
             return;
+
         switch (e.getKeyCode())
         {
         case KeyEvent.VK_ENTER:
             if (choice1Default || choice2Default)
             {
-                dispose();                
+                dispose();
                 e.consume();
                 if (choice1Default)
                     button1Chosen();  // <--- Callback for button 1 ---
@@ -267,7 +303,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
 
         case KeyEvent.VK_CANCEL:
         case KeyEvent.VK_ESCAPE:
-            dispose();                
+            dispose();
             e.consume();
             windowCloseChosen();  // <--- Callback for close/ESC ---
             break;
