@@ -157,7 +157,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     
     /** for popup-menu build request, length of time after popup to ignore further
      *  mouse-clicks.  Avoids Windows accidental build by popup-click during game's
-     *  initial piece placement. 
+     *  initial piece placement. (150 ms)
      */ 
     protected static int POPUP_MENU_IGNORE_MS = 150;
 
@@ -209,7 +209,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private BoardPopupMenu popupMenu;
         
     /**
-     * Tracks last popup time.  Avoids misinterpretation of popup-click with placement-click
+     * Tracks last menu-popup time.  Avoids misinterpretation of popup-click with placement-click
      * during initial placement: On Windows, popup-click must be caught in mouseReleased,
      * but mousePressed is called immediately afterwards.    
      */
@@ -1314,7 +1314,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public void mousePressed(MouseEvent e)
     {
-        ;  // JM: was mouseClicked (TODO check e.isPopupTrigger)
+        ;  // JM: was mouseClicked (moved to avoid conflict with e.isPopupTrigger)
     }
 
     /**
@@ -1324,6 +1324,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public void mouseReleased(MouseEvent e)
     {
+        try {
         // Needed in Windows for popup-menu handling
         if (e.isPopupTrigger())
         {
@@ -1331,6 +1332,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             e.consume();
             doBoardMenuPopup(e.getX(), e.getY());
             return;
+        }
+        } catch (Throwable th) {
+            playerInterface.chatPrintStackTrace(th);
         }
     }
 
@@ -1638,7 +1642,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             doBoardMenuPopup(x,y);
             return;  // <--- Pop up menu, nothing else to do ---
         }
-        
+
         if (evt.getWhen() < (popupMenuSystime + POPUP_MENU_IGNORE_MS))
         {
             return;  // <--- Ignore click: too soon after popup click ---
@@ -2598,7 +2602,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
           upgradeCityItem.setEnabled(false);
           cancelBuildItem.setEnabled(menuPlayerIsCurrent);
 
-          // Check for initial placement (for different cancel message (TODO enable initial-cancel))
+          // Check for initial placement (for different cancel message)
           switch (game.getGameState())
           {
           case SOCGame.START1A:
@@ -2799,7 +2803,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
           // - During gameplay: Send, wait to receive gameState, send.
               
           // Set up timer to expect first-reply (and then send the second message)
-          bp.popupSetBuildRequest(buildLoc, ptype);
+          popupSetBuildRequest(buildLoc, ptype);
 
           // Now that we're expecting that, use buttons to send the first message         
           playerInterface.getBuildingPanel().clickBuildingButton
@@ -2827,9 +2831,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       }
 
     }  // inner class BoardPopupMenu    
-    
 
-    
     /** 
      * Used for the delay between sending a build-request message,
      * and receiving a game-state message.
