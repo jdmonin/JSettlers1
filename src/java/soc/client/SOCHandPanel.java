@@ -22,6 +22,7 @@ package soc.client;
 
 import soc.disableDebug.D;
 
+import soc.game.SOCCity;
 import soc.game.SOCDevCardConstants;
 import soc.game.SOCDevCardSet;
 import soc.game.SOCGame;
@@ -29,6 +30,8 @@ import soc.game.SOCPlayer;
 import soc.game.SOCPlayingPiece;
 import soc.game.SOCResourceConstants;
 import soc.game.SOCResourceSet;
+import soc.game.SOCRoad;
+import soc.game.SOCSettlement;
 import soc.game.SOCTradeOffer;
 
 import java.awt.Button;
@@ -38,6 +41,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Label;
 import java.awt.List;
+import java.awt.MenuItem;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -854,6 +858,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         resourceSq.setVisible(false);
         developmentLab.setVisible(false);
         developmentSq.setVisible(false);
+        faceImg.removeFacePopupMenu();
 
         removeTakeOverBut();
         removeSeatLockBut();
@@ -958,6 +963,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                 else
                     playerInterface.getPlayerHandPanel(i).removeSitBut();
             }
+
+            faceImg.addFacePopupMenu();
 
             updateButtonsAtAdd();  // Enable,disable the proper buttons
         }
@@ -1113,7 +1120,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
         if (pnameActiveBG != null)
             return;
-        pnameActiveBG =  SOCPlayerInterface.makeGhostColor(getBackground());
+        pnameActiveBG = SOCPlayerInterface.makeGhostColor(getBackground());
     }
 
     /** If enable/disable buttons accordingly. */
@@ -1792,6 +1799,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      *
      * @see #SOCHandPanel.AUTOROLL_TIME
      * @see #SOCHandPanel.autoRollSetupTimer()
+     *
+     * @author Jeremy D Monin <jeremy@nand.net>
      */
     protected class HandPanelAutoRollTask extends java.util.TimerTask
     {
@@ -1826,6 +1835,5 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
 
     }  // inner class HandPanelAutoRollTask
-
 
 }  // class SOCHandPanel
