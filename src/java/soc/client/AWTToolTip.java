@@ -48,6 +48,7 @@ public class AWTToolTip
   public int closeAfterMoveY = 20;
 
   private String tip;
+  protected Font tfont;
 
   protected Component parentComp;
   protected Container mainParentComp;
@@ -102,6 +103,7 @@ public class AWTToolTip
     // These are set at mouseenter
     mainParentComp = null;
     mainParentLayout = null;
+    tfont = null;
   }
 
   /**
@@ -202,6 +204,7 @@ public class AWTToolTip
     g.fillRect(0, 0, boxW-1, boxH-1);
     g.setColor(fgcol);
     g.drawRect(0, 0, boxW-1, boxH-1);
+    g.setFont(tfont);
     g.drawString(tip, 2, boxH -3);
   }
 
@@ -267,7 +270,8 @@ public class AWTToolTip
     mainParentLayout = mainParentComp.getLayout();
     mainParentComp.setLayout(null);  // Allow free placement
 
-    FontMetrics fm = getFontMetrics(parentComp.getFont());
+    tfont = parentComp.getFont();
+    FontMetrics fm = getFontMetrics(tfont);
     boxW = fm.stringWidth(tip) + 6;
     boxH = fm.getHeight();
     setSize(boxW, boxH);
@@ -375,6 +379,9 @@ public class AWTToolTip
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ *
+ * Revision 1.8  2007/12/17 22:14:00  jm
+ * - Ensure parent font at paint, not default font
  *
  * Revision 1.7  2007/11/27 20:16:00  jm
  * - Note bottom insets when placing near bottom of window
