@@ -48,6 +48,8 @@ public class AWTToolTip
   public int closeAfterMoveY = 20;
 
   private String tip;
+
+  /** JM add? tfont is parentComp.getFont, set at mouseEnter */
   protected Font tfont;
 
   protected Component parentComp;
@@ -83,6 +85,8 @@ public class AWTToolTip
   /**
    * Constructor.
    * Constructs a Tooltip which is displayed if there is a click with the right mousebutton on the given component.
+   * The tooltip's font is the same as the component's font.
+   *
    * @param _comp the Component which this Tooltip describes.
    * @param _tip Text to show; single line.
    */
