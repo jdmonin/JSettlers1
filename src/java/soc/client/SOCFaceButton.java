@@ -282,13 +282,14 @@ public class SOCFaceButton extends Canvas
     }
 
     /**
+     * Designate player as client (can click and right-click to choose face icon).
      * If we don't have a popup menu, and player is client, add it.
      * If we already have one, nothing happens.
-     * 
-     * @throws IllegalStateException if player isn't client
+     *
+     * @throws IllegalStateException if player isn't client (checks getName vs client.getNickname)
      */
     public void addFacePopupMenu()
-    {        
+    {
         if (popupMenu == null)
         {
             if ((game == null) || ! game.getPlayer(pNumber).getName().equals(client.getNickname()))
@@ -470,6 +471,18 @@ public class SOCFaceButton extends Canvas
      *********************************/
     private class MyMouseAdapter extends MouseAdapter
     {
+        /**
+         * Handle popup-click.
+         * mousePressed has xwindows/OS-X popup trigger.
+         */
+        public void mousePressed(MouseEvent e)
+        {
+            mouseReleased(e);  // same desired code: react to isPopupTrigger
+        }
+
+        /**
+         * Handle click to change face.
+         */
         public void mouseClicked(MouseEvent evt)
         {
             try {
@@ -502,7 +515,7 @@ public class SOCFaceButton extends Canvas
             /**
              * only change the face if it's the owners button
              */
-            if ((game != null) && game.getPlayer(pNumber).getName().equals(client.getNickname()))
+            if ((game != null) && (popupMenu != null))
             {
                 if (x < 20)
                 {
@@ -601,7 +614,7 @@ public class SOCFaceButton extends Canvas
             {
                 fsf = new FaceChooserFrame
                     (fb, fb.client, fb.pi, fb.pNumber, fb.getFace(), fb.getSize().width);
-                fsf.pack();  // TODO is this still needed?
+                fsf.pack();
             }
             fsf.show();
             } catch (Throwable th) {

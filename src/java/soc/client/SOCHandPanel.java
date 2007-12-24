@@ -964,7 +964,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                     playerInterface.getPlayerHandPanel(i).removeSitBut();
             }
 
-            faceImg.addFacePopupMenu();
+            faceImg.addFacePopupMenu();  // Also enables left-click-to-change
 
             updateButtonsAtAdd();  // Enable,disable the proper buttons
         }

@@ -29,8 +29,6 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Label;
@@ -52,6 +50,7 @@ import soc.game.SOCGame;
  * Popup window for the user to browse and choose a face icon.
  *
  * To adjust size, set FaceChooserList.rowFacesWidth and .faceRowsHeight .
+ *
  * @see soc.client.FaceChooserFrame.FaceChooserList#rowFacesWidth
  * @see soc.client.FaceChooserFrame.FaceChooserList#faceRowsHeight
  * @see soc.client.SOCFaceButton
@@ -83,6 +82,9 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
 
     /** Button for cancel */
     protected Button cancelBut;
+
+    /** Label to prompt to choose a new face */
+    protected Label promptLbl;
 
     /** Is this still visible and interactive? (vs already dismissed)
      * 
@@ -136,8 +138,8 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
         cancelBut = new Button("Cancel");
         setLayout (new BorderLayout());
 
-        Label msg = new Label("Choose your face icon.", Label.LEFT);
-        add(msg, BorderLayout.NORTH);
+        promptLbl = new Label("Choose your face icon.", Label.LEFT);
+        add(promptLbl, BorderLayout.NORTH);
 
     	fcl = new FaceChooserList(this, faceID);
         add(fcl, BorderLayout.CENTER);
@@ -213,10 +215,15 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
     }
 
     /**
-     * set focus to the default button (if any).
+     * check size and set focus to the default button (if any).
+     *
+     * @param listSizeKnown if true, the list knows what size it wants to be;
+     *    reconsider our size.
      */
-    protected void checkSizeAndFocus()
+    protected void checkSizeAndFocus(boolean listSizeKnown)
     {
+        if (listSizeKnown)
+            doLayout();
         changeFaceBut.requestFocus();
     }
 
@@ -262,6 +269,21 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
     public void cancelButtonChosen() { }
 
     /**
+     * Move the cursor choosing the current face.
+     * For behavioral details, see the inner class method description.
+     *
+     * @see soc.client.FaceChooserFrame.FaceChooserList#moveCursor(int, int, KeyEvent)
+     *
+     * @param dr Delta row: -3 jumps to very top; -2 is PageUp; -1 is one row; same for +. 
+     * @param dc Delta column: -2 jumps to far-left, -1 is one to left, +1 is one to right, +2 jumps to far-right.
+     * @param e  KeyEvent to be consumed, or null.
+     */
+    public void moveCursor(int dr, int dc, KeyEvent e)
+    {
+        fcl.moveCursor(dr, dc, e);
+    }
+
+    /**
      * Dialog close requested by user. Dispose and call windowCloseChosen.
      */
     public void windowClosing(WindowEvent e)
@@ -273,7 +295,7 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
     /** Window is appearing - check the size and the default button keyboard focus */
     public void windowOpened(WindowEvent e)
     {
-        checkSizeAndFocus();
+        checkSizeAndFocus(false);
     }
 
     /** Stub required by WindowListener */
@@ -291,7 +313,7 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
     /** Stub required by WindowListener */
     public void windowIconified(WindowEvent e) { }
 
-    /** Handle Enter or Esc key */
+    /** Handle Enter or Esc key, arrow keys, home/end, ctrl-home/ctrl-end */
     public void keyPressed(KeyEvent e)
     {
         if (e.isConsumed())
@@ -310,6 +332,44 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
             dispose();                
             e.consume();
             cancelButtonChosen();
+            break;
+            
+        case KeyEvent.VK_UP:
+            fcl.moveCursor (-1, 0, e);
+            break;
+            
+        case KeyEvent.VK_DOWN:
+            fcl.moveCursor (+1, 0, e);
+            break;
+            
+        case KeyEvent.VK_LEFT:
+            fcl.moveCursor (0, -1, e);
+            break;
+            
+        case KeyEvent.VK_RIGHT:
+            fcl.moveCursor (0, +1, e);
+            break;
+            
+        case KeyEvent.VK_PAGE_UP:
+            fcl.moveCursor (-2, 0, e);
+            break;
+
+        case KeyEvent.VK_PAGE_DOWN:
+            fcl.moveCursor (+2, 0, e);
+            break;
+
+        case KeyEvent.VK_HOME:
+            if (0 != (e.getModifiers() & KeyEvent.CTRL_MASK))
+                fcl.moveCursor (-3, -2, e);
+            else
+                fcl.moveCursor (0, -2, e);
+            break;
+
+        case KeyEvent.VK_END:
+            if (0 != (e.getModifiers() & KeyEvent.CTRL_MASK))
+                fcl.moveCursor (+3, +2, e);
+            else
+                fcl.moveCursor (0, +2, e);
             break;
         }
     }
@@ -454,6 +514,8 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
          * @param id  Face ID to select
          *
          * @throws IllegalArgumentException if id <= 0 or id >= SOCFaceButton.NUM_FACES
+         *
+         * @see #moveCursor(int, int, KeyEvent)
          */
         public void selectFace(int id)
         {
@@ -593,7 +655,138 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
         }
 
         /**
-         * Now that insets and scrollbar size are known, check our padding.
+         * Move the cursor choosing the current face, and change selected face in this browser.
+         * If needed, calls scrollToRow to make the selected face visible.
+         * Both dr and dc can be nonzero in the same call.
+         *
+         * @param dr Delta row: -3 jumps to very top; -2 is PageUp; -1 is one row; same for +. 
+         * @param dc Delta column: -2 jumps to far-left, -1 is one to left, +1 is one to right, +2 jumps to far-right.
+         *           If already at far-left or far-right, -1/+1 move into the previous/next row.
+         * @param e  KeyEvent to be consumed, or null. The event contents are ignored, only dr and dc
+         *           are used to choose the direction of movement.
+         *           If dr==0 and dc==0, e is still consumed.
+         *
+         * @throws IllegalArgumentException If dr or dc is out of the range described here
+         *
+         * @see #selectFace(int)
+         * @see #scrollToRow(int)
+         */
+        public void moveCursor(int dr, int dc, KeyEvent e) throws IllegalArgumentException
+        {
+            if ((dr < -3) || (dr > +3))
+                throw new IllegalArgumentException("dr outside range +-3: " + dr);
+            if ((dc < -2) || (dc > +2))
+                throw new IllegalArgumentException("dc outside range +-2: " + dc);
+            if (e != null)
+                e.consume();
+            if ((dr == 0) && (dc == 0))
+                return;  // <--- Early return: both zero ---
+
+            // currentRow is top of window
+            // currentOffset gives upper-left face ID
+            // currentFaceId gives absolute "cursor position"
+            int abs_r = (currentFaceId - 1) / rowFacesWidth;
+            int abs_c = (currentFaceId - 1) % rowFacesWidth;
+
+            // if moved is true, recalc currentFaceId from abs_r, abs_c.
+            // (selectFace is called; if needed, selectFace calls scrollToRow.)
+            boolean moved = false;
+            
+            // Check dc first, it's easier than dr
+            switch (dc)
+            {
+            case -2:   // Home
+                if (abs_c > 0)
+                {
+                    moved = true;
+                    abs_c = 0;
+                }
+                break;
+
+            case -1:   // Left
+                if (currentFaceId > 0)
+                {
+                    moved = true;
+                    if (abs_c > 0)
+                        --abs_c;
+                    else
+                    {
+                        --abs_r;
+                        abs_c = rowFacesWidth - 1;
+                    }
+                }
+                break;
+
+            case +1:   // Right
+                if (currentFaceId < (SOCFaceButton.NUM_FACES - 1))
+                {
+                    moved = true;
+                    if (abs_c < (rowFacesWidth - 1))
+                        ++abs_c;
+                    else
+                    {
+                        ++abs_r;
+                        abs_c = 0;
+                    }
+                }
+                break;
+
+            case +2:   // End
+                if (abs_c < (rowFacesWidth - 1))
+                {
+                    moved = true;
+                    abs_c = rowFacesWidth - 1;
+                }
+                break;
+
+            }  // switch (dc)
+
+            // Time for dr checks
+            if ((dr < 0) && (abs_r > 0))
+            {
+                moved = true;
+                if (dr == -1)
+                    --abs_r;    // Up
+                else if (dr == -3)
+                    abs_r = 0;  // Ctrl-Home
+                else
+                {
+                    abs_r -= faceRowsHeight;  // PageUp
+                    if (abs_r < 0)
+                        abs_r = 0;  // PgUp while at top of scroll range
+                }
+            }
+            else if ((dr > 0) && (abs_r < (rowCount - 1)))
+            {
+                moved = true;
+                if (dr == +1)
+                    ++abs_r;    // Down
+                else if (dr == +3)
+                    abs_r = rowCount - 1;  // Ctrl-End
+                else
+                {
+                    abs_r += faceRowsHeight;  // PageDown
+                    if (abs_r >= rowCount)
+                        abs_r = rowCount - 1;  // PgDn while at bottom of scroll range
+                }
+            }
+
+            // Now, adjust vars if needed:
+            if (moved)
+            {
+                // re-calc currentFaceId, select it, and ensure visible.
+                int newId = abs_r * rowFacesWidth + abs_c + 1;
+                if (newId >= SOCFaceButton.NUM_FACES)
+                    newId = SOCFaceButton.NUM_FACES - 1;
+                else if (newId < 1)
+                    newId = 1;
+                selectFace(newId);
+            }
+        }
+
+        /**
+         * Now that insets and scrollbar size are known, check our size and padding.
+         * If too small, resize the frame.
          *
          * @param  i  Insets
          * @return True if dimensions were updated and setSize was called.
@@ -615,6 +808,8 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
             }
             else
                 sw = 0;
+
+            boolean changedWantSize = false;
             if ((padW < iw) || (padH < ih) || (scrollW < sw))
             {
                 padW = iw;
@@ -622,7 +817,30 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
                 scrollW = sw;
                 wantSize = new Dimension (wantW + scrollW + padW, wantH + padH);
                 setSize (wantSize);
+                changedWantSize = true;
+            }
+            // Now that we know insets, check if our window is too narrow or short
+            boolean tooSmall = false;
+            {
+                Insets fi = fcf.getInsets();  // frame insets
+                if (fi != null)
+                {
+                    int fw = fcf.getSize().width;   // frame width
+                    int fh = fcf.getSize().height;  // frame height
+                    int fiw = fw - fi.left - fi.right;  // inner width
+                    int fih = fh - fi.top - fi.bottom;  // inner height
+                    int fioh = 0;   // frame inner "other" height (labels & buttons)
+                    if (fcf.changeFaceBut != null)
+                        fioh += fcf.changeFaceBut.getPreferredSize().height;
+                    if (fcf.promptLbl != null)
+                        fioh += fcf.promptLbl.getPreferredSize().height;
+                    tooSmall = (fiw < wantSize.width) || ((fih - fioh) < wantSize.height);
+                }
+            }
+            if (changedWantSize || tooSmall)
+            {
                 fcf.pack();
+                fcf.checkSizeAndFocus(true);  // noting our new size
                 return true;
             }
             return false;
