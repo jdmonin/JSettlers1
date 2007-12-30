@@ -180,9 +180,9 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     /**
      * Since we can't designate as default visually through the standard AWT API,
      * try to bold the button text or set its color to white.
-     * Add to dialog layout before calling, so we can query the font.
      *
-     * @param b  Button to style visually as default
+     * @param b  Button to style visually as default.  Please add button to
+     *           dialog layout before calling, so we can query the font.
      */
     public static void styleAsDefault(Button b)
     {

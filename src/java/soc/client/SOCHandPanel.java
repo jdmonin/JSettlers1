@@ -22,7 +22,6 @@ package soc.client;
 
 import soc.disableDebug.D;
 
-import soc.game.SOCCity;
 import soc.game.SOCDevCardConstants;
 import soc.game.SOCDevCardSet;
 import soc.game.SOCGame;
@@ -30,8 +29,6 @@ import soc.game.SOCPlayer;
 import soc.game.SOCPlayingPiece;
 import soc.game.SOCResourceConstants;
 import soc.game.SOCResourceSet;
-import soc.game.SOCRoad;
-import soc.game.SOCSettlement;
 import soc.game.SOCTradeOffer;
 
 import java.awt.Button;
@@ -41,7 +38,6 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Label;
 import java.awt.List;
-import java.awt.MenuItem;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -858,7 +854,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         resourceSq.setVisible(false);
         developmentLab.setVisible(false);
         developmentSq.setVisible(false);
-        faceImg.removeFacePopupMenu();
+        faceImg.removeFacePopupMenu();  // Also disables left-click to change
 
         removeTakeOverBut();
         removeSeatLockBut();
@@ -918,6 +914,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                 vpSq.setVisible(true);
             }
 
+            faceImg.addFacePopupMenu();  // Also enables left-click to change
+
             claySq.setVisible(true);
             clayLab.setVisible(true);
             oreSq.setVisible(true);
@@ -963,8 +961,6 @@ public class SOCHandPanel extends Panel implements ActionListener
                 else
                     playerInterface.getPlayerHandPanel(i).removeSitBut();
             }
-
-            faceImg.addFacePopupMenu();  // Also enables left-click-to-change
 
             updateButtonsAtAdd();  // Enable,disable the proper buttons
         }

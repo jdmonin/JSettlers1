@@ -868,14 +868,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /** 
-     * Calculate a color towards gray for the robber ghost.
+     * Calculate a color towards gray, for a hilight or the robber ghost.
      * If srcColor is light, ghost color is darker. (average with gray)
      * If it's dark or midtone, ghost should be lighter. (average with white)
      * 
      * @param srcColor The color to ghost from
      * @return Ghost color based on srcColor
      */
-    public static Color makeGhostColor (Color srcColor)
+    public static Color makeGhostColor(Color srcColor)
     {
         int outR, outG, outB;
         outR = srcColor.getRed();
