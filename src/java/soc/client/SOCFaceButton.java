@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -70,14 +71,14 @@ public class SOCFaceButton extends Canvas
      */
     public static final int NUM_ROBOT_FACES = 2;
 
-    /** width,height of button showing only the face icon */
+    /** width,height of button showing only the face icon (standard mode) */
     public static final int FACE_WIDTH_PX = 40;
 
-    /** width of border (per side) in FACE_BORDERED_WIDTH_PX */
+    /** width of border (per side), used in FACE_WIDTH_BORDERED_PX */
     public static final int FACE_BORDER_WIDTH_PX = 2;
 
-    /** width,height of button with border around the face icon */
-    public static final int FACE_BORDERED_WIDTH_PX = FACE_WIDTH_PX + 2 * FACE_BORDER_WIDTH_PX;
+    /** width,height of button with border around the face icon (bordered mode) */
+    public static final int FACE_WIDTH_BORDERED_PX = FACE_WIDTH_PX + 2 * FACE_BORDER_WIDTH_PX;
 
     /** Shared images */
     private static Image[] images;
@@ -95,7 +96,6 @@ public class SOCFaceButton extends Canvas
     private int panely;  // Height
     private int pNumber;
     private SOCGame game;
-    private SOCPlayerClient client;
     private SOCPlayerInterface pi;  // For callbacks (stack-trace print)
 
     /** Null unless being used in the face chooser */
@@ -104,7 +104,7 @@ public class SOCFaceButton extends Canvas
     /** Hilight selection border? always false if faceChooser == null. */
     private boolean hilightBorderShown;
 
-    /** Recently shown hilight selection border? (For paint method to clear it away) always false if faceChooser == null. */
+    /** Recently shown hilight selection border? (Used in paint method to clear it away) Always false if faceChooser == null. */
     private boolean hilightBorderWasShown;
 
     /**
@@ -122,13 +122,13 @@ public class SOCFaceButton extends Canvas
     /**
      * Tracks last popup-menu time.  Avoids misinterpretation of popup-click with placement-click
      * during initial placement: On Windows, popup-click must be caught in mouseReleased,
-     * but mousePressed is called immediately afterwards.    
+     * but mousePressed is called immediately afterwards.
      */
     private long popupMenuSystime;
 
     /** For popup-menu, length of time after popup to ignore further mouse-clicks.
      *  Avoids Windows accidental left-click by popup-click. (150 ms)
-     */ 
+     */
     protected static int POPUP_MENU_IGNORE_MS = 150;
 
     /**
@@ -139,7 +139,7 @@ public class SOCFaceButton extends Canvas
     /**
      * size
      */
-    private Dimension ourSize;
+    protected Dimension ourSize;
 
     private static synchronized void loadImages(Component c)
     {
@@ -191,49 +191,56 @@ public class SOCFaceButton extends Canvas
     }
 
     /**
-     * create a new SOCFaceButton for a player's handpanel
+     * create a new SOCFaceButton, for a player's handpanel (standard mode). Face id DEFAULT_FACE.
      *
      * @param pi  the interface that this button is attached to
-     * @param pn  the number of the player that owns this button. Must be in range 0 to SOCGame.MAXPLAYERS.
+     * @param pn  the number of the player that owns this button. Must be in range 0 to SOCGame.MAXPLAYERS-1.
+     *
+     * @throws IllegalArgumentException if pn is < -1 or >= SOCGame.MAXPLAYERS.
      */
     public SOCFaceButton(SOCPlayerInterface pi, int pn)
+        throws IllegalArgumentException
     {
         this (pi, pn, pi.getPlayerColor(pn), FACE_WIDTH_PX);
     }
 
     /**
-     * create a new SOCFaceButton for the FaceChooserFrame
+     * create a new SOCFaceButton, for the FaceChooserFrame (bordered mode)
      *
      * @param pi  Player interface (for stack-print callback ONLY)
      * @param fcf Face chooser frame for callback
-     * @param faceId Face ID to show
+     * @param faceId Face ID to show; same range as {@link #setFace(int)}
      */
     public SOCFaceButton(SOCPlayerInterface pi, FaceChooserFrame fcf, int faceId)
     {
-        this (pi, -1, fcf.getPlayerColor(), FACE_BORDERED_WIDTH_PX);
+        this (pi, -1, fcf.getPlayerColor(), FACE_WIDTH_BORDERED_PX);
         setFace(faceId);
         faceChooser = fcf;
     }
 
     /**
-     * implement creation of a new SOCFaceButton
+     * implement creation of a new SOCFaceButton (common to both modes)
      *
      * @param pi  the interface that this button is attached to
      * @param pn  the number of the player that owns this button, or -1 if none
      * @param bgColor  background color to use
-     * @param width width,height in pixels - FACE_WIDTH_PX or FACE_BORDERED_WIDTH_PX
+     * @param width width,height in pixels; FACE_WIDTH_PX or FACE_WIDTH_BORDERED_PX
+     *
+     * @throws IllegalArgumentException if pn is < -1 or >= SOCGame.MAXPLAYERS.
      */
     protected SOCFaceButton(SOCPlayerInterface pi, int pn, Color bgColor, int width)
+        throws IllegalArgumentException
     {
         super();
 
-        client = pi.getClient();
-        if (pn >= 0)
+        this.pi = pi;
+        if (pn == -1)
+            game = null;
+        else if ((pn >= 0) && (pn < SOCGame.MAXPLAYERS))
             game = pi.getGame();
         else
-            game = null;
+            throw new IllegalArgumentException("Player number out of range: " + pn);
         pNumber = pn;
-        this.pi = pi;
         faceChooser = null;
         hilightBorderShown = false;
         hilightBorderColor = null;
@@ -261,11 +268,14 @@ public class SOCFaceButton extends Canvas
     /**
      * set which image is shown
      *
-     * @param id  the id for the image
+     * @param id  the id for the image. Range is within
+     *    -NUM_ROBOT_FACES to +NUM_FACES.
+     *    Human id's out of range (>= NUM_FACES) get id DEFAULT_FACE.
+     *    Robot id's out of range (<= -NUM_ROBOT_FACES) get id 0.
      */
     public void setFace(int id)
     {
-        if (id >= NUM_FACES)            
+        if (id >= NUM_FACES)
             id = DEFAULT_FACE;
         else if (id <= (-NUM_ROBOT_FACES))
             id = 0;
@@ -289,10 +299,11 @@ public class SOCFaceButton extends Canvas
      * @throws IllegalStateException if player isn't client (checks getName vs client.getNickname)
      */
     public void addFacePopupMenu()
+        throws IllegalStateException
     {
         if (popupMenu == null)
         {
-            if ((game == null) || ! game.getPlayer(pNumber).getName().equals(client.getNickname()))
+            if ((game == null) || ! game.getPlayer(pNumber).getName().equals(pi.getClient().getNickname()))
                 throw new IllegalStateException("Player must be client");
 
             popupMenu = new FaceButtonPopupMenu(this);
@@ -302,6 +313,7 @@ public class SOCFaceButton extends Canvas
 
     /**
      * If we have a popup menu, remove it.
+     * All clicks will be ignored, and won't change the face id shown.
      */
     public void removeFacePopupMenu()
     {
@@ -309,12 +321,12 @@ public class SOCFaceButton extends Canvas
         {
             remove(popupMenu);
             popupMenu = null;
-        }        
+        }
     }
 
     /**
      * The previous face-chooser window (from the face-popup menu) has been disposed.
-     * If menu item is chosen, don't show it, create a new one.
+     * If menu item is chosen again, don't show the previous one, create a new face-chooser window.
      *
      * @see #addFacePopupMenu()
      */
@@ -384,13 +396,14 @@ public class SOCFaceButton extends Canvas
         drawFace(buffer.getGraphics());
         buffer.flush();
         g.drawImage(buffer, 0, 0, this);
-        if (hilightBorderWasShown)
+        if (hilightBorderShown)
+        {
+            paintBorder(g, true);
+        }
+        else if (hilightBorderWasShown)
         {
             paintBorder(g, false);
             hilightBorderWasShown = false;
-        } else if (hilightBorderShown)
-        {
-            paintBorder(g, true);
         }
     }
 
@@ -437,7 +450,7 @@ public class SOCFaceButton extends Canvas
         }
 
         int offs;  // offset for border
-        if (panelx == FACE_BORDERED_WIDTH_PX)
+        if (panelx == FACE_WIDTH_BORDERED_PX)
             offs = FACE_BORDER_WIDTH_PX;
         else
             offs = 0;
@@ -460,7 +473,7 @@ public class SOCFaceButton extends Canvas
         {
             drawColor = getBackground();
         }
-        
+
         g.setColor(drawColor);
         g.drawRect(0, 1, panelx - 1, panely - 3);
         g.drawRect(1, 0, panelx - 3, panely - 1);
@@ -475,9 +488,9 @@ public class SOCFaceButton extends Canvas
          * Handle popup-click.
          * mousePressed has xwindows/OS-X popup trigger.
          */
-        public void mousePressed(MouseEvent e)
+        public void mousePressed(MouseEvent evt)
         {
-            mouseReleased(e);  // same desired code: react to isPopupTrigger
+            mouseReleased(evt);  // same desired code: react to isPopupTrigger
         }
 
         /**
@@ -503,7 +516,9 @@ public class SOCFaceButton extends Canvas
             }
 
             /**
-             * either faceChooser or game will be non-null
+             * either faceChooser or game will be non-null.
+             * faceChooser: Bordered mode
+             * game: Standard mode
              */
             if (faceChooser != null)
             {
@@ -517,7 +532,7 @@ public class SOCFaceButton extends Canvas
              */
             if ((game != null) && (popupMenu != null))
             {
-                if (x < 20)
+                if (x < (FACE_WIDTH_PX / 2))
                 {
                     // if the click is on the left side, decrease the number
                     currentImageNum--;
@@ -539,7 +554,7 @@ public class SOCFaceButton extends Canvas
                 }
 
                 evt.consume();
-                client.changeFace(game, currentImageNum);
+                pi.getClient().changeFace(game, currentImageNum);
                 repaint();
             }
             } catch (Throwable th) {
@@ -548,20 +563,19 @@ public class SOCFaceButton extends Canvas
         }
 
         /**
-         * DOCUMENT ME!
-         *
-         * @param e DOCUMENT ME!
+         * Handle popup-click.
+         * mouseReleased has win32 popup trigger.
          */
-        public void mouseReleased(MouseEvent e)
+        public void mouseReleased(MouseEvent evt)
         {
             try {
             // Needed in Windows for popup-menu handling
-            if (e.isPopupTrigger())
+            if (evt.isPopupTrigger())
             {
-                popupMenuSystime = e.getWhen();
-                e.consume();
+                popupMenuSystime = evt.getWhen();
+                evt.consume();
                 if (popupMenu != null)
-                    popupMenu.show(e.getX(), e.getY());
+                    popupMenu.show(evt.getX(), evt.getY());
                 return;
             }
             } catch (Throwable th) {
@@ -607,13 +621,12 @@ public class SOCFaceButton extends Canvas
         public void actionPerformed(ActionEvent e)
         {
             try {
-            Object target = e.getSource();
             if (e.getSource() != changeFaceItem)
                 return;
             if ((fsf == null) || ! fsf.isStillAvailable())
             {
                 fsf = new FaceChooserFrame
-                    (fb, fb.client, fb.pi, fb.pNumber, fb.getFace(), fb.getSize().width);
+                    (fb, fb.pi.getClient(), fb.pi, fb.pNumber, fb.getFace(), fb.getSize().width);
                 fsf.pack();
             }
             fsf.show();
