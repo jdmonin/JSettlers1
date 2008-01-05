@@ -1315,6 +1315,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     public void mousePressed(MouseEvent e)
     {
         ;  // JM: was mouseClicked (moved to avoid conflict with e.isPopupTrigger)
+        mouseReleased(e);  // JM 2008-01-01 testing for MacOSX popup-trigger
     }
 
     /**

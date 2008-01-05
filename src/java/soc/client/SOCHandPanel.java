@@ -193,7 +193,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     protected boolean interactive;
 
-    private boolean chatExcepTested = true;  // JM: For testing with BANK button
+    private boolean chatExcepTested = true;  // JM: For testing with BANK button (TODO cleanup)
 
     /**
      * make a new hand panel
@@ -532,9 +532,15 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if (target == CLEAR)
         {
-            sqPanel.setValues(zero, zero);
-            clearBut.disable();
-            sendBut.disable();
+            if (playerIsClient)
+            {
+                clearOffer(true);  // Zero the square panel numbers, etc. (TODO) better descr.
+            } else {
+                // TODO can target ever be CLEAR without playerIsClient ?
+                sqPanel.setValues(zero, zero);
+                clearBut.disable();
+                sendBut.disable();
+            }
 
             if (game.getGameState() == SOCGame.PLAY1)
             {
@@ -600,6 +606,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 {
                     // bool array elements begin as false
                     boolean[] to = new boolean[SOCGame.MAXPLAYERS];
+                    boolean toAny = false;
 
                     if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
                     {
@@ -608,6 +615,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                             if (playerSend[i].getBoolValue() && ! game.isSeatVacant(playerSendMap[i]))
                             {
                                 to[playerSendMap[i]] = true;
+                                toAny = true;
                             }
                         }
                     }
@@ -615,13 +623,21 @@ public class SOCHandPanel extends Panel implements ActionListener
                     {
                         // can only offer to current player
                         to[game.getCurrentPlayerNumber()] = true;
+                        toAny = true;
                     }
 
-                    SOCTradeOffer tradeOffer =
-                        new SOCTradeOffer(game.getName(),
-                                          player.getPlayerNumber(),
-                                          to, giveSet, getSet);
-                    client.offerTrade(game, tradeOffer);
+                    if (! toAny)
+                    {
+                        playerInterface.print("*** Please choose at least one opponent's checkbox.");
+                    }
+                    else
+                    {
+                        SOCTradeOffer tradeOffer =
+                            new SOCTradeOffer(game.getName(),
+                                              player.getPlayerNumber(),
+                                              to, giveSet, getSet);
+                        client.offerTrade(game, tradeOffer);
+                    }
                 }
             }
         }
@@ -1055,8 +1071,10 @@ public class SOCHandPanel extends Panel implements ActionListener
         if (playerIsClient)
         {
             int gs = game.getGameState();
-            boolean normalTurnStarting =
-                (playerIsCurrent && (gs == SOCGame.PLAY || gs == SOCGame.PLAY1));
+            boolean normalTurnStarting = (gs == SOCGame.PLAY || gs == SOCGame.PLAY1);
+            clearOffer(normalTurnStarting);  // Zero the square panel numbers, etc. (TODO) better descr.
+                // at any player's turn, not just when playerIsCurrent.
+            normalTurnStarting = normalTurnStarting && playerIsCurrent;
             doneBut.setEnabled(normalTurnStarting);
             playCardBut.setEnabled(normalTurnStarting && (cardList.getItemCount() > 0));
             bankBut.disable();  // enabled by updateAtPlay1()
@@ -1332,7 +1350,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
             else
             {
-                clearOffer();
+                clearOffer(false);
             }
         }
     }
@@ -1361,9 +1379,17 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Clear the current offer.
+     * If player is client, clear the numbers in the resource "offer" squares,
+     * and disable the "offer" and "clear" buttons (since no resources are selected).
+     * Otherwise just hide the last-displayed offer.
+     *
+     * @param updateSendCheckboxes If true, and player is client, update the
+     *    selection checkboxes for which opponents are sent the offer.
+     *    If it's currently our turn, check all boxes where the seat isn't empty.
+     *    Otherwise, check only the box for the opponent whose turn it is.
      */
-    public void clearOffer()
+    public void clearOffer(boolean updateSendCheckboxes)
     {
         offer.setVisible(false);
 
@@ -1372,12 +1398,23 @@ public class SOCHandPanel extends Panel implements ActionListener
             // clear the squares panel
             sqPanel.setValues(zero, zero);
 
-            // reset the send squares
-            for (int i = 0; i < 3; i++)
+            // reset the send squares (checkboxes)
+            if (updateSendCheckboxes)
             {
-                boolean seatTaken = ! game.isSeatVacant(playerSendMap[i]);
-                playerSend[i].setBoolValue(seatTaken);
-                playerSend[i].setEnabled(seatTaken);
+                int pcurr = game.getCurrentPlayerNumber();  // current player number
+                boolean pIsCurr = (pcurr == player.getPlayerNumber());  // are we current? 
+                for (int i = 0; i < 3; i++)
+                {
+                    boolean canSend;
+                    if (pIsCurr)
+                        // send to any occupied seat
+                        canSend = ! game.isSeatVacant(playerSendMap[i]);
+                    else
+                        // send only to current player
+                        canSend = (pcurr == playerSendMap[i]);
+                    playerSend[i].setBoolValue(canSend);
+                    playerSend[i].setEnabled(canSend);
+                }
             }
 
             clearBut.disable();

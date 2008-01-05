@@ -133,6 +133,7 @@ public class TradeOfferPanel extends Panel
         }
     }
 
+    /** Contains both offer and counter-offer */
     private class OfferPanel extends Panel implements ActionListener
     {
         SpeechBalloon balloon;
@@ -147,6 +148,7 @@ public class TradeOfferPanel extends Panel
         Button acceptBut;
         Button rejectBut;
         ShadowedBox offerBox;
+
         /** Counter-offer to send */
         SquaresPanel offerSquares;
         Label giveLab2;
@@ -471,7 +473,7 @@ public class TradeOfferPanel extends Panel
                                                player.getPlayerNumber(),
                                                to, giveSet, getSet);
                         hp.getClient().offerTrade(game, tradeOffer);
-                        
+
                         setCounterOfferVisible(true);
                     }
                 }

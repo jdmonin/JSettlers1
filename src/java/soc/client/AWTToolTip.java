@@ -1,9 +1,9 @@
 /*
- * $Id: ExpandTooltip.java,v 1.6 2007/11/10 23:05:00 jm Exp $
+ * $Id: ExpandTooltip.java,v 1.9 2008/01/05 10:02:00 jm Exp $
  *
  * (c)2000 IoS Gesellschaft fr innovative Softwareentwicklung mbH
  * http://www.IoS-Online.de    mailto:info@IoS-Online.de
- * Portions (c)2007 Jeremy D Monin <jeremy@nand.net>
+ * Portions (c)2007,2008 Jeremy D Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -38,11 +38,10 @@ public class AWTToolTip
   implements MouseListener, MouseMotionListener
 {
 
-  /** The Window is closed after the mouse has been moved
+  /** The tip is hidden after the mouse has been moved
    *  closeAfterMoveX poinntes horizontally or closeAfterMoveY
    *  points vertically away from the point where it has been clicked
-   *  (or it has left the table-area (this also happens when the
-   *  mouse enters the expanded-windows))
+   *  (or it has left its parent component's area)
    */
   public int closeAfterMoveX = 100;
   public int closeAfterMoveY = 20;
@@ -52,8 +51,16 @@ public class AWTToolTip
   /** JM add? tfont is parentComp.getFont, set at mouseEnter */
   protected Font tfont;
 
+  /** Component to which tooltip is notionally added, set in constructor.
+   *  Actually it's added directly to mainParentComp when needed.
+   *  Tooltip is a mouseListener, mouseMotionListener of parentComp.
+   */
   protected Component parentComp;
+
+  /** parentComp's top-level parent, set at mouseEnter; null if not currently visible */
   protected Container mainParentComp;
+
+  /** true layout manager of mainParentComp; temporarily changed to add the tooltip */
   protected LayoutManager mainParentLayout;
 
   /** Position of parentComp within painParentComp */
@@ -64,12 +71,14 @@ public class AWTToolTip
 
   private boolean autoPopup = false;
 
-  public static int OFFSET_X = 10;
-  public static int OFFSET_Y = 10;
+  public static int OFFSET_X = 10;  // TODO docu
+  public static int OFFSET_Y = 10;  // TODO docu
 
   /** JM add: want shown? If true, must dynamically add us to parentComp. */
   private boolean wantsShown;
-  private boolean isShown;
+
+  /** Currently showing?  See also mainParentComp != null. */
+  private boolean isShown;  // TODO pick one (isShown or mainParentComp != null)
 
   /** JM add: Our location within parentComp */
   private int boxX, boxY;
@@ -242,6 +251,11 @@ public class AWTToolTip
     return p;
   }
 
+  /** Hide and remove from a main parent, until addToParent is called (typically from mouseEntered).
+   *  Does not remove from the immediate parent passed to the constructor.
+   *
+   * @see #addToParent(int, int)
+   */
   protected void removeFromParent()
   {
     if (isShown)
@@ -255,6 +269,10 @@ public class AWTToolTip
   }
 
   /** Add and show tooltip, with mouse at this location.
+   *  mainParentComp will be set to the "top-level" container of the
+   *  parent passed to the constructor.
+   *
+   *  If already added to a (main) parent, nothing happens.
    *
    * @param x Mouse position within parentComp when adding
    *      (NOT within mainparent)
@@ -307,9 +325,9 @@ public class AWTToolTip
   }
 
   /**
-   * hides the tooltip.
+   * hides the tooltip. (Removes from parent container)
    */
-  private void hideWindow()
+  private void hideTip()
   {
     wantsShown = false;
     removeFromParent();
@@ -320,8 +338,7 @@ public class AWTToolTip
    */
   public void destroy()
   {
-    wantsShown = false;
-    removeFromParent();
+    hideTip();
   }
 
   /**
@@ -377,12 +394,15 @@ public class AWTToolTip
 
   public void mouseDragged( MouseEvent e) {}
 
-}
+}  /* public class AWTToolTip */
 
 /*
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ *
+ * Revision 1.9  2008/01/05 10:02:00  jm
+ * - Javadoc clarifications; rename hideWindow to hideTip
  *
  * Revision 1.8  2007/12/17 22:14:00  jm
  * - Ensure parent font at paint, not default font
