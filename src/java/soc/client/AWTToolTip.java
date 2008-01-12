@@ -1,5 +1,5 @@
 /*
- * $Id: ExpandTooltip.java,v 1.9 2008/01/05 10:02:00 jm Exp $
+ * $Id: AWTToolTip.java,v 1.0 2008/01/12 17:48:00 jm Exp $
  *
  * (c)2000 IoS Gesellschaft fr innovative Softwareentwicklung mbH
  * http://www.IoS-Online.de    mailto:info@IoS-Online.de
@@ -32,10 +32,11 @@ import java.awt.event.*;
 
 /**
  * A short tooltip for a component.
+ * Does not handle component resize or moving, but will respond to hide/un-hide.
  */
 public class AWTToolTip
   extends Canvas
-  implements MouseListener, MouseMotionListener
+  implements MouseListener, MouseMotionListener, ComponentListener
 {
 
   /** The tip is hidden after the mouse has been moved
@@ -52,13 +53,16 @@ public class AWTToolTip
   protected Font tfont;
 
   /** Component to which tooltip is notionally added, set in constructor.
-   *  Actually it's added directly to mainParentComp when needed.
+   *  Actually tip is added directly to mainParentComp when needed.
    *  Tooltip is a mouseListener, mouseMotionListener of parentComp.
    */
   protected Component parentComp;
 
   /** parentComp's top-level parent, set at mouseEnter; null if not currently visible */
   protected Container mainParentComp;
+
+  /** thread-lock on changes/accesses of mainParentComp */
+  protected Object l_mainParentComp;
 
   /** true layout manager of mainParentComp; temporarily changed to add the tooltip */
   protected LayoutManager mainParentLayout;
@@ -110,9 +114,12 @@ public class AWTToolTip
     tip = _tip;
     parentComp.addMouseListener( this );
     parentComp.addMouseMotionListener( this );
+    parentComp.addComponentListener( this );
     setBackground(bgcol);
     wantsShown = true;
     isShown = false;
+    l_mainParentComp = new Object();
+
     // These are set at mouseenter
     mainParentComp = null;
     mainParentLayout = null;
@@ -160,6 +167,7 @@ public class AWTToolTip
   /**
    * Show tip at appropriate location when mouse
    * is at (x,y) within mainparent (NOT within parentComp).
+   * If not currently visible, nothing happens.
    */
   protected void showAtMouse(int x, int y)
   {
@@ -260,11 +268,22 @@ public class AWTToolTip
   {
     if (isShown)
     {
-      mainParentComp.remove(0);
-      mainParentComp.setLayout(mainParentLayout);
-      mainParentComp.validate();
-      mainParentComp = null;
-      isShown = false;
+      Container ourMP;
+      synchronized (l_mainParentComp)
+      {
+        if (mainParentComp == null)
+        {
+          isShown = false;
+          return;
+        }
+        ourMP = mainParentComp;
+        ourMP.remove(0);
+        if (mainParentLayout != null)
+          ourMP.setLayout(mainParentLayout);
+        mainParentComp = null;
+        isShown = false;
+      }
+      ourMP.validate();
     }
   }
 
@@ -273,6 +292,7 @@ public class AWTToolTip
    *  parent passed to the constructor.
    *
    *  If already added to a (main) parent, nothing happens.
+   *  If the parent is currently not visible, nothing happens.
    *
    * @param x Mouse position within parentComp when adding
    *      (NOT within mainparent)
@@ -285,12 +305,19 @@ public class AWTToolTip
   {
     if (! wantsShown)
         return;
-    if (mainParentComp != null)
+    if (! parentComp.isVisible())
         return;
+    Container ourMP;
+    synchronized (l_mainParentComp)
+    {
+        if (mainParentComp != null)  // Already showing
+            return;
 
-    mainParentComp = getParentContainer(parentComp);
-    mainParentLayout = mainParentComp.getLayout();
-    mainParentComp.setLayout(null);  // Allow free placement
+        mainParentComp = getParentContainer(parentComp);
+        ourMP = mainParentComp;
+        mainParentLayout = ourMP.getLayout();
+        ourMP.setLayout(null);  // Allow free placement
+    }
 
     tfont = parentComp.getFont();
     FontMetrics fm = getFontMetrics(tfont);
@@ -302,10 +329,16 @@ public class AWTToolTip
     parentY = parentComp.getLocationOnScreen().y - mainParentComp.getLocationOnScreen().y;
     showAtMouse(x + parentX, y + parentY);
 
-    mainParentComp.add(this, 0);
-    mainParentComp.validate();
-    isShown = true;
-    repaint();
+    synchronized (l_mainParentComp)
+    {
+        if (ourMP == mainParentComp)
+        {
+            ourMP.add(this, 0);
+            ourMP.validate();
+            isShown = true;
+            repaint();
+        }
+    }
   }
 
   /**
@@ -315,11 +348,14 @@ public class AWTToolTip
    */
   public static Container getParentContainer( Component c )
   {
+    Component last;
     while (! ((c instanceof Frame) || (c instanceof Applet) || (c instanceof Dialog)))
     {
+      last = c;
       c = c.getParent();
       if (c == null)
-        throw new IllegalStateException("Assert failed, parent should not be null");
+        throw new IllegalStateException("Assert failed, parent should not be null; last: "
+                + last.getClass().getName() + " " + last );
     }
     return (Container) c;
   }
@@ -339,6 +375,13 @@ public class AWTToolTip
   public void destroy()
   {
     hideTip();
+    if (parentComp != null)
+    {
+      parentComp.removeMouseListener(this);
+      parentComp.removeMouseMotionListener(this);
+      parentComp.removeComponentListener(this);
+      parentComp = null;
+    }
   }
 
   /**
@@ -394,12 +437,45 @@ public class AWTToolTip
 
   public void mouseDragged( MouseEvent e) {}
 
+  /**
+   * ComponentListener-Methods
+   */
+
+  /** when parentComp becomes hidden, hide this tooltip if shown. */
+  public void componentHidden(ComponentEvent e)
+  {
+    hideTip();
+  }
+
+  /** stub, required for ComponentListener */
+  public void componentMoved(ComponentEvent e) { }
+
+  /** stub, required for ComponentListener */
+  public void componentResized(ComponentEvent e) { }
+
+  /**
+   * When parentComp becomes un-hidden, flag this tooltip to be shown when mouse moves in.
+   * If the mouse was already in the parent's bounding box, tip will not know that
+   * until it receives a mouseEntered event.
+   */
+  public void componentShown(ComponentEvent e)
+  {
+    wantsShown = true; 
+  }
+
 }  /* public class AWTToolTip */
 
 /*
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ *
+ * Revision 1.10  2008/01/12 17:48:00  jm
+ * - removeFromParent don't re-set layout if mainParentLayout is null
+ * - addToParent, removeFromParent thread-lock protects mainParentLayout
+ * - addToParent do nothing if parent component not visible
+ * - destroy removes self as parent listeners
+ * - implement ComponentListener
  *
  * Revision 1.9  2008/01/05 10:02:00  jm
  * - Javadoc clarifications; rename hideWindow to hideTip
