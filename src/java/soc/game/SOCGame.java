@@ -181,15 +181,20 @@ public class SOCGame implements Serializable, Cloneable
     private int oldGameState;
 
     /**
-     * the player with the largest army
+     * the player with the largest army, or -1 if none
      */
     private int playerWithLargestArmy;
     private int oldPlayerWithLargestArmy;
 
     /**
-     * the player with the longest road
+     * the player with the longest road, or -1 if none
      */
     private int playerWithLongestRoad;
+
+    /**
+     * the player declared winner, if gamestate == OVER; otherwise -1
+     */
+    private int playerWithWin;
 
     /**
      * the number of development cards left
@@ -253,6 +258,7 @@ public class SOCGame implements Serializable, Cloneable
         currentDice = -1;
         playerWithLargestArmy = -1;
         playerWithLongestRoad = -1;
+        playerWithWin = -1;
         numDevCards = 25;
         gameState = NEW;
         oldPlayerWithLongestRoad = new Stack();
@@ -549,13 +555,17 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * set the current game state
+     * set the current game state.
+     * If the new state is OVER, and no playerWithWin yet determined, call checkForWinner.
      *
      * @param gs  the game state
+     * @see #checkForWinner()
      */
     public void setGameState(int gs)
     {
         gameState = gs;
+        if ((gameState == OVER) && (playerWithWin == -1))
+            checkForWinner();
     }
 
     /**
@@ -637,6 +647,26 @@ public class SOCGame implements Serializable, Cloneable
         else
         {
             playerWithLongestRoad = pl.getPlayerNumber();
+        }
+    }
+
+    /**
+     * Find the player who was declared winner at end of game.
+     * This is determined in checkForWinner; there is no corresponding setter.
+     *
+     * @return the winning player, or null if none, or if game is not yet over.
+     *
+     * @see #checkForWinner()
+     */
+    public SOCPlayer getPlayerWithWin()
+    {
+        if (playerWithWin != -1)
+        {
+            return players[playerWithWin];
+        }
+        else
+        {
+            return null;
         }
     }
 
@@ -2622,7 +2652,11 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * check all the vp totals to see if the
-     * game is over
+     * game is over.  Set game state to OVER,
+     * set player with win.
+     *
+     * @see #getGameState()
+     * @see #getPlayerWithWin()
      */
     public void checkForWinner()
     {
@@ -2631,7 +2665,7 @@ public class SOCGame implements Serializable, Cloneable
             if (players[i].getTotalVP() >= 10)
             {
                 gameState = OVER;
-
+                playerWithWin = i;
                 break;
             }
         }

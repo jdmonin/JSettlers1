@@ -3327,7 +3327,27 @@ public class SOCServer extends Server
 
                 try
                 {
-                    if (checkTurn(c, ga))
+                    if (ga.getGameState() == SOCGame.OVER)
+                    {
+                        String msg;
+                        SOCPlayer pl = ga.getPlayer((String) c.getData());
+                        SOCPlayer wn = ga.getPlayerWithWin();
+                        if ((pl != null) && (pl == wn))
+                        {
+                            msg = "The game is over; you are the winner!";
+                        }
+                        else if (wn != null)
+                        {
+                            msg = "The game is over; " + wn.getName() + " won.";
+                        }
+                        else
+                        {
+                            // Just in case; don't think this can happen
+                            msg = "The game is over; no one won.";
+                        }
+                        c.put(SOCGameTextMsg.toCmd(gname, SERVERNAME, msg));
+                    }
+                    else if (checkTurn(c, ga))
                     {
                         if (ga.canEndTurn(ga.getPlayer((String) c.getData()).getPlayerNumber()))
                         {
@@ -3977,6 +3997,7 @@ public class SOCServer extends Server
                                 messageToGame(ga.getName(), new SOCSetPlayedDevCard(ga.getName(), player.getPlayerNumber(), true));
                                 messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Road Building card."));
                                 sendGameState(ga);
+                                c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You may place 2 roads."));
                             }
                             else
                             {
@@ -4018,6 +4039,17 @@ public class SOCServer extends Server
                             }
 
                             break;
+
+                        // VP cards are secretly played when bought.
+                        // (case SOCDevCardConstants.CAP, LIB, UNIV, TEMP, TOW):
+                        // If player clicks "Play Card" the message is handled at the
+                        // client, in SOCHandPanel.actionPerformed case CARD.
+                        //  "You secretly played this VP card when you bought it."
+                        //  break;
+
+                        default:
+                            D.ebugPrintln("* SOCServer.handlePLAYDEVCARDREQUEST: asked to play unhandled type " + mes.getDevCard());
+
                         }
                     }
                     else
@@ -4864,6 +4896,7 @@ public class SOCServer extends Server
         String gname = ga.getName();
         
         // Find and announce the winner
+        // (the real "found winner" code is in SOCGame.checkForWinner)
         for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
             SOCPlayer pl = ga.getPlayer(i);
@@ -4873,7 +4906,6 @@ public class SOCServer extends Server
                 String msg;
                 msg = pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
                 messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
-
                 break;
             }
         }
