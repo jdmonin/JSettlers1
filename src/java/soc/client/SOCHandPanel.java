@@ -93,6 +93,9 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String AUTOROLL_COUNTDOWN = "Auto-Roll in: ";
     protected static final String ROLL_OR_PLAY_CARD = "Roll or Play Card";
 
+    /** If player has won the game, update pname label */
+    protected static final String WINNER_SUFFIX = " - Winner";
+
     /** Panel text color, and player name color when not current player */
     protected static final Color COLOR_FOREGROUND = Color.BLACK;
     /** Player name background color when current player (foreground does not change) */
@@ -659,15 +662,24 @@ public class SOCHandPanel extends Panel implements ActionListener
                     if (item.length() == 0)
                         return;
                 } else {
+                    if (cardList.getItemCount() > 1)
+                    {
+                        playerInterface.print("* Please click a card first to select it.");
+                    }
                     return;
                 }
             }
 
             setRollPrompt(null);  // Clear prompt if Play Card clicked (vs Roll)
 
-            if (game.getCurrentPlayerNumber() == player.getPlayerNumber())
+            if (playerIsCurrent)
             {
-                if (item.equals("Soldier"))
+                if (player.hasPlayedDevCard())
+                {
+                    playerInterface.print("*** You may play only one card per turn.");
+                    playCardBut.setEnabled(false);
+                }
+                else if (item.equals("Soldier"))
                 {
                     if (game.canPlayKnight(player.getPlayerNumber()))
                     {
@@ -694,6 +706,10 @@ public class SOCHandPanel extends Panel implements ActionListener
                     {
                         client.playDevCard(game, SOCDevCardConstants.MONO);
                     }
+                }
+                else if (item.indexOf("VP)") > 0)
+                {
+                    playerInterface.print("*** You secretly played this VP card when you bought it.");
                 }
             }
         }
@@ -1515,7 +1531,9 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * update the value of a player element
+     * update the value of a player element.
+     * If VICTORYPOINTS is updated, and game state is over, check for winner
+     * and update (player name label, victory-points tooltip)
      *
      * @param vt  the type of value
      */
@@ -1534,10 +1552,10 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 int newVP = player.getTotalVP();
                 vpSq.setIntValue(newVP);
-                if (newVP >= 10)
+                if ((game.getGameState() == SOCGame.OVER) && (game.getPlayerWithWin() == player))
                 {
-                    // FIXME: Assumes 10 is the hardcoded number of winning points
                     vpSq.setTooltipText("Winner with " + newVP + " victory points");
+                    pname.setText(player.getName() + WINNER_SUFFIX);
                 }
             }
             break;
@@ -1656,12 +1674,15 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     protected void setRollPrompt(String prompt)
     {
+        boolean wasUse = rollPromptInUse; 
         rollPromptInUse = (prompt != null);
         if (rollPromptInUse)
         {
             rollPromptCountdownLab.setText(prompt);
             rollPromptCountdownLab.repaint();
-        } else {
+        }
+        else if (wasUse)
+        {
             rollPromptCountdownLab.setText(" ");
             rollPromptCountdownLab.repaint();
         }
@@ -1856,15 +1877,24 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
 
             // autoroll function
-            if (timeRemain > 0)
+            try
             {
-                setRollPrompt(AUTOROLL_COUNTDOWN + Integer.toString(timeRemain));
-            } else {
-                clickRollButton();  // Clear prompt, click Roll
-                cancel();  // End of countdown for this timer
+                if (timeRemain > 0)
+                {
+                    setRollPrompt(AUTOROLL_COUNTDOWN + Integer.toString(timeRemain));
+                } else {
+                    clickRollButton();  // Clear prompt, click Roll
+                    cancel();  // End of countdown for this timer
+                }
             }
-
-            --timeRemain;  // for next tick
+            catch (Throwable thr)
+            {
+                playerInterface.chatPrintStackTrace(thr);
+            }
+            finally
+            {
+                --timeRemain;  // for next tick                
+            }
         }
 
     }  // inner class HandPanelAutoRollTask
