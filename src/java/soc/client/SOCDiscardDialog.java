@@ -78,17 +78,18 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
 
         setLayout(null);
 
-        // wantH formula based on doLayout
-        wantW = 270;
-        wantH = 15 + 5 + (2 * (20 + 5 + 15 + 5)) + 25 + 5;
-        setSize(wantW + 10, wantH + 20);  // Can calc & add room for insets at doLayout
-
         msg = new Label("Please discard " + Integer.toString(numDiscards) + " resources.", Label.CENTER);
         add(msg);
         youHave = new Label("You have:", Label.LEFT);
         add(youHave);
         discThese = new Label("Discard these:", Label.LEFT);
         add(discThese);
+
+        // wantH formula based on doLayout
+        //    labels: 20  colorsq: 20  button: 25  spacing: 5
+        wantW = 270;
+        wantH = 20 + 5 + (2 * (20 + 5 + 20 + 5)) + 25 + 5;
+        setSize(wantW + 10, wantH + 20);  // Can calc & add room for insets at doLayout
 
         add(discardBut);
         discardBut.addActionListener(this);
@@ -181,7 +182,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
         try
         {
             msg.setBounds((width - msgW) / 2, getInsets().top, msgW + 4, 20);
-            discardBut.setBounds((getSize().width - 80) / 2, (getInsets().top + height) - 35, 80, 25);
+            discardBut.setBounds((getSize().width - 80) / 2, (getInsets().top + height) - 30, 80, 25);
             youHave.setBounds(getInsets().left, getInsets().top + 20 + space, 70, 20);
             discThese.setBounds(getInsets().left, getInsets().top + 20 + space + 20 + space + sqwidth + space, 100, 20);
         }
