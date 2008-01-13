@@ -52,6 +52,7 @@ import java.awt.BorderLayout;
 import java.awt.Button;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
@@ -868,12 +869,17 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                     {
                         status.setText("Starting practice game setup...");
                     }
-                    startPracticeGame(gm);
+                    startPracticeGame(gm);  // Also sets WAIT_CURSOR
                 }
                 else
                 {
                     status.setText("Talking to server...");
                     putNet(SOCJoinGame.toCmd(nickname, password, host, gm));
+
+                    // May take a while for server to start game.
+                    // The new-game window will clear this cursor
+                    // (SOCPlayerInterface constructor)
+                    setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                 }
             }
             else
@@ -3662,6 +3668,10 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     public void startPracticeGame(String practiceGameName)
     {
         ++numPracticeGames;
+
+        // May take a while to start server & game.
+        // The new-game window will clear this cursor.
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
         if (practiceServer == null)
         {

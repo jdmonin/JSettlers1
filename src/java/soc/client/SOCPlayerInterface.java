@@ -26,6 +26,7 @@ import soc.game.SOCGame;
 import soc.game.SOCPlayer;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -108,6 +109,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public static final String TEXTINPUT_INITIAL_PROMPT_MSG
         = "Type here to chat.";
+
+    /** Titlebar text for game in progress */
+    public static final String TITLEBAR_GAME
+        = "Settlers of Catan Game: ";
+
+    /** Titlebar text for game when over */
+    public static final String TITLEBAR_GAME_OVER
+        = "Settlers of Catan Game Over: ";
 
     /**
      * Used for responding to textfield changes by setting/clearing prompt message.
@@ -197,13 +206,13 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     /**
      * create a new player interface
      *
-     * @param title  title for this interface
+     * @param title  title for this interface - game name
      * @param cl     the player client that spawned us
      * @param ga     the game associated with this interface
      */
     public SOCPlayerInterface(String title, SOCPlayerClient cl, SOCGame ga)
     {
-        super("Settlers of Catan Game: " + title + " [" + cl.getNickname() + "]");
+        super(TITLEBAR_GAME + title + " [" + cl.getNickname() + "]");
         setResizable(true);
 
         client = cl;
@@ -250,6 +259,13 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         setLocation(50, 50);
         setSize(840, 730);
         validate();
+
+        /**
+         * complete - reset mouse cursor from hourglass to normal
+         * (set in SOCPlayerClient.startPracticeGame or .guardedActionPerform)
+         */
+        client.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+
     }
 
     /**
@@ -692,12 +708,13 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     {
         if (game.getGameState() != SOCGame.OVER)
             return;
-        
+
         for (int i = 0; i < finalScores.length; ++i)
         {
             game.getPlayer(i).forceFinalVP(finalScores[i]);
             hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);
-        }        
+        }
+        setTitle(TITLEBAR_GAME_OVER + game.getName() + " [" + client.getNickname() + "]");
         repaint();
     }
 
