@@ -49,7 +49,7 @@ public class AWTToolTip
 
   private String tip;
 
-  /** JM add? tfont is parentComp.getFont, set at mouseEnter */
+  /** JM add? tfont is parentComp.getFont, set at mouseEntered */
   protected Font tfont;
 
   /** Component to which tooltip is notionally added, set in constructor.
@@ -58,7 +58,7 @@ public class AWTToolTip
    */
   protected Component parentComp;
 
-  /** parentComp's top-level parent, set at mouseEnter; null if not currently visible */
+  /** parentComp's top-level parent, set at mouseEntered; null if not currently visible */
   protected Container mainParentComp;
 
   /** thread-lock on changes/accesses of mainParentComp */
@@ -120,7 +120,7 @@ public class AWTToolTip
     isShown = false;
     l_mainParentComp = new Object();
 
-    // These are set at mouseenter
+    // These are set at mouseEntered
     mainParentComp = null;
     mainParentLayout = null;
     tfont = null;
@@ -145,10 +145,12 @@ public class AWTToolTip
   {
     if (newTip == null)
       throw new IllegalArgumentException("newTip null");
+    if (tip.equals(newTip))
+        return;    // <--- Early return: same text ---
     tip = newTip;
 
     if ( (! (wantsShown || isShown)) || (mainParentComp == null))
-      return;
+      return;      // <--- Early return: done, is not showing ---
 
     if (! isShown)
     {
@@ -402,10 +404,12 @@ public class AWTToolTip
       addToParent(e.getX(), e.getY());
     }
   }
+
   public void mousePressed( MouseEvent e)
   {
     removeFromParent();
   }
+
   public void mouseReleased( MouseEvent e) {}
 
   /**
@@ -491,7 +495,7 @@ public class AWTToolTip
  * - Canvas, not Window
  * - Simple constructor, simple layout
  * - Find applet or dialog as parent, not just frame
- * - Add to layout at mouseenter/mouseleave, not constructor (add wantsShown, etc)
+ * - Add to layout at mouseentered/mouseexited, not constructor (add wantsShown, etc)
  * - Override update(Graphics) for less flicker
  * - Add setTip
  *
