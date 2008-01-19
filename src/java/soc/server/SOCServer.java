@@ -71,6 +71,17 @@ public class SOCServer extends Server
     public static final String SERVERNAME = "Server";
 
     /**
+     * If game will expire in this or fewer minutes, warn the players. Default 10.
+     * Must be at least twice the sleep-time in SOCGameTimeoutChecker.run().
+     * The game expiry time is set at game creation in SOCGameList.CreateGame.
+     *
+     * @see #checkForExpiredGames()
+     * @see SOCGameTimeoutChecker#run()
+     * @see SOCGameList#createGame(String)
+     */
+    public static int GAME_EXPIRE_WARN_MINUTES = 10;
+
+    /**
      * So we can get random numbers.
      */
     private Random rand = new Random();
@@ -402,7 +413,7 @@ public class SOCServer extends Server
 
                 try
                 {
-                    gameList.createGame(ga);
+                    gameList.createGame(ga);  // Create new game, expiring in SOCGameList.GAME_EXPIRE_MINUTES .
                     gameList.addMember(c, ga);
 
                     // must release monitor before we broadcast
@@ -1021,7 +1032,9 @@ public class SOCServer extends Server
      * Send a message to the given game
      *
      * @param ga  the name of the game
-     * @param mes the message to send
+     * @param mes the message to send. If mes begins with ">>>", the client
+     *            should consider this an urgent message, and draw the
+     *            user's attention in some way.
      */
     public void messageToGame(String ga, SOCMessage mes)
     {
@@ -1425,6 +1438,8 @@ public class SOCServer extends Server
                     //currentGameEventRecord.setSnapshot(ga);
                     ///
                     /// command to add time to a game
+                    /// If the command text changes from '*ADDTIME*' to something else,
+                    /// please update the warning text sent in checkForExpiredGames().
                     ///
                     if ((gameTextMsgMes.getText().startsWith("*ADDTIME*")) || (gameTextMsgMes.getText().startsWith("*addtime*")) || (gameTextMsgMes.getText().startsWith("ADDTIME")) || (gameTextMsgMes.getText().startsWith("addtime")))
                     {
@@ -1432,9 +1447,12 @@ public class SOCServer extends Server
 
                         if (gameData != null)
                         {
-                            // add 30 min. to the expiration date
-                            gameData.setExpiration(gameData.getExpiration() + 1800000);
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes."));
+                            // add 30 min. to the expiration time.  If this
+                            // changes to another timespan, please update the
+                            // warning text sent in checkForExpiredGames().
+                            // Use ">>>" in messageToGame to mark as urgent.
+                            gameData.setExpiration(gameData.getExpiration() + (30 * 60 * 1000));
+                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, ">>> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes."));
                         }
                     }
 
@@ -1444,7 +1462,7 @@ public class SOCServer extends Server
                     if (gameTextMsgMes.getText().startsWith("*CHECKTIME*"))
                     {
                         SOCGame gameData = gameList.getGameData(gameTextMsgMes.getGame());
-                        messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes."));
+                        messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, ">>> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes."));
                     }
                     else if (gameTextMsgMes.getText().startsWith("*WHO*"))
                     {
@@ -5619,14 +5637,20 @@ public class SOCServer extends Server
     }
 
     /**
-     * check for games that have expired and destroy them
-     * if games are about to expire, send a warning
+     * check for games that have expired and destroy them.
+     * If games are about to expire, send a warning.
+     *
+     * @see #GAME_EXPIRE_WARN_MINUTES
+     * @see SOCGameTimeoutChecker#run()
      */
     public void checkForExpiredGames()
     {
         Vector expired = new Vector();
 
         gameList.takeMonitor();
+        
+        // Add 2 minutes because of coarse 5-minute granularity in SOCGameTimeoutChecker.run()
+        long warn_ms = (2 + GAME_EXPIRE_WARN_MINUTES) * 60L * 1000L; 
 
         try
         {
@@ -5634,20 +5658,24 @@ public class SOCServer extends Server
             {
                 String gameName = (String) k.nextElement();
                 SOCGame gameData = gameList.getGameData(gameName);
+                long gameExpir = gameData.getExpiration();
 
-                if (gameData.getExpiration() <= System.currentTimeMillis())
+                // Start our text messages with ">>>" to mark as urgent to the client.
+
+                if (gameExpir <= System.currentTimeMillis())
                 {
                     expired.addElement(gameName);
                     messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, ">>> The time limit on this game has expired and will now be destroyed."));
                 }
                 else
                 //
-                //  Give people a 5 minute warning
+                //  Give people a few minutes' warning (they may have a few warnings)
                 //
-                if ((gameData.getExpiration() - 300000) <= System.currentTimeMillis())
+                if ((gameExpir - warn_ms) <= System.currentTimeMillis())
                 {
-                    gameData.setExpiration(System.currentTimeMillis() + 300000);
-                    messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, ">>> Less than 5 minutes remaining.  Type *ADDTIME* to extend this game another 30 minutes."));
+                    long minutes = ((gameExpir - System.currentTimeMillis()) / 60000);
+                    messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, ">>> Less than "
+                        + minutes + " minutes remaining.  Type *ADDTIME* to extend this game another 30 minutes."));
                 }
             }
         }

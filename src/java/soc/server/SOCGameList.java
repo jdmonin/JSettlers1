@@ -34,12 +34,20 @@ import java.util.Vector;
 
 
 /**
- * A class for tracking the games
+ * A class for creating and tracking the games
  *
  * @author Robert S. Thomas
  */
 public class SOCGameList
 {
+    /**
+     * Number of minutes after which a game (created on the list) is expired.
+     * Default is 90.
+     *
+     * @see #createGame(String)
+     */
+    public static int GAME_EXPIRE_MINUTES = 90;
+    
     protected Hashtable gameMutexes;
     protected Hashtable gameMembers;
     protected Hashtable gameData;
@@ -277,9 +285,11 @@ public class SOCGameList
     }
 
     /**
-     * create a new game
+     * create a new game, and add to the list; game will expire in GAME_EXPIRE_MINUTES.
      *
      * @param gaName  the name of the game
+     *
+     * @see #GAME_EXPIRE_MINUTES
      */
     public synchronized void createGame(String gaName)
     {
@@ -294,7 +304,7 @@ public class SOCGameList
             SOCGame game = new SOCGame(gaName);
 
             // set the expiration to 90 min. from now
-            game.setExpiration(game.getStartTime().getTime() + 5400000);
+            game.setExpiration(game.getStartTime().getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
             gameData.put(gaName, game);
         }
     }

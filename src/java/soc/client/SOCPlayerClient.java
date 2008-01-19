@@ -1698,7 +1698,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * handle the "game text message" message
+     * handle the "game text message" message.
+     * Messages not from Server go to the chat area.
+     * Messages from Server go to the game text window.
+     * Urgent messages from Server (starting with ">>>") also go to the chat area,
+     * which has less activity, so they are harder to miss.
+     *
      * @param mes  the message
      */
     protected void handleGAMETEXTMSG(SOCGameTextMsg mes)
@@ -1709,7 +1714,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             if (mes.getNickname().equals("Server"))
             {
-                pi.print("* " + mes.getText());
+                String mesText = mes.getText();
+                String starMesText = "* " + mesText;
+                pi.print(starMesText);
+                if (mesText.startsWith(">>>"))
+                    pi.chatPrint(starMesText);
             }
             else
             {
