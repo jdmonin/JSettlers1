@@ -671,6 +671,40 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
+     * If game is over, formulate a message to tell a player.
+     * @param pl Player to tell (may be the winner)
+     * @return A message of one of these forms:
+     *       "The game is over; you are the winner!"
+     *       "The game is over; <someone> won."
+     *       "The game is over; no one won."
+     * @throws IllegalStateException If the game state is not OVER
+     */
+    public String gameOverMessageToPlayer(SOCPlayer pl)
+        throws IllegalStateException
+    {
+        if (gameState != OVER)
+            throw new IllegalStateException("This game is not over yet");
+        String msg;
+        SOCPlayer wn = getPlayerWithWin();
+
+        if ((pl != null) && (pl == wn))
+        {
+            msg = "The game is over; you are the winner!";
+        }
+        else if (wn != null)
+        {
+            msg = "The game is over; " + wn.getName() + " won.";
+        }
+        else
+        {
+            // Just in case; don't think this can happen
+            msg = "The game is over; no one won.";
+        }
+
+        return msg;
+    }
+
+    /**
      * advance the turn to the previous player,
      * used during initial placement
      */

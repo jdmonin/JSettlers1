@@ -3329,22 +3329,11 @@ public class SOCServer extends Server
                 {
                     if (ga.getGameState() == SOCGame.OVER)
                     {
-                        String msg;
                         SOCPlayer pl = ga.getPlayer((String) c.getData());
-                        SOCPlayer wn = ga.getPlayerWithWin();
-                        if ((pl != null) && (pl == wn))
-                        {
-                            msg = "The game is over; you are the winner!";
-                        }
-                        else if (wn != null)
-                        {
-                            msg = "The game is over; " + wn.getName() + " won.";
-                        }
-                        else
-                        {
-                            // Just in case; don't think this can happen
-                            msg = "The game is over; no one won.";
-                        }
+                        String msg = ga.gameOverMessageToPlayer(pl);
+                            // msg = "The game is over; you are the winner!";
+                            // msg = "The game is over; <someone> won.";
+                            // msg = "The game is over; no one won.";
                         c.put(SOCGameTextMsg.toCmd(gname, SERVERNAME, msg));
                     }
                     else if (checkTurn(c, ga))

@@ -32,6 +32,8 @@ import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import soc.game.SOCGame;
+
 
 /**
  * This is the dialog to confirm when someone clicks the Quit Game button.
@@ -41,17 +43,46 @@ import java.awt.event.ActionListener;
 class SOCQuitConfirmDialog extends AskDialog
 {
     /**
+     * Creates and shows a new SOCQuitConfirmDialog.
+     * If the game is over, the "Quit" button is the default;
+     * otherwise, Continue is default.
+     *
+     * @param cli      Player client interface
+     * @param gamePI   Current game's player interface
+     * @throws IllegalArgumentException If cli or gamePI is null
+     */
+    public static void createAndShow(SOCPlayerClient cli, SOCPlayerInterface gamePI)
+        throws IllegalArgumentException
+    {
+        if ((cli == null) || (gamePI == null))
+            throw new IllegalArgumentException("no nulls");
+        SOCGame ga = gamePI.getGame();
+        boolean gaOver = (ga.getGameState() == SOCGame.OVER);
+
+        SOCQuitConfirmDialog qcd = new SOCQuitConfirmDialog(cli, gamePI, gaOver);
+        qcd.show();      
+    }
+    
+
+    /**
      * Creates a new SOCQuitConfirmDialog.
      *
      * @param cli      Player client interface
      * @param gamePI   Current game's player interface
+     * @param gameIsOver The game is over - "Quit" button should be default (if not over, Continue is default)
      */
-    public SOCQuitConfirmDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI)
+    protected SOCQuitConfirmDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI, boolean gameIsOver)
     {
         super(cli, gamePI, "Really quit game "
                 + gamePI.getGame().getName() + "?",
-            "Do you want to quit the game being played?",
-            "Quit this game", "Continue playing", false, true);
+            (gameIsOver
+                ? "Do you want to quit this finished game?"
+                : "Do you want to quit the game being played?"),
+            "Quit this game", 
+            (gameIsOver
+                ? "Don't quit"
+                : "Continue playing"),
+            gameIsOver, ! gameIsOver);
     }
 
     /**

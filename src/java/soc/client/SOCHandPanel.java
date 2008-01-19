@@ -30,6 +30,7 @@ import soc.game.SOCPlayingPiece;
 import soc.game.SOCResourceConstants;
 import soc.game.SOCResourceSet;
 import soc.game.SOCTradeOffer;
+import soc.message.SOCGameTextMsg;
 
 import java.awt.Button;
 import java.awt.Color;
@@ -92,6 +93,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String GET = "I Get:";
     protected static final String AUTOROLL_COUNTDOWN = "Auto-Roll in: ";
     protected static final String ROLL_OR_PLAY_CARD = "Roll or Play Card";
+    protected static final String SENDBUTTIP_ENA = "Send trade offer to other players";
+    protected static final String SENDBUTTIP_DIS = "To offer a trade, first click resources";
 
     /** If player has won the game, update pname label */
     protected static final String WINNER_SUFFIX = " - Winner";
@@ -152,6 +155,13 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Label giveLab;
     protected Label getLab;
     protected Button sendBut;
+    /**
+     * Hint for "Offer" button; non-null only if interactive.
+     * @see #SENDBUTTIP_DIS
+     * @see #SENDBUTTIP_ENA
+     * @see #interactive
+     */
+    protected AWTToolTip sendButTip;
     protected Button clearBut;
     protected Button bankBut;
 
@@ -177,7 +187,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected SOCPlayerClient client;
     protected SOCGame game;
     protected SOCPlayer player;
-    /** Does this panel represent our client's own hand? */
+    /** Does this panel represent our client's own hand?  If true, implies {@link #interactive}. */
     protected boolean playerIsClient;
     /** Is this panel's player the game's current player?  Used for hilight - set in updateAtTurn() */
     protected boolean playerIsCurrent;
@@ -193,6 +203,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
     /**
      * When this flag is true, the panel is interactive.
+     * If {@link #playerIsClient} true, implies interactive.
      */
     protected boolean interactive;
 
@@ -390,6 +401,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         sendBut.addActionListener(this);
         sendBut.setEnabled(interactive);
         add(sendBut);
+        if (interactive)
+            sendButTip = new AWTToolTip(SENDBUTTIP_ENA, sendBut);
 
         clearBut = new Button(CLEAR);
         clearBut.addActionListener(this);
@@ -526,7 +539,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if (target == QUIT)
         {
-            new SOCQuitConfirmDialog(client, playerInterface).show();
+            SOCQuitConfirmDialog.createAndShow(client, playerInterface);
         }
         else if (target == DONE)
         {
@@ -552,7 +565,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if (target == BANK)
         {
-            if (game.getGameState() == SOCGame.PLAY1)
+            int gstate = game.getGameState(); 
+            if (gstate == SOCGame.PLAY1)
             {
                 int[] give = new int[5];
                 int[] get = new int[5];
@@ -562,6 +576,14 @@ public class SOCHandPanel extends Panel implements ActionListener
                 SOCResourceSet giveSet = new SOCResourceSet(give[0], give[1], give[2], give[3], give[4], 0);
                 SOCResourceSet getSet = new SOCResourceSet(get[0], get[1], get[2], get[3], get[4], 0);
                 client.bankTrade(game, giveSet, getSet);
+            }
+            else if (gstate == SOCGame.OVER)
+            {
+                String msg = game.gameOverMessageToPlayer(player);
+                    // msg = "The game is over; you are the winner!";
+                    // msg = "The game is over; <someone> won.";
+                    // msg = "The game is over; no one won.";
+                playerInterface.print("* " + msg);
             }
             if (! chatExcepTested)
             {
@@ -861,7 +883,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         giveLab.setVisible(false);
         getLab.setVisible(false);
         sqPanel.setVisible(false);
-        sendBut.setVisible(false);
+        sendBut.setVisible(false);  // also hides sendButTip if created
         clearBut.setVisible(false);
         bankBut.setVisible(false);
 
@@ -1140,6 +1162,8 @@ public class SOCHandPanel extends Panel implements ActionListener
 
         clearBut.disable();  // No trade offer has been set yet
         sendBut.disable();
+        if (sendButTip != null)
+            sendButTip.setTip(SENDBUTTIP_DIS);
     }
 
     /**
@@ -1158,8 +1182,15 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
         int gs = game.getGameState();
         clearBut.setEnabled(notAllZero);
-        sendBut.setEnabled
-            (notAllZero && ((gs == SOCGame.PLAY) || (gs == SOCGame.PLAY1)));
+        boolean enaSendBut = notAllZero && ((gs == SOCGame.PLAY) || (gs == SOCGame.PLAY1));
+        sendBut.setEnabled(enaSendBut);
+        if (sendButTip != null)
+        {
+            if (enaSendBut)
+                sendButTip.setTip(SENDBUTTIP_ENA);
+            else
+                sendButTip.setTip(SENDBUTTIP_DIS);
+        }
     }
 
     /**
@@ -1435,6 +1466,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
             clearBut.disable();
             sendBut.disable();
+            sendButTip.setTip(SENDBUTTIP_DIS);
         }
         validate();
         repaint();
@@ -1533,7 +1565,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     /**
      * update the value of a player element.
      * If VICTORYPOINTS is updated, and game state is over, check for winner
-     * and update (player name label, victory-points tooltip)
+     * and update (player name label, victory-points tooltip, disable bank/trade btn)
      *
      * @param vt  the type of value
      */
@@ -1552,10 +1584,15 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 int newVP = player.getTotalVP();
                 vpSq.setIntValue(newVP);
-                if ((game.getGameState() == SOCGame.OVER) && (game.getPlayerWithWin() == player))
+                if (game.getGameState() == SOCGame.OVER)
                 {
-                    vpSq.setTooltipText("Winner with " + newVP + " victory points");
-                    pname.setText(player.getName() + WINNER_SUFFIX);
+                    if (game.getPlayerWithWin() == player)
+                    {
+                        vpSq.setTooltipText("Winner with " + newVP + " victory points");
+                        pname.setText(player.getName() + WINNER_SUFFIX);
+                    }
+                    if (interactive)
+                        bankBut.setEnabled(false);
                 }
             }
             break;

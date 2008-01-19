@@ -980,7 +980,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         public void windowClosing(WindowEvent e)
         {
             // leaveGame();
-            new SOCQuitConfirmDialog(pi.getClient(), pi).show();
+            SOCQuitConfirmDialog.createAndShow(pi.getClient(), pi);
         }
     }
 
