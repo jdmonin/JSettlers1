@@ -1032,9 +1032,10 @@ public class SOCServer extends Server
      * Send a message to the given game
      *
      * @param ga  the name of the game
-     * @param mes the message to send. If mes begins with ">>>", the client
-     *            should consider this an urgent message, and draw the
-     *            user's attention in some way.
+     * @param mes the message to send. If mes is a SOCGameTextMsg whose
+     *            text begins with ">>>", the client should consider this
+     *            an urgent message, and draw the user's attention in some way.
+     *            (See {@link #messageToGameUrgent(String, String)})
      */
     public void messageToGame(String ga, SOCMessage mes)
     {
@@ -1139,6 +1140,25 @@ public class SOCServer extends Server
         }
 
         gameList.releaseMonitorForGame(gn);
+    }
+
+    /**
+     * Send an urgent SOCGameTextMsg to the given game.
+     * An "urgent" message is a SOCGameTextMsg whose text
+     * begins with ">>>"; the client should draw the user's
+     * attention in some way.
+     *<P>
+     * Like messageToGame, will take and release the game's monitor.
+     *
+     * @param ga  the name of the game
+     * @param mes the message to send. If mes does not begin with ">>>",
+     *            will prepend ">>> " before sending mes.
+     */
+    public void messageToGameUrgent(String ga, String mes)
+    {
+        if (! mes.startsWith(">>>"))
+            mes = ">>> " + mes;
+        messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, mes));
     }
 
     /**
@@ -1452,7 +1472,7 @@ public class SOCServer extends Server
                             // warning text sent in checkForExpiredGames().
                             // Use ">>>" in messageToGame to mark as urgent.
                             gameData.setExpiration(gameData.getExpiration() + (30 * 60 * 1000));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, ">>> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes."));
+                            messageToGameUrgent(gameTextMsgMes.getGame(), ">>> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes.");
                         }
                     }
 
@@ -1462,7 +1482,7 @@ public class SOCServer extends Server
                     if (gameTextMsgMes.getText().startsWith("*CHECKTIME*"))
                     {
                         SOCGame gameData = gameList.getGameData(gameTextMsgMes.getGame());
-                        messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, ">>> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes."));
+                        messageToGameUrgent(gameTextMsgMes.getGame(), ">>> This game will expire in " + ((gameData.getExpiration() - System.currentTimeMillis()) / 60000) + " minutes.");
                     }
                     else if (gameTextMsgMes.getText().startsWith("*WHO*"))
                     {
@@ -1507,7 +1527,7 @@ public class SOCServer extends Server
                         }
                         else if (gameTextMsgMes.getText().startsWith("*KILLGAME*"))
                         {
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "********** " + (String) c.getData() + " KILLED THE GAME!!! **********"));
+                            messageToGameUrgent(gameTextMsgMes.getGame(), ">>> ********** " + (String) c.getData() + " KILLED THE GAME!!! ********** <<<");
                             gameList.takeMonitor();
 
                             try
@@ -1547,6 +1567,19 @@ public class SOCServer extends Server
                         }
                         else if (gameTextMsgMes.getText().startsWith("*STOP*"))
                         {
+                            broadcast(SOCBCastTextMsg.toCmd(">>> ********** " + (String) c.getData() + " KILLED THE SERVER!!! ********** <<<"));
+
+                            /// give time for messages to drain (such as urgent text messages)
+                            try
+                            {
+                                Thread.sleep(500);
+                            }
+                            catch (InterruptedException ie)
+                            {
+                                Thread.yield();
+                            }
+
+                            /// now continue with shutdown
                             try
                             {
                                 SOCDBHelper.cleanup();
@@ -4911,8 +4944,8 @@ public class SOCServer extends Server
             if (pl.getTotalVP() >= 10)
             {
                 String msg;
-                msg = pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
-                messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, msg));
+                msg = ">>> " + pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
+                messageToGameUrgent(gname, msg);
                 break;
             }
         }
@@ -5665,7 +5698,7 @@ public class SOCServer extends Server
                 if (gameExpir <= System.currentTimeMillis())
                 {
                     expired.addElement(gameName);
-                    messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, ">>> The time limit on this game has expired and will now be destroyed."));
+                    messageToGameUrgent(gameName, ">>> The time limit on this game has expired and will now be destroyed.");
                 }
                 else
                 //
@@ -5674,8 +5707,8 @@ public class SOCServer extends Server
                 if ((gameExpir - warn_ms) <= System.currentTimeMillis())
                 {
                     long minutes = ((gameExpir - System.currentTimeMillis()) / 60000);
-                    messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, ">>> Less than "
-                        + minutes + " minutes remaining.  Type *ADDTIME* to extend this game another 30 minutes."));
+                    messageToGameUrgent(gameName, ">>> Less than "
+                        + minutes + " minutes remaining.  Type *ADDTIME* to extend this game another 30 minutes.");
                 }
             }
         }
