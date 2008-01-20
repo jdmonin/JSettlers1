@@ -732,6 +732,9 @@ public class SOCHandPanel extends Panel implements ActionListener
                 else if (item.indexOf("VP)") > 0)
                 {
                     playerInterface.print("*** You secretly played this VP card when you bought it.");
+                    itemNum = cardList.getSelectedIndex();
+                    if (itemNum >= 0)
+                        cardList.deselect(itemNum);
                 }
             }
         }
@@ -1593,6 +1596,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                     }
                     if (interactive)
                         bankBut.setEnabled(false);
+                    if (interactive)
+                        playCardBut.setEnabled(false);
                 }
             }
             break;

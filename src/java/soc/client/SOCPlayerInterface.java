@@ -712,7 +712,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         for (int i = 0; i < finalScores.length; ++i)
         {
             game.getPlayer(i).forceFinalVP(finalScores[i]);
-            hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);
+            hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);  // Also disables buttons, etc.
         }
         setTitle(TITLEBAR_GAME_OVER + game.getName() + " [" + client.getNickname() + "]");
         repaint();
