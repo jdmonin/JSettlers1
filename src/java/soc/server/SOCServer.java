@@ -4037,7 +4037,14 @@ public class SOCServer extends Server
                                 messageToGame(ga.getName(), new SOCSetPlayedDevCard(ga.getName(), player.getPlayerNumber(), true));
                                 messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Road Building card."));
                                 sendGameState(ga);
-                                c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You may place 2 roads."));
+                                if (ga.getGameState() == SOCGame.PLACING_FREE_ROAD1)
+                                {
+                                    c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You may place 2 roads."));
+                                }
+                                else
+                                {
+                                    c.put(SOCGameTextMsg.toCmd(ga.getName(), SERVERNAME, "You may place your 1 remaining road."));
+                                }
                             }
                             else
                             {

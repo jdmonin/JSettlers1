@@ -2374,7 +2374,14 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * return true if the player can play a Road Building card
+     * Can the current player play a Road Building card?
+     * This card directs the player to place 2 roads.
+     * Checks of game rules online show they "MAY" or "CAN", not "MUST", place 2.
+     * If they have 2 or more roads, place 2.
+     * If they have just 1 road, place 1.
+     * If they have 0 roads, cannot play the card.
+     *
+     * @return true if the player can play a Road Building card.
      *
      * @param pn  the number of the player
      */
@@ -2395,7 +2402,7 @@ public class SOCGame implements Serializable, Cloneable
             return false;
         }
 
-        if (players[pn].getNumPieces(SOCPlayingPiece.ROAD) < 2)
+        if (players[pn].getNumPieces(SOCPlayingPiece.ROAD) < 1)
         {
             return false;
         }
@@ -2468,14 +2475,25 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * the current player plays a Road Building card
+     * the current player plays a Road Building card.
+     * This card directs the player to place 2 roads.
+     * Checks of game rules online show "MAY" or "CAN", not "MUST" place 2.
+     * If they have 2 or more roads, may place 2; gameState becomes PLACING_FREE_ROAD1.
+     * If they have just 1 road, may place that; gameState becomes PLACING_FREE_ROAD2.
+     * If they have 0 roads, cannot play the card.
+     * Assumes {@link #canPlayRoadBuilding(int)} has already been called, and move is valid.
      */
     public void playRoadBuilding()
     {
         players[currentPlayerNumber].setPlayedDevCard(true);
         players[currentPlayerNumber].getDevCards().subtract(1, SOCDevCardSet.OLD, SOCDevCardConstants.ROADS);
         oldGameState = gameState;
-        gameState = PLACING_FREE_ROAD1;
+        if (players[currentPlayerNumber].getNumPieces(SOCPlayingPiece.ROAD) > 1)
+        {
+            gameState = PLACING_FREE_ROAD1;  // First of 2 free roads
+        } else {
+            gameState = PLACING_FREE_ROAD2;  // "Second", just 1 free road
+        }
     }
 
     /**
