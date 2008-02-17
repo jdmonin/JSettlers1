@@ -522,6 +522,15 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
+     * Player wants to request to reset the board (same players, new game, new layout).
+     * Send request to server.
+     */
+    public void requestResetBoard()
+    {
+        client.requestResetBoard(game);
+    }
+
+    /**
      * print text in the text window
      *
      * @param s  the text
@@ -825,7 +834,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         monopolyDialog = new SOCMonopolyDialog(this);
         monopolyDialog.setVisible(true);
     }
-    
+
     /** 
      * Client is current player; state changed from PLAY to PLAY1.
      * (Dice has been rolled, or card played.)
@@ -837,6 +846,37 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             clientHand.updateAtPlay1();
     }
 
+    /**
+     * Handle board reset (new game with same players, same game name).
+     * The reset message will be followed with others which will fill in the game state.
+     *
+     * @param newGame New game object
+     * @param playerNumber Sanity check - must be our correct player number in this game
+     * @param requesterName Player who requested the board reset  
+     * 
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     */
+    public void resetBoard(SOCGame newGame, int playerNumber, String requesterName)
+    {
+        if (clientHand == null)
+            return;
+        if (clientHandPlayerNum != playerNumber)
+            return;
+
+        // Clear out old state (similar to constructor)
+        game = newGame;
+        clientHand.removePlayer();  // will cancel roll countdown timer
+        clientHand = null;
+        clientHandPlayerNum = -1;
+        removeAll();  // old sub-components
+        initInterfaceElements();  // new sub-components
+        validate();
+        repaint();
+        textDisplay.append("** The board was reset by " + requesterName + ".\n");
+        chatDisplay.append("** The board was reset by " + requesterName + ".\n");
+
+        // Further messages from server will fill in the rest.
+    }
 
     /**
      * set the face icon for a player
@@ -946,8 +986,19 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             hands[3].setBounds(i.left + 4, i.top + hh + 8, hw, hh);
         }
 
-        int tdh = tah / 2;
-        int cdh = tah - tdh;
+        int tdh, cdh;
+        if (game.isLocal)
+        {
+            // Game textarea larger than chat textarea
+            cdh = (int) (2.2f * tfh);
+            tdh = tah - cdh;
+        }
+        else
+        {
+            // Equal-sized text, chat textareas
+            tdh = tah / 2;
+            cdh = tah - tdh;
+        }
         textDisplay.setBounds(i.left + hw + 8, i.top + 4, bw, tdh);
         chatDisplay.setBounds(i.left + hw + 8, i.top + 4 + tdh, bw, cdh);
         textInput.setBounds(i.left + hw + 8, i.top + 4 + tah, bw, tfh);

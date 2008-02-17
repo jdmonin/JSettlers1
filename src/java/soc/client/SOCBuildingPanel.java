@@ -470,18 +470,20 @@ public class SOCBuildingPanel extends Panel implements ActionListener
     }
 
     /**
-     * Set our player data based on client's nickname,
+     * Set our game and player data based on client's nickname,
      * via game.getPlayer(client.getNickname()).
      *
-     * @throws IllegalStateException If the player data has already been set
+     * @throws IllegalStateException If the player data has already been set,
+     *    and this isn't a new game (a board reset).
      */
     public void setPlayer()
         throws IllegalStateException
     {
-        if (player != null)
+        SOCGame game = pi.getGame();
+        if ((player != null) && ! game.isBoardReset())
             throw new IllegalStateException("Player data is already set");
 
-        SOCGame game = pi.getGame();
         player = game.getPlayer(pi.getClient().getNickname());
     }
+
 }

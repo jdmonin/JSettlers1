@@ -84,6 +84,7 @@ import soc.message.SOCPotentialSettlements;
 import soc.message.SOCPutPiece;
 import soc.message.SOCRejectConnection;
 import soc.message.SOCRejectOffer;
+import soc.message.SOCResetGameJoinAuth;
 import soc.message.SOCResourceCount;
 import soc.message.SOCRollDice;
 import soc.message.SOCSetPlayedDevCard;
@@ -685,6 +686,15 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 handleSETSEATLOCK((SOCSetSeatLock) mes);
 
                 break;
+
+            /**
+             * handle board reset (new game with same players, same game name).
+             */
+            case SOCMessage.RESETGAMEJOINAUTH:
+                handleRESETGAMEJOINAUTH((SOCResetGameJoinAuth) mes);
+
+                break;
+
             }
         }
         catch (Exception e)
@@ -1656,6 +1666,30 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 ga.unlockSeat(mes.getPlayerNumber());
             }
         }
+    }
+
+    /**
+     * handle board reset
+     * (new game with same players, same game name).
+     * Create new Game object, destroy old one.
+     * The reset message will be followed with others which will fill in the game state.
+     *
+     * @param mes  the message
+     * 
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     * @see soc.game.SOCGame#resetAsCopy()
+     */
+    protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
+    {
+        String gname = mes.getGame();
+        SOCGame ga = (SOCGame) games.get(gname);
+        if (ga == null)
+            return;  // Not one of our games
+
+        SOCGame greset = ga.resetAsCopy();
+        greset.isLocal = ga.isLocal;
+        games.put(gname, greset);
+        ga.destroyGame();
     }
 
     /**

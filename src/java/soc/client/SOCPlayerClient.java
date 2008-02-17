@@ -782,7 +782,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 {
                     String tryGm = (String) gamesEnum.nextElement();
                     int gs = practiceServer.getGameState(tryGm);
-                    if (gs != SOCGame.OVER)
+                    if (gs < SOCGame.OVER)
                     {
                         pi = (SOCPlayerInterface) playerInterfaces.get(tryGm);
                         if (pi != null)
@@ -1412,9 +1412,17 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
              */
             case SOCMessage.ROLLDICEPROMPT:
                 handleROLLDICEPROMPT((SOCRollDicePrompt) mes);
-                
+
                 break;
-                
+
+            /**
+             * handle board reset (new game with same players, same game name).
+             */
+            case SOCMessage.RESETGAMEJOINAUTH:
+                handleRESETGAMEJOINAUTH((SOCResetGameJoinAuth) mes);
+
+                break;
+
             }  // switch (mes.getType())               
         }
         catch (Exception e)
@@ -2885,6 +2893,34 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
+     * handle board reset
+     * (new game with same players, same game name).
+     * Create new Game object, destroy old one.
+     * The reset message will be followed with others which will fill in the game state.
+     *
+     * @param mes  the message
+     * 
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     * @see soc.game.SOCGame#resetAsCopy()
+     */
+    protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
+    {
+        String gname = mes.getGame();
+        SOCGame ga = (SOCGame) games.get(gname);
+        if (ga == null)
+            return;  // Not one of our games
+        SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gname);
+        if (pi == null)
+            return;  // Not one of our games
+
+        SOCGame greset = ga.resetAsCopy();
+        greset.isLocal = ga.isLocal;
+        games.put(gname, greset);
+        pi.resetBoard(greset, mes.getPlayerNumber(), mes.getRequestingPlayer());
+        ga.destroyGame();
+    }
+
+    /**
      * add a new game to the initial window's list of games
      *
      * @param gameName  the game name to add to the list
@@ -3010,7 +3046,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             return;  // Not playing in that game
         if (ga.getGameState() != SOCGame.OVER)
             return;  // Should not have been sent; game is not yet over.
-        
+
         SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(game);
         pi.updateAtOver(scores);
     }
@@ -3392,6 +3428,19 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         put(SOCSetSeatLock.toCmd(ga.getName(), pn, false), ga.isLocal);
     }
+
+    /**
+     * Player wants to request to reset the board (same players, new game, new layout).
+     * Send {@link soc.message.SOCResetBoardRequest} to server;
+     * it will either respond with a
+     * {@link soc.message.SOCResetGameJoinAuth} message,
+     * or will tell other players to vote yes/no on the request.
+     */
+    public void requestResetBoard(SOCGame ga)
+    {
+        put(SOCResetBoardRequest.toCmd(ga.getName()), ga.isLocal);
+    }
+
 
     /**
      * handle local client commands for channels

@@ -62,6 +62,7 @@ import soc.message.SOCPotentialSettlements;
 import soc.message.SOCPutPiece;
 import soc.message.SOCRejectConnection;
 import soc.message.SOCRejectOffer;
+import soc.message.SOCResetGameJoinAuth;
 import soc.message.SOCResourceCount;
 import soc.message.SOCRobotDismiss;
 import soc.message.SOCServerPing;
@@ -580,11 +581,18 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
 
                 break;
 
+            /**
+             * handle board reset (new game with same players, same game name).
+             */
+            case SOCMessage.RESETGAMEJOINAUTH:
+                handleRESETGAMEJOINAUTH((SOCResetGameJoinAuth) mes);
+
+                break;
             }
         }
         catch (Throwable e)
         {
-            System.out.println("SOCRobotClient treat ERROR - " + e.getMessage());
+            System.err.println("SOCRobotClient treat ERROR - " + e + " " + e.getMessage());
             e.printStackTrace();
             while (e.getCause() != null)
             {
@@ -1747,6 +1755,48 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                 ga.setPlayerWithLargestArmy(ga.getPlayer(mes.getPlayerNumber()));
             }
         }
+    }
+    /**
+     * handle board reset
+     * (new game with same players, same game name).
+     * Create new Game object, destroy old one.
+     * Take robotbrain out of old game, don't yet put it in new game.
+     * The reset message will be followed with others which will fill in the game state.
+     * SITDOWN will cause us to re-add self to new game.
+     *
+     * @param mes  the message
+     * 
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     * @see soc.game.SOCGame#resetAsCopy()
+     */
+    protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
+    {
+        String gname = mes.getGame();
+        SOCGame ga = (SOCGame) games.get(gname);
+        if (ga == null)
+            return;  // Not one of our games
+
+        SOCGame greset = ga.resetAsCopy();
+        greset.isLocal = ga.isLocal;
+
+        SOCRobotBrain brain = (SOCRobotBrain) robotBrains.get(gname);
+        if (brain != null)
+        {
+            brain.kill();
+            robotBrains.remove(gname);
+        }
+
+        brainQs.remove(gname);
+        games.remove(gname);
+        games.put(gname, greset);
+
+        CappedQueue brainQ = new CappedQueue();
+        brainQs.put(gname, brainQ);
+
+        SOCRobotBrain rb = new SOCRobotBrain(this, currentRobotParameters, greset, brainQ);
+        robotBrains.put(gname, rb);
+
+        ga.destroyGame();
     }
 
     /**

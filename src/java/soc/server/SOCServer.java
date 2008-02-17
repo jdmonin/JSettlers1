@@ -555,7 +555,7 @@ public class SOCServer extends Server
                  * if the leaving member was playing the game, and
                  * it wasn't a robot, and the game isn't over, then...
                  */
-                if (isPlayer && (gameHasHumanPlayer || gameHasObserver) && (cg != null) && (!cg.getPlayer(playerNumber).isRobot()) && (cg.getGameState() != SOCGame.OVER) && !(cg.getGameState() < SOCGame.START1A))
+                if (isPlayer && (gameHasHumanPlayer || gameHasObserver) && (cg != null) && (!cg.getPlayer(playerNumber).isRobot()) && (cg.getGameState() < SOCGame.OVER) && !(cg.getGameState() < SOCGame.START1A))
                 {
                     /**
                      * get a robot to replace this player
@@ -1934,6 +1934,11 @@ public class SOCServer extends Server
 
                     break;
 
+                case SOCMessage.RESETBOARDREQUEST:
+                    handleRESETBOARDREQUEST(c, (SOCResetBoardRequest) mes);
+
+                    break;
+
                 case SOCMessage.CREATEACCOUNT:
                     handleCREATEACCOUNT(c, (SOCCreateAccount) mes);
 
@@ -1941,7 +1946,7 @@ public class SOCServer extends Server
                 }
             }
         }
-        catch (Exception e)
+        catch (Throwable e)
         {
             D.ebugPrintln("ERROR -> " + e);
             e.printStackTrace();
@@ -2251,153 +2256,14 @@ public class SOCServer extends Server
                 String gameName = mes.getGame();
 
                 /**
-                 * send the entire state of the game
+                 * send the entire state of the game to client,
+                 * send client join event to other players
                  */
                 SOCGame gameData = gameList.getGameData(gameName);
 
                 if (gameData != null)
                 {
-                    c.put(SOCJoinGameAuth.toCmd(mes.getGame()));
-                    c.put(SOCStatusMessage.toCmd("Welcome to Java Settlers of Catan!"));
-
-                    //c.put(SOCGameState.toCmd(gameName, gameData.getGameState()));
-                    for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                    {
-                        SOCPlayer pl = gameData.getPlayer(i);
-
-                        if ((pl.getName() != null) && (!gameData.isSeatVacant(i)))
-                        {
-                            c.put(SOCSitDown.toCmd(gameName, pl.getName(), i, pl.isRobot()));
-                        }
-
-                        /**
-                         * send the seat lock information
-                         */
-                        messageToPlayer(c, new SOCSetSeatLock(gameName, i, gameData.isSeatLocked(i)));
-                    }
-
-                    SOCBoardLayout bl = getBoardLayoutMessage(gameData);
-                    c.put(bl.toCmd());
-
-                    for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                    {
-                        SOCPlayer pl = gameData.getPlayer(i);
-
-                        // Send piece info even if player has left the game
-                        if (pl.getName() != null)
-                        {
-                            Enumeration piecesEnum = pl.getPieces().elements();
-
-                            while (piecesEnum.hasMoreElements())
-                            {
-                                SOCPlayingPiece piece = (SOCPlayingPiece) piecesEnum.nextElement();
-
-                                if (piece.getType() == SOCPlayingPiece.CITY)
-                                {
-                                    c.put(SOCPutPiece.toCmd(gameName, i, SOCPlayingPiece.SETTLEMENT, piece.getCoordinates()));
-                                }
-
-                                c.put(SOCPutPiece.toCmd(gameName, i, piece.getType(), piece.getCoordinates()));
-                            }
-
-                            /**
-                             * send potential settlement list
-                             */
-                            Vector psList = new Vector();
-
-                            for (int j = 0x23; j <= 0xDC; j++)
-                            {
-                                if (pl.isPotentialSettlement(j))
-                                {
-                                    psList.addElement(new Integer(j));
-                                }
-                            }
-
-                            c.put(SOCPotentialSettlements.toCmd(gameName, i, psList));
-
-                            /**
-                             * send coords of the last settlement
-                             */
-                            c.put(SOCLastSettlement.toCmd(gameName, i, pl.getLastSettlementCoord()));
-
-                            /**
-                             * send number of playing pieces in hand
-                             */
-                            c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.ROADS, pl.getNumPieces(SOCPlayingPiece.ROAD)));
-                            c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.SETTLEMENTS, pl.getNumPieces(SOCPlayingPiece.SETTLEMENT)));
-                            c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.CITIES, pl.getNumPieces(SOCPlayingPiece.CITY)));
-
-                            c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.UNKNOWN, pl.getResources().getTotal()));
-
-                            c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.NUMKNIGHTS, pl.getNumKnights()));
-
-                            int numDevCards = pl.getDevCards().getTotal();
-
-                            for (int j = 0; j < numDevCards; j++)
-                            {
-                                c.put(SOCDevCard.toCmd(gameName, i, SOCDevCard.ADDOLD, SOCDevCardConstants.UNKNOWN));
-                            }
-
-                            c.put(SOCFirstPlayer.toCmd(gameName, gameData.getFirstPlayer()));
-
-                            c.put(SOCDevCardCount.toCmd(gameName, gameData.getNumDevCards()));
-
-                            c.put(SOCChangeFace.toCmd(gameName, i, pl.getFaceId()));
-
-                            c.put(SOCDiceResult.toCmd(gameName, gameData.getCurrentDice()));
-                        }
-                    }
-
-                    /// 
-                    /// send who has longest road
-                    ///
-                    SOCPlayer lrPlayer = gameData.getPlayerWithLongestRoad();
-                    int lrPlayerNum = -1;
-
-                    if (lrPlayer != null)
-                    {
-                        lrPlayerNum = lrPlayer.getPlayerNumber();
-                    }
-
-                    c.put(SOCLongestRoad.toCmd(gameName, lrPlayerNum));
-
-                    ///
-                    /// send who has largest army
-                    ///
-                    SOCPlayer laPlayer = gameData.getPlayerWithLargestArmy();
-                    int laPlayerNum = -1;
-
-                    if (laPlayer != null)
-                    {
-                        laPlayerNum = laPlayer.getPlayerNumber();
-                    }
-
-                    c.put(SOCLargestArmy.toCmd(gameName, laPlayerNum));
-
-                    String membersCommand = null;
-                    gameList.takeMonitorForGame(gameName);
-
-                    try
-                    {
-                        Vector gameMembers = gameList.getMembers(gameName);
-                        membersCommand = SOCGameMembers.toCmd(gameName, gameMembers);
-                    }
-                    catch (Exception e)
-                    {
-                        D.ebugPrintln("Exception in handleJOINGAME (gameMembers) - " + e);
-                    }
-
-                    gameList.releaseMonitorForGame(gameName);
-                    c.put(membersCommand);
-                    c.put(SOCSetTurn.toCmd(gameName, gameData.getCurrentPlayerNumber()));
-                    c.put(SOCGameState.toCmd(gameName, gameData.getGameState()));
-                    D.ebugPrintln("*** " + c.getData() + " joined the game " + gameName);
-
-                    //messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, n+" joined the game"));
-                    /**
-                     * Let everyone else know about the change
-                     */
-                    messageToGame(mes.getGame(), new SOCJoinGame(mes.getNickname(), "", "dummyhost", mes.getGame()));
+                    joinGame(gameData, c, false);
                 }
             }
         }
@@ -2486,7 +2352,7 @@ public class SOCServer extends Server
                          * let the person replacing the robot sit down
                          */
                         SOCGame ga = gameList.getGameData(mes.getGame());
-                        sitDown(ga, req.getArriving(), req.getSitDownMessage().getPlayerNumber(), req.getSitDownMessage().isRobot());
+                        sitDown(ga, req.getArriving(), req.getSitDownMessage().getPlayerNumber(), req.getSitDownMessage().isRobot(), false);
                     }
                 }
             }
@@ -2596,7 +2462,7 @@ public class SOCServer extends Server
                 //D.ebugPrintln("canSit 2 = "+canSit);
                 if (canSit)
                 {
-                    sitDown(ga, c, mes.getPlayerNumber(), mes.isRobot());
+                    sitDown(ga, c, mes.getPlayerNumber(), mes.isRobot(), false);
                 }
                 else
                 {
@@ -3071,6 +2937,7 @@ public class SOCServer extends Server
                         IntPair dice = ga.rollDice();
                         messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " rolled a " + dice.getA() + " and a " + dice.getB() + "."));
                         messageToGame(gn, new SOCDiceResult(gn, ga.getCurrentDice()));
+                        sendGameState(ga);  // For 7, give visual feedback before discard request
 
                         /**
                          * if the roll is not 7, tell players what they got
@@ -3233,8 +3100,6 @@ public class SOCServer extends Server
                                 }
                             }
                         }
-
-                        sendGameState(ga);
                     }
                     else
                     {
@@ -4378,6 +4243,33 @@ public class SOCServer extends Server
     }
 
     /**
+     * handle "reset-board request" message.
+     * Reset the board to a copy with same name and players.
+     *
+     * @see #resetBoardAndNotify(String, String)
+     *
+     * @param c  the connection
+     * @param mes  the message
+     */
+    private void handleRESETBOARDREQUEST(StringConnection c, SOCResetBoardRequest mes)
+    {
+        // JM TODO - handle human-game properly (start voting, etc)
+        if (c == null)
+            return;
+        String gaName = mes.getGame();
+        SOCGame ga = gameList.getGameData(gaName);
+        if (ga == null)
+            return;
+        SOCPlayer player = ga.getPlayer((String) c.getData());
+        if (player == null)
+        {
+            return;  // Not playing in that game (Security)
+        }
+
+        resetBoardAndNotify (gaName, player.getName());
+    }
+
+    /**
      * handle "create account" message
      *
      * @param c  the connection
@@ -4436,14 +4328,174 @@ public class SOCServer extends Server
     }
 
     /**
+     * Client has been approved to join game; send the entire state of the game to client,
+     * send client join event to other players.
+     * First message sent to connecting client is JOINGAMEAUTH, unless isReset.
+     *
+     * @param gameData Game to join
+     * @param c        The connection of joining client
+     * @param isReset  Game is a board-reset of an existing game
+     */
+    private void joinGame(SOCGame gameData, StringConnection c, boolean isReset)
+    {
+        String gameName = gameData.getName();
+        if (! isReset)
+        {
+            c.put(SOCJoinGameAuth.toCmd(gameName));
+            c.put(SOCStatusMessage.toCmd("Welcome to Java Settlers of Catan!"));
+        }
+
+        //c.put(SOCGameState.toCmd(gameName, gameData.getGameState()));
+        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+        {
+            SOCPlayer pl = gameData.getPlayer(i);
+
+            if ((pl.getName() != null) && (!gameData.isSeatVacant(i)))
+            {
+                c.put(SOCSitDown.toCmd(gameName, pl.getName(), i, pl.isRobot()));
+            }
+
+            /**
+             * send the seat lock information
+             */
+            messageToPlayer(c, new SOCSetSeatLock(gameName, i, gameData.isSeatLocked(i)));
+        }
+
+        SOCBoardLayout bl = getBoardLayoutMessage(gameData);
+        c.put(bl.toCmd());
+
+        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+        {
+            SOCPlayer pl = gameData.getPlayer(i);
+
+            // Send piece info even if player has left the game
+            if (pl.getName() != null)
+            {
+                Enumeration piecesEnum = pl.getPieces().elements();
+
+                while (piecesEnum.hasMoreElements())
+                {
+                    SOCPlayingPiece piece = (SOCPlayingPiece) piecesEnum.nextElement();
+
+                    if (piece.getType() == SOCPlayingPiece.CITY)
+                    {
+                        c.put(SOCPutPiece.toCmd(gameName, i, SOCPlayingPiece.SETTLEMENT, piece.getCoordinates()));
+                    }
+
+                    c.put(SOCPutPiece.toCmd(gameName, i, piece.getType(), piece.getCoordinates()));
+                }
+
+                /**
+                 * send potential settlement list
+                 */
+                Vector psList = new Vector();
+
+                for (int j = 0x23; j <= 0xDC; j++)
+                {
+                    if (pl.isPotentialSettlement(j))
+                    {
+                        psList.addElement(new Integer(j));
+                    }
+                }
+
+                c.put(SOCPotentialSettlements.toCmd(gameName, i, psList));
+
+                /**
+                 * send coords of the last settlement
+                 */
+                c.put(SOCLastSettlement.toCmd(gameName, i, pl.getLastSettlementCoord()));
+
+                /**
+                 * send number of playing pieces in hand
+                 */
+                c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.ROADS, pl.getNumPieces(SOCPlayingPiece.ROAD)));
+                c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.SETTLEMENTS, pl.getNumPieces(SOCPlayingPiece.SETTLEMENT)));
+                c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.CITIES, pl.getNumPieces(SOCPlayingPiece.CITY)));
+
+                c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.UNKNOWN, pl.getResources().getTotal()));
+
+                c.put(SOCPlayerElement.toCmd(gameName, i, SOCPlayerElement.SET, SOCPlayerElement.NUMKNIGHTS, pl.getNumKnights()));
+
+                int numDevCards = pl.getDevCards().getTotal();
+
+                for (int j = 0; j < numDevCards; j++)
+                {
+                    c.put(SOCDevCard.toCmd(gameName, i, SOCDevCard.ADDOLD, SOCDevCardConstants.UNKNOWN));
+                }
+
+                c.put(SOCFirstPlayer.toCmd(gameName, gameData.getFirstPlayer()));
+
+                c.put(SOCDevCardCount.toCmd(gameName, gameData.getNumDevCards()));
+
+                c.put(SOCChangeFace.toCmd(gameName, i, pl.getFaceId()));
+
+                c.put(SOCDiceResult.toCmd(gameName, gameData.getCurrentDice()));
+            }
+        }
+
+        /// 
+        /// send who has longest road
+        ///
+        SOCPlayer lrPlayer = gameData.getPlayerWithLongestRoad();
+        int lrPlayerNum = -1;
+
+        if (lrPlayer != null)
+        {
+            lrPlayerNum = lrPlayer.getPlayerNumber();
+        }
+
+        c.put(SOCLongestRoad.toCmd(gameName, lrPlayerNum));
+
+        ///
+        /// send who has largest army
+        ///
+        SOCPlayer laPlayer = gameData.getPlayerWithLargestArmy();
+        int laPlayerNum = -1;
+
+        if (laPlayer != null)
+        {
+            laPlayerNum = laPlayer.getPlayerNumber();
+        }
+
+        c.put(SOCLargestArmy.toCmd(gameName, laPlayerNum));
+
+        String membersCommand = null;
+        gameList.takeMonitorForGame(gameName);
+
+        try
+        {
+            Vector gameMembers = gameList.getMembers(gameName);
+            membersCommand = SOCGameMembers.toCmd(gameName, gameMembers);
+        }
+        catch (Exception e)
+        {
+            D.ebugPrintln("Exception in handleJOINGAME (gameMembers) - " + e);
+        }
+
+        gameList.releaseMonitorForGame(gameName);
+        c.put(membersCommand);
+        c.put(SOCSetTurn.toCmd(gameName, gameData.getCurrentPlayerNumber()));
+        c.put(SOCGameState.toCmd(gameName, gameData.getGameState()));
+        D.ebugPrintln("*** " + c.getData() + " joined the game " + gameName);
+
+        //messageToGame(gameName, new SOCGameTextMsg(gameName, SERVERNAME, n+" joined the game"));
+        /**
+         * Let everyone else know about the change
+         */
+        messageToGame(gameName, new SOCJoinGame
+            ((String)c.getData(), "", "dummyhost", gameName));
+    }
+
+    /**
      * This player is sitting down at the game
      *
      * @param ga     the game
      * @param c      the connection for the player
      * @param pn     which seat the player is taking
      * @param robot  true if this player is a robot
+     * @param isReset Game is a board-reset of an existing game
      */
-    private void sitDown(SOCGame ga, StringConnection c, int pn, boolean robot)
+    private void sitDown(SOCGame ga, StringConnection c, int pn, boolean robot, boolean isReset)
     {
         if ((c != null) && (ga != null))
         {
@@ -4451,8 +4503,12 @@ public class SOCServer extends Server
 
             try
             {
-                ga.addPlayer((String) c.getData(), pn);
-                ga.getPlayer(pn).setRobotFlag(robot);
+                if (! isReset)
+                {
+                    ga.addPlayer((String) c.getData(), pn);
+                    ga.getPlayer(pn).setRobotFlag(robot);
+                    // If reset, player is already added and knows if robot.
+                }
 
                 /**
                  * if the player can sit, then tell the other clients in the game
@@ -4464,7 +4520,15 @@ public class SOCServer extends Server
 
                 recordGameEvent(ga.getName(), sitMessage.toCmd());
 
-                Vector requests = (Vector) robotJoinRequests.get(ga.getName());
+                Vector requests;
+                if (! isReset)
+                {
+                    requests = (Vector) robotJoinRequests.get(ga.getName());
+                }
+                else
+                {
+                    requests = null;  // Game already has all players from old game
+                }
 
                 if (requests != null)
                 {
@@ -5426,6 +5490,92 @@ public class SOCServer extends Server
              */
             sendTurn(ga, false);
         }
+    }
+
+    /**
+     * Reset the board to a copy with same players.
+     *<OL>
+     * <LI ??=0> Copy the board and player positions.
+     * <LI> 1. Send ResetGameJoinAuth to each client (like sending JoinGameAuth at new game)
+     * <LI> 2. Send messages as if each player has clicked "join" (except JoinGameAuth)
+     * <LI> 3. Send as if each player has clicked "sit here"
+     * <LI> 4. Send to game as if someone else has clicked "start game",
+     *         and set up state to begin game play.
+     *</OL>  
+     */
+    private void resetBoardAndNotify (String gaName, String requestingPlayer)
+    {
+        // Reset the board to a copy with same players.
+        // Takes the monitorForGame if exists.
+        SOCGame reGame = gameList.resetGame(gaName);
+        if (reGame == null)
+            return;
+
+        D.ebugPrintln("*** Game " + gaName + " board reset by " + requestingPlayer + " ***");
+
+        /**
+         * Gather player connection data
+         */
+        StringConnection[] plConns = new StringConnection[SOCGame.MAXPLAYERS]; 
+        Vector players = gameList.getMembers(gaName);
+        if (players != null)
+        {
+            // This enum is easier than enumerating all connected clients;
+            // there is no mapping of clientname -> connection.
+            Enumeration playersEnum = players.elements();
+            while (playersEnum.hasMoreElements())
+            {
+                StringConnection pCon = (StringConnection) playersEnum.nextElement();
+                SOCPlayer p = reGame.getPlayer((String) pCon.getData());
+                if (p != null)
+                    plConns[p.getPlayerNumber()] = pCon;
+            }
+            for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
+            {
+                if ((plConns[pn] == null) && ! reGame.isSeatVacant(pn))
+                    D.ebugPrintln("handleRESETBOARDREQUEST assert failed: did not notify player " + pn);
+            }
+        }
+
+        // Must release before calling methods below
+        gameList.releaseMonitorForGame(gaName);
+
+        /**
+         * Notify players.
+         *
+         * 1. Send ResetGameJoinAuth to each (like sending JoinGameAuth at new game)
+         */
+        for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
+        {
+            if (plConns[pn] != null)
+                messageToPlayer(plConns[pn], new SOCResetGameJoinAuth(gaName, pn, requestingPlayer));
+        }
+
+        /**
+         * 2. Send messages as if each player has clicked "join" (except JoinGameAuth)
+         */
+        for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
+        {
+            if (plConns[pn] != null)
+                joinGame(reGame, plConns[pn], true);
+        }
+
+        /**
+         * 3. Send as if each player has clicked "sit here"
+         */
+        for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
+        {
+            if (plConns[pn] != null)
+                sitDown(reGame, plConns[pn], pn, reGame.getPlayer(pn).isRobot(), true);
+        }
+    
+        /**
+         * 4. Send to game as if someone else has clicked "start game",
+         *    and set up state to begin game play.
+         */
+        startGame (reGame);
+    
+        // All set.
     }
 
     /**

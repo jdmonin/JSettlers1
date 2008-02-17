@@ -64,12 +64,21 @@ public class SOCGame implements Serializable, Cloneable
     public static final int WAITING_FOR_DISCOVERY = 52; // Waiting for player to choose 2 resources
     public static final int WAITING_FOR_MONOPOLY = 53; // Waiting for player to choose a resource
     public static final int OVER = 1000; // The game is over
+    /**
+     * This game is an obsolete old copy of a new (reset) game with the same name.
+     * To assist logic, constant value is greater than OVER.
+     * @see #resetAsCopy()
+     */
+    public static final int RESET_OLD = 1302;
 
     /**
      * seat states
      */
     public static final int VACANT = 0;
     public static final int OCCUPIED = 1;
+    /**
+     * seatLock states
+     */
     public static final boolean LOCKED = true;
     public static final boolean UNLOCKED = false;
 
@@ -129,6 +138,11 @@ public class SOCGame implements Serializable, Cloneable
      * true if the game's network is local for practice (used only at client)
      */
     public boolean isLocal;
+
+    /**
+     * true if the game came from a board reset
+     */
+    private boolean isFromBoardReset;
 
     /**
      * the game board
@@ -279,11 +293,13 @@ public class SOCGame implements Serializable, Cloneable
         board = new SOCBoard();
         players = new SOCPlayer[MAXPLAYERS];
         seats = new int[MAXPLAYERS];
+        seatLocks = new boolean[MAXPLAYERS];
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
             players[i] = new SOCPlayer(i, this);
             seats[i] = VACANT;
+            seatLocks[i] = UNLOCKED;
         }
 
         currentPlayerNumber = -1;
@@ -294,6 +310,8 @@ public class SOCGame implements Serializable, Cloneable
         numDevCards = 25;
         gameState = NEW;
         oldPlayerWithLongestRoad = new Stack();
+        if (active)
+            startTime = new Date();
     }
 
     /**
@@ -336,7 +354,7 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * @return the start time for this game
+     * @return the start time for this game, or null if inactive
      */
     public Date getStartTime()
     {
@@ -470,6 +488,14 @@ public class SOCGame implements Serializable, Cloneable
     public String getName()
     {
         return name;
+    }
+
+    /**
+     * @return whether this game was created by board reset of an earlier game
+     */
+    public boolean isBoardReset()
+    {
+        return isFromBoardReset;
     }
 
     /**
@@ -2741,4 +2767,33 @@ public class SOCGame implements Serializable, Cloneable
         board = null;
         rand = null;
     }
+
+    /**
+     * create a new game with same players and name, new board;
+     * like calling constructor otherwise.
+     * State of current game can be any state. State of copy is NEW.
+     * Deep copy: Player names, faceIDs, and robot-flag are copied from
+     * old game, but all other fields set as new Player and Board objects.
+     * Old game's state becomes RESET_OLD.
+     * Please call destroyGame() on old game when done examining its state. 
+     */
+    public SOCGame resetAsCopy()
+    {
+        SOCGame cp = new SOCGame(name, active);
+        cp.isFromBoardReset = true;
+        this.gameState = RESET_OLD;
+        for (int i = 0; i < MAXPLAYERS; i++)
+        {
+            if (players[i] != null)
+            {
+                cp.addPlayer(players[i].getName(), i);
+                cp.players[i].setRobotFlag (players[i].isRobot());
+                cp.players[i].setFaceId(players[i].getFaceId());
+            }
+            cp.seatLocks[i] = seatLocks[i];
+            cp.seats[i] = seats[i];  // reset if addPlayer cleared VACANT for non-in-use player position
+        }
+        return cp;
+    }
+
 }

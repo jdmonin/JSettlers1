@@ -28,6 +28,7 @@ import soc.server.genericServer.StringConnection;
 
 import soc.util.MutexFlag;
 
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -208,7 +209,7 @@ public class SOCGameList
 
     /**
      * @param   gaName  game name
-     * @return  list of members
+     * @return  list of members: a Vector of StringConnections
      */
     public synchronized Vector getMembers(String gaName)
     {
@@ -307,6 +308,44 @@ public class SOCGameList
             game.setExpiration(game.getStartTime().getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
             gameData.put(gaName, game);
         }
+    }
+
+    /**
+     * Reset the board of this game, create a new game of same name, same players.
+     * The new "reset" board takes the place of the old game in the game list.
+     * Takes game monitor.
+     * Destroys old game.
+     * YOU MUST RELEASE the game monitor after returning.
+     *
+     * @param gaName Name of game - If not found, do nothing. No monitor is taken.
+     * @return New game if gaName was found and copied; null if no game called gaName
+     * @see soc.game.SOCGame#resetAsCopy()
+     * @see #releaseMonitorForGame(String)
+     */
+    public SOCGame resetGame(String gaName)
+    {
+        SOCGame oldGame = (SOCGame) gameData.get(gaName);
+        if (oldGame == null)
+            return null;
+
+        takeMonitorForGame(gaName);
+
+        // Create reset-copy of game
+        SOCGame rgame = oldGame.resetAsCopy();
+
+        // As in createGame, set expiration timer to 90 min. from now
+        Date stTime = rgame.getStartTime();
+        if (stTime == null)
+            stTime = new Date();
+        rgame.setExpiration(stTime.getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
+
+        // Adjust game-list
+        gameData.remove(gaName);
+        gameData.put(gaName, rgame);
+
+        // Done.
+        oldGame.destroyGame();
+        return rgame;
     }
 
     /**

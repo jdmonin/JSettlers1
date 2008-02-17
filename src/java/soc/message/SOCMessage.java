@@ -124,7 +124,9 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public static final int STATUSMESSAGE = 1069;
     public static final int CREATEACCOUNT = 1070;
     public static final int UPDATEROBOTPARAMS = 1071;
-    public static final int ROLLDICEPROMPT = 1072;
+    public static final int ROLLDICEPROMPT = 1072;     // JM 20071003
+    public static final int RESETBOARDREQUEST = 1073;  // JM 20080217
+    public static final int RESETGAMEJOINAUTH = 1074;  // JM 20080217
     public static final int SERVERPING = 9999;
 
     /**
@@ -409,9 +411,15 @@ public abstract class SOCMessage implements Serializable, Cloneable
 
             case SERVERPING:
                 return SOCServerPing.parseDataStr(data);
-                
-            case ROLLDICEPROMPT:
+
+            case ROLLDICEPROMPT:    // JM 20071003
                 return SOCRollDicePrompt.parseDataStr(data);
+
+            case RESETBOARDREQUEST:  // JM 20080217
+                return SOCResetBoardRequest.parseDataStr(data);
+
+            case RESETGAMEJOINAUTH:  // JM 20080217
+                return SOCResetGameJoinAuth.parseDataStr(data);
 
             default:
                 return null;

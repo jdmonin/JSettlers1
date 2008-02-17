@@ -57,7 +57,7 @@ class SOCQuitConfirmDialog extends AskDialog
         if ((cli == null) || (gamePI == null))
             throw new IllegalArgumentException("no nulls");
         SOCGame ga = gamePI.getGame();
-        boolean gaOver = (ga.getGameState() == SOCGame.OVER);
+        boolean gaOver = (ga.getGameState() >= SOCGame.OVER);
 
         SOCQuitConfirmDialog qcd = new SOCQuitConfirmDialog(cli, gamePI, gaOver);
         qcd.show();      
@@ -82,7 +82,10 @@ class SOCQuitConfirmDialog extends AskDialog
             (gameIsOver
                 ? "Don't quit"
                 : "Continue playing"),
-            gameIsOver, ! gameIsOver);
+            ((gamePI.getGame().getGameState() != SOCGame.NEW)
+                ? "Reset board"
+                : null),
+            (gameIsOver ? 1 : 2));
     }
 
     /**
@@ -99,6 +102,14 @@ class SOCQuitConfirmDialog extends AskDialog
     public void button2Chosen()
     {
         // Nothing to do (continue playing)
+    }
+
+    /**
+     * React to the Reset Board button.
+     */
+    public void button3Chosen()
+    {
+        pi.requestResetBoard();
     }
 
     /**

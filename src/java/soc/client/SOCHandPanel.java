@@ -85,6 +85,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String ROLL = "Roll";
     protected static final String QUIT = "Quit";
     protected static final String DONE = "Done";
+    /** Text of Done button at end of game becomes Reset button */
+    protected static final String DONE_RESET = "Reset";
     protected static final String CLEAR = "Clear";
     protected static final String SEND = "Offer";
     protected static final String BANK = "Bank/Port";
@@ -181,6 +183,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Timer autoRollTimer;  // Created just once
     protected TimerTask autoRollTimerTask;  // Created every turn when countdown needed
     protected Button rollBut;
+    /** "Done" with turn during play; "Reset" for board at end of game */
     protected Button doneBut;
     protected Button quitBut;
     protected SOCPlayerInterface playerInterface;
@@ -545,6 +548,10 @@ public class SOCHandPanel extends Panel implements ActionListener
         {
             // sqPanel.setValues(zero, zero);
             client.endTurn(game);
+        }
+        else if (target == DONE_RESET)
+        {
+            playerInterface.requestResetBoard();
         }
         else if (target == CLEAR)
         {
@@ -1003,6 +1010,10 @@ public class SOCHandPanel extends Panel implements ActionListener
                 playerSend[i].setVisible(true);
             }
             rollBut.setVisible(true);
+            if (game.getGameState() != SOCGame.OVER)
+                doneBut.setLabel(DONE);
+            else
+                doneBut.setLabel(DONE_RESET);
             doneBut.setVisible(true);
             quitBut.setVisible(true);
 
@@ -1598,6 +1609,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                         bankBut.setEnabled(false);
                     if (interactive)
                         playCardBut.setEnabled(false);
+                    doneBut.setLabel(DONE_RESET);
                 }
             }
             break;
