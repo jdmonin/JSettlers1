@@ -39,7 +39,7 @@ import java.awt.event.WindowListener;
 
 
 /**
- * This is the generic dialog to ask players a two-choice question.
+ * This is the generic dialog to ask players a two- or three-choice question.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
@@ -66,8 +66,14 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
      */
     protected Button choice2But;
 
-    /** Is this choice the default? */
-    protected boolean choice1Default, choice2Default;
+    /** Optional button for third choice, or null.
+     *
+     * @see #button3Chosen()
+     */
+    protected Button choice3But;
+
+    /** Default button (0 for none, or button 1, 2, or 3) */
+    protected int choiceDefault;
 
     /** Desired size (visible size inside of insets) **/
     protected int wantW, wantH;
@@ -76,7 +82,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     protected int padW, padH;
 
     /**
-     * Creates a new AskDialog.
+     * Creates a new AskDialog with two buttons.
      *
      * @param cli      Player client interface
      * @param gamePI   Current game's player interface
@@ -95,6 +101,36 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         boolean default1, boolean default2)
         throws IllegalArgumentException
     {
+        this (cli, gamePI, titlebar, prompt,
+              choice1, choice2, null,
+              (default1 ? 1 : (default2 ? 2 : 0))
+              );
+        if (default1 && default2)
+            throw new IllegalArgumentException("Cannot have 2 default buttons");
+    }
+
+    /**
+     * Creates a new AskDialog with three buttons.
+     * Also can create with two.
+     *
+     * @param cli      Player client interface
+     * @param gamePI   Current game's player interface
+     * @param titlebar Title bar text
+     * @param prompt   Prompting text shown above buttons, or null
+     * @param choice1  First choice button text
+     * @param choice2  Second choice button text
+     * @param choice3  Third choice button text, or null if 2 buttons
+     * @param defaultChoice  Default button (1, 2, 3, or 0 for none)
+     *
+     * @throws IllegalArgumentException If defaultChoice out of range 0..3,
+     *    or if any of these is null: cli, gamePI, prompt, choice1, choice2,
+     *    or if choice3 is null and defaultChoice is 3.
+     */
+    public AskDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI,
+        String titlebar, String prompt, String choice1, String choice2, String choice3,
+        int defaultChoice)
+        throws IllegalArgumentException
+    {
         super(gamePI, titlebar, true);
 
         if (cli == null)
@@ -105,8 +141,10 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
             throw new IllegalArgumentException("choice1 cannot be null");
     	if (choice2 == null)
             throw new IllegalArgumentException("choice2 cannot be null");
-    	if (default1 && default2)
-            throw new IllegalArgumentException("Cannot have 2 default buttons");
+        if ((defaultChoice < 0) || (defaultChoice > 3)) 
+            throw new IllegalArgumentException("defaultChoice out of range: " + defaultChoice);
+        if ((choice3 == null) && (defaultChoice == 3))
+            throw new IllegalArgumentException("defaultChoice cannot be 3 when choice3 null");
 
         pcli = cli;
         pi = gamePI;
@@ -116,8 +154,9 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
 
         choice1But = new Button(choice1);
         choice2But = new Button(choice2);
-        choice1Default = default1;
-        choice2Default = default2;
+        if (choice3 != null)
+            choice3But = new Button(choice3);
+        choiceDefault = defaultChoice;
         setLayout (new BorderLayout());
 
         msg = new Label(prompt, Label.CENTER);
@@ -126,6 +165,8 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         wantW = 6 + getFontMetrics(msg.getFont()).stringWidth(prompt);
         if (wantW < 280)
             wantW = 280;
+        if ((choice3 != null) && (wantW < (280+80)))
+            wantW = (280 + 80);
         wantH = 40 + 2 * ColorSquare.HEIGHT;
         padW = 0;  // Won't be able to call getInsets and know the values, until windowOpened()
         padH = 0;
@@ -141,19 +182,37 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         pBtns.add(choice2But);
         choice2But.addActionListener(this);
 
+        if (choice3But != null)
+        {
+            pBtns.add(choice3But);
+            choice3But.addActionListener(this);            
+        }
+
         add(pBtns, BorderLayout.SOUTH);
 
         // Now that we've added buttons to the dialog layout,
         // we can get their font and adjust style of default button.
-        if (choice1Default)
+        switch (choiceDefault)
+        {
+        case 1:
             styleAsDefault(choice1But);
-        else if (choice2Default)
+            break;
+        case 2:
             styleAsDefault(choice2But);
+            break;
+        case 3:
+            styleAsDefault(choice3But);
+            break;
+        default:
+            // 0, no button is default
+        }
 
         addWindowListener(this);  // To handle close-button
         addKeyListener(this);     // To handle Enter, Esc keys.
         choice1But.addKeyListener(this);  // (win32: Keyboard focus will be on these keys)
         choice2But.addKeyListener(this);
+        if (choice3But != null)
+            choice3But.addKeyListener(this);
     }
 
     /**
@@ -171,10 +230,18 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
             validate();
         }
 
-        if (choice1Default)
+        switch (choiceDefault)
+        {
+        case 1:
             choice1But.requestFocus();
-        else if (choice2Default)
+            break;
+        case 2:
             choice2But.requestFocus();
+            break;
+        case 3:
+            choice3But.requestFocus();
+            break;
+        }
     }
 
     /**
@@ -209,8 +276,8 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     }
 
     /**
-     * Button 1 or button 2 has been chosen by the user.
-     * Call button1Chosen or button2Chosen, and dispose of this dialog.
+     * A button has been chosen by the user.
+     * Call button1Chosen, button2Chosen or button3chosen, and dispose of this dialog.
      */
     public void actionPerformed(ActionEvent e)
     {
@@ -228,6 +295,11 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
                 dispose();
                 button2Chosen();  // <--- Callback for button 2 ---
             }
+            else if (target == choice3But)
+            {
+                dispose();
+                button3Chosen();  // <--- Callback for button 3 ---
+            }
         } catch (Throwable th) {
             pi.chatPrintStackTrace(th);
         }
@@ -244,6 +316,12 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
      * actionPerformed has already called dialog.dispose().
      */
     public abstract void button2Chosen();
+
+    /**
+     * The optional button 3 has been chosen by the user. React accordingly.
+     * actionPerformed has already called dialog.dispose().
+     */
+    public abstract void button3Chosen();
 
     /**
      * The dialog window was closed by the user, or ESC was pressed. React accordingly.
@@ -290,14 +368,22 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         switch (e.getKeyCode())
         {
         case KeyEvent.VK_ENTER:
-            if (choice1Default || choice2Default)
+            if (choiceDefault != 0)
             {
                 dispose();
                 e.consume();
-                if (choice1Default)
+                switch (choiceDefault)
+                {
+                case 1:
                     button1Chosen();  // <--- Callback for button 1 ---
-                else
+                    break;
+                case 2:
                     button2Chosen();  // <--- Callback for button 2 ---
+                    break;
+                case 3:
+                    button3Chosen();  // <--- Callback for button 3 ---
+                    break;
+                }  // switch
             }
             break;
 
