@@ -686,7 +686,7 @@ public class SOCRobotBrain extends Thread
                 // Along with actual game events, the pinger send a SOCGameTextMsg
                 // once per second, to aid the robot's timekeeping counter.
                 //
-                
+
                 while (alive)
                 {
                     SOCMessage mes;
@@ -2402,8 +2402,8 @@ public class SOCRobotBrain extends Thread
             }
             catch (Exception e)
             {
-                D.ebugPrintln("*** Caught an exception - " + e);
-                System.out.println("*** Caught an exception - " + e);
+                D.ebugPrintln("*** Robot caught an exception - " + e);
+                System.out.println("*** Robot caught an exception - " + e);
                 e.printStackTrace();
             }
         }

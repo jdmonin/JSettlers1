@@ -2774,6 +2774,8 @@ public class SOCGame implements Serializable, Cloneable
      * State of current game can be any state. State of copy is NEW.
      * Deep copy: Player names, faceIDs, and robot-flag are copied from
      * old game, but all other fields set as new Player and Board objects.
+     * Robot players are NOT carried over, and must be asked to re-join.
+     * (This simplifies the robot client.)
      * Old game's state becomes RESET_OLD.
      * Please call destroyGame() on old game when done examining its state. 
      */
@@ -2784,14 +2786,22 @@ public class SOCGame implements Serializable, Cloneable
         this.gameState = RESET_OLD;
         for (int i = 0; i < MAXPLAYERS; i++)
         {
+            boolean wasRobot = false;
             if (players[i] != null)
             {
-                cp.addPlayer(players[i].getName(), i);
-                cp.players[i].setRobotFlag (players[i].isRobot());
-                cp.players[i].setFaceId(players[i].getFaceId());
+                wasRobot = players[i].isRobot();
+                if (! wasRobot)
+                {
+                    cp.addPlayer(players[i].getName(), i);
+                    cp.players[i].setRobotFlag (false);
+                    cp.players[i].setFaceId(players[i].getFaceId());
+                }
             }
             cp.seatLocks[i] = seatLocks[i];
-            cp.seats[i] = seats[i];  // reset if addPlayer cleared VACANT for non-in-use player position
+            if (wasRobot)
+                cp.seats[i] = VACANT;
+            else
+                cp.seats[i] = seats[i];  // reset if addPlayer cleared VACANT for non-in-use player position
         }
         return cp;
     }

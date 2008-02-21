@@ -2747,8 +2747,6 @@ public class SOCServer extends Server
                 {
                     if (ga.getGameState() == SOCGame.NEW)
                     {
-                        Vector robotRequests = new Vector();
-
                         boolean seatsFull = true;
                         boolean anyLocked = false;
                         int numEmpty = 0;
@@ -2818,69 +2816,11 @@ public class SOCServer extends Server
                                     ga.setGameState(SOCGame.READY);
 
                                     /**
-                                     * Fill all the unlocked empty seats with robots
+                                     * Fill all the unlocked empty seats with robots.
+                                     * Build a Vector of StringConnections of robots asked
+                                     * to join, and add it to the robotJoinRequests table.
                                      */
-
-                                    ///
-                                    /// shuffle the indexes to distribute load
-                                    ///
-                                    int[] robotIndexes = new int[robots.size()];
-
-                                    for (int i = 0; i < robots.size(); i++)
-                                    {
-                                        robotIndexes[i] = i;
-                                    }
-
-                                    for (int j = 0; j < 3; j++)
-                                    {
-                                        for (int i = 0; i < robotIndexes.length; i++)
-                                        {
-                                            int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
-                                            int tmp = robotIndexes[idx];
-                                            robotIndexes[idx] = robotIndexes[i];
-                                            robotIndexes[i] = tmp;
-                                        }
-                                    }
-
-                                    if (D.ebugOn)
-                                    {
-                                        for (int i = 0; i < robots.size();
-                                                i++)
-                                        {
-                                            D.ebugPrintln("^^^ robotIndexes[" + i + "]=" + robotIndexes[i]);
-                                        }
-                                    }
-
-                                    int idx = 0;
-
-                                    for (int i = 0; i < SOCGame.MAXPLAYERS;
-                                            i++)
-                                    {
-                                        if (ga.isSeatVacant(i) && ! ga.isSeatLocked(i))
-                                        {
-                                            /**
-                                             * fetch a robot player
-                                             */
-                                            if (idx < robots.size())
-                                            {
-                                                messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, "Fetching a robot player..."));
-
-                                                StringConnection robotConn = (StringConnection) robots.get(robotIndexes[idx]);
-                                                idx++;
-
-                                                /**
-                                                 * make the request
-                                                 */
-                                                robotConn.put(SOCJoinGameRequest.toCmd(gn, i));
-
-                                                /**
-                                                 * record the request
-                                                 */
-                                                D.ebugPrintln("@@@ JOIN GAME REQUEST for " + (String) robotConn.getData());
-                                                robotRequests.addElement(robotConn);
-                                            }
-                                        }
-                                    }
+                                    readyGameAskRobotsJoin(ga, null);
                                 }
                             }
                         }
@@ -2893,13 +2833,6 @@ public class SOCServer extends Server
                         {
                             startGame(ga);
                         }
-                        else
-                        {
-                            if (!robotRequests.isEmpty())
-                            {
-                                robotJoinRequests.put(gn, robotRequests);
-                            }
-                        }
                     }
                 }
                 catch (Exception e)
@@ -2910,6 +2843,124 @@ public class SOCServer extends Server
 
                 ga.releaseMonitor();
             }
+        }
+    }
+
+    /**
+     * Fill all the unlocked empty seats with robots.
+     * Builds a Vector of StringConnections of robots asked to join,
+     * and adds it to the robotJoinRequests table.
+     * Game state should be READY.
+     * Called by handleSTARTGAME, resetBoardAndNotify.
+     *
+     * @param ga  Game to ask robots to join
+     * @param robotSeats If robotSeats is null, robots are randomly selected.
+     *                   If non-null, a MAXPLAYERS-sized array of StringConnections.
+     *                   Any vacant non-locked seat, with index i,
+     *                   is filled with the robot whose connection is robotSeats[i].
+     *                   Other indexes should be null, and won't be used.
+     *
+     * @throws IllegalStateException if ga.gamestate is not READY
+     * @throws IllegalArgumentException if robotSeats is not null but wrong length,
+     *           or if a robotSeat element is null but that seat wants a robot (vacant non-locked).
+     */
+    private void readyGameAskRobotsJoin(SOCGame ga, StringConnection[] robotSeats)
+        throws IllegalStateException, IllegalArgumentException
+    {
+        if (ga.getGameState() != SOCGame.READY)
+            throw new IllegalStateException("SOCGame state not READY: " + ga.getGameState());
+
+        Vector robotRequests = null;
+
+        int[] robotIndexes = null;
+        if (robotSeats == null)
+        {
+            ///
+            /// shuffle the indexes to distribute load
+            ///
+            robotIndexes = new int[robots.size()];
+    
+            for (int i = 0; i < robots.size(); i++)
+            {
+                robotIndexes[i] = i;
+            }
+    
+            for (int j = 0; j < 3; j++)
+            {
+                for (int i = 0; i < robotIndexes.length; i++)
+                {
+                    int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
+                    int tmp = robotIndexes[idx];
+                    robotIndexes[idx] = robotIndexes[i];
+                    robotIndexes[i] = tmp;
+                }
+            }
+    
+            if (D.ebugOn)
+            {
+                for (int i = 0; i < robots.size();
+                        i++)
+                {
+                    D.ebugPrintln("^^^ robotIndexes[" + i + "]=" + robotIndexes[i]);
+                }
+            }
+        }
+        else
+        {
+            // robotSeats not null: check length
+            if (robotSeats.length != SOCGame.MAXPLAYERS)
+                throw new IllegalArgumentException("robotSeats Length must be MAXPLAYERS");
+        }
+
+        String gname = ga.getName();
+        int idx = 0;
+
+        for (int i = 0; i < SOCGame.MAXPLAYERS;
+                i++)
+        {
+            if (ga.isSeatVacant(i) && ! ga.isSeatLocked(i))
+            {
+                /**
+                 * fetch a robot player
+                 */
+                if (idx < robots.size())
+                {
+                    messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, "Fetching a robot player..."));
+
+                    StringConnection robotConn;
+                    if (robotSeats != null)
+                    {
+                        robotConn = robotSeats[i];
+                        if (robotConn == null)
+                            throw new IllegalArgumentException("robotSeats[" + i + "] was needed but null");
+                    }
+                    else
+                    {
+                        robotConn = (StringConnection) robots.get(robotIndexes[idx]);
+                    }
+                    idx++;
+
+                    /**
+                     * make the request
+                     */
+                    robotConn.put(SOCJoinGameRequest.toCmd(gname, i));
+
+                    /**
+                     * record the request
+                     */
+                    D.ebugPrintln("@@@ JOIN GAME REQUEST for " + (String) robotConn.getData());
+                    if (robotRequests == null)
+                        robotRequests = new Vector();
+                    robotRequests.addElement(robotConn);
+                }
+            }
+        }
+
+        if (robotRequests != null)
+        {
+            // we know it isn't empty,
+            // so add to the request table
+            robotJoinRequests.put(gname, robotRequests);
         }
     }
 
@@ -5495,86 +5546,94 @@ public class SOCServer extends Server
     /**
      * Reset the board to a copy with same players.
      *<OL>
-     * <LI ??=0> Copy the board and player positions.
-     * <LI> 1. Send ResetGameJoinAuth to each client (like sending JoinGameAuth at new game)
-     * <LI> 2. Send messages as if each player has clicked "join" (except JoinGameAuth)
-     * <LI> 3. Send as if each player has clicked "sit here"
-     * <LI> 4. Send to game as if someone else has clicked "start game",
-     *         and set up state to begin game play.
-     *</OL>  
+     * <LI value=0> Copy the board and player positions.
+     * <LI value=1> Send ResetGameJoinAuth to each client (like sending JoinGameAuth at new game)
+     *    Humans will reset their copy of the game.
+     *    Robots will leave the game and request to re-join.
+     * <LI value=2> Send messages as if each human player has clicked "join" (except JoinGameAuth)
+     * <LI value=3> Send as if each human player has clicked "sit here"
+     * <LI value=4a> If no robots, send to game as if someone else has
+     *              clicked "start game", and set up state to begin game play.
+     * <LI value=4b>  If there are robots, set up wait-request queue (robotJoinRequests).
+     *     Robots will send JOINGAME and SITDOWN, as they do when joining a newly created game.
+     *     Once all robots have re-joined, the game will begin.
+     *</OL>
      */
     private void resetBoardAndNotify (String gaName, String requestingPlayer)
     {
         // Reset the board to a copy with same players.
         // Takes the monitorForGame if exists.
-        SOCGame reGame = gameList.resetGame(gaName);
-        if (reGame == null)
+        SOCGameReset reGameInfo = gameList.resetGame(gaName);
+        if (reGameInfo == null)
             return;
+        SOCGame reGame = reGameInfo.newGame;
 
         D.ebugPrintln("*** Game " + gaName + " board reset by " + requestingPlayer + " ***");
 
         /**
-         * Gather player connection data
+         * Player connection data:
+         * - Humans are copied from old to new game
+         * - Robots aren't copied to new game, must re-join
          */
-        StringConnection[] plConns = new StringConnection[SOCGame.MAXPLAYERS]; 
-        Vector players = gameList.getMembers(gaName);
-        if (players != null)
-        {
-            // This enum is easier than enumerating all connected clients;
-            // there is no mapping of clientname -> connection.
-            Enumeration playersEnum = players.elements();
-            while (playersEnum.hasMoreElements())
-            {
-                StringConnection pCon = (StringConnection) playersEnum.nextElement();
-                SOCPlayer p = reGame.getPlayer((String) pCon.getData());
-                if (p != null)
-                    plConns[p.getPlayerNumber()] = pCon;
-            }
-            for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
-            {
-                if ((plConns[pn] == null) && ! reGame.isSeatVacant(pn))
-                    D.ebugPrintln("handleRESETBOARDREQUEST assert failed: did not notify player " + pn);
-            }
-        }
+        StringConnection[] huConns = reGameInfo.humanConns;
+        StringConnection[] roConns = reGameInfo.robotConns;
 
         // Must release before calling methods below
         gameList.releaseMonitorForGame(gaName);
 
         /**
-         * Notify players.
+         * Notify old game's players. (Humans and robots)
          *
-         * 1. Send ResetGameJoinAuth to each (like sending JoinGameAuth at new game)
+         * 1. Send ResetGameJoinAuth to each (like sending JoinGameAuth at new game).
+         *    Humans will reset their copy of the game.
+         *    Robots will leave the game and request to re-join.
          */
         for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
         {
-            if (plConns[pn] != null)
-                messageToPlayer(plConns[pn], new SOCResetGameJoinAuth(gaName, pn, requestingPlayer));
+            SOCResetGameJoinAuth resetMsg = new SOCResetGameJoinAuth(gaName, pn, requestingPlayer);
+            if (huConns[pn] != null)
+                messageToPlayer(huConns[pn], resetMsg);
+            else if (roConns[pn] != null)
+                messageToPlayer(roConns[pn], resetMsg);
         }
 
         /**
-         * 2. Send messages as if each player has clicked "join" (except JoinGameAuth)
+         * 2. Send messages as if each human player has clicked "join" (except JoinGameAuth)
          */
         for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
         {
-            if (plConns[pn] != null)
-                joinGame(reGame, plConns[pn], true);
+            if (huConns[pn] != null)
+                joinGame(reGame, huConns[pn], true);
         }
 
         /**
-         * 3. Send as if each player has clicked "sit here"
+         * 3. Send as if each human player has clicked "sit here"
          */
         for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
         {
-            if (plConns[pn] != null)
-                sitDown(reGame, plConns[pn], pn, reGame.getPlayer(pn).isRobot(), true);
+            if (huConns[pn] != null)
+                sitDown(reGame, huConns[pn], pn, false /* isRobot*/, true /*isReset */ );
         }
-    
+
         /**
-         * 4. Send to game as if someone else has clicked "start game",
-         *    and set up state to begin game play.
+         * 4a. If no robots, send to game as if someone else has
+         *     clicked "start game", and set up state to begin game play.
          */
-        startGame (reGame);
-    
+        if (! reGameInfo.hadRobots)
+            startGame (reGame);
+
+        /**
+         * 4b. If there are robots, set up wait-request queue (robotJoinRequests).
+         *     Robots will send JOINGAME and SITDOWN, as they do when
+         *     joining a newly created game.
+         *     Once all robots have re-joined, the game will begin.
+         */
+        else
+        {
+            reGame.setGameState(SOCGame.READY);
+            readyGameAskRobotsJoin(reGame, reGameInfo.robotConns);
+        }
+
         // All set.
     }
 

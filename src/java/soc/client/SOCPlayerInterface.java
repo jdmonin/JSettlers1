@@ -212,7 +212,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public SOCPlayerInterface(String title, SOCPlayerClient cl, SOCGame ga)
     {
-        super(TITLEBAR_GAME + title + " [" + cl.getNickname() + "]");
+        super(TITLEBAR_GAME + title +
+              (ga.isLocal ? "" : " [" + cl.getNickname() + "]"));
         setResizable(true);
 
         client = cl;
@@ -246,7 +247,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         /**
          * setup interface elements
          */
-        initInterfaceElements();
+        initInterfaceElements(true);
 
         /**
          * we're doing our own layout management
@@ -270,8 +271,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
     /**
      * Setup the interface elements
+     *
+     * @param firstCall First setup call for this window; do global things
+     *   such as windowListeners, not just component-specific things.
      */
-    protected void initInterfaceElements()
+    protected void initInterfaceElements(boolean firstCall)
     {
         /**
          * initialize the player hand displays and add them to the interface
@@ -338,7 +342,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         textInput.addActionListener(this);
 
         /** If player requests window close, ask if they're sure, leave game if so */
-        addWindowListener(new MyWindowAdapter(this));
+        if (firstCall)
+            addWindowListener(new MyWindowAdapter(this));
     }
 
     /**
@@ -869,7 +874,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         clientHand = null;
         clientHandPlayerNum = -1;
         removeAll();  // old sub-components
-        initInterfaceElements();  // new sub-components
+        initInterfaceElements(false);  // new sub-components
         validate();
         repaint();
         textDisplay.append("** The board was reset by " + requesterName + ".\n");

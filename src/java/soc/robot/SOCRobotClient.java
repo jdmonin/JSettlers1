@@ -668,8 +668,10 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     }
 
     /**
-     * handle the "join game request" message
+     * handle the "join game request" message. Game resets are also handled this way.
      * @param mes  the message
+     *
+     * @see #handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth)
      */
     protected void handleJOINGAMEREQUEST(SOCJoinGameRequest mes)
     {
@@ -1759,25 +1761,24 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     /**
      * handle board reset
      * (new game with same players, same game name).
-     * Create new Game object, destroy old one.
+     * Destroy old Game object.
      * Take robotbrain out of old game, don't yet put it in new game.
-     * The reset message will be followed with others which will fill in the game state.
-     * SITDOWN will cause us to re-add self to new game.
+     * Treat as a JOINGAMEREQUEST: ask server for us to join the new game.
      *
      * @param mes  the message
      * 
      * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
      * @see soc.game.SOCGame#resetAsCopy()
+     * @see #handleJOINGAMEREQUEST(SOCJoinGameRequest)
      */
     protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
     {
+        D.ebugPrintln("**** handleRESETGAMEJOINAUTH ****");
+
         String gname = mes.getGame();
         SOCGame ga = (SOCGame) games.get(gname);
         if (ga == null)
             return;  // Not one of our games
-
-        SOCGame greset = ga.resetAsCopy();
-        greset.isLocal = ga.isLocal;
 
         SOCRobotBrain brain = (SOCRobotBrain) robotBrains.get(gname);
         if (brain != null)
@@ -1785,18 +1786,17 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
             brain.kill();
             robotBrains.remove(gname);
         }
-
         brainQs.remove(gname);
         games.remove(gname);
-        games.put(gname, greset);
-
-        CappedQueue brainQ = new CappedQueue();
-        brainQs.put(gname, brainQ);
-
-        SOCRobotBrain rb = new SOCRobotBrain(this, currentRobotParameters, greset, brainQ);
-        robotBrains.put(gname, rb);
-
         ga.destroyGame();
+        
+        // now, react like handleJOINGAMEREQUEST
+        seatRequests.put(gname, new Integer(mes.getPlayerNumber()));
+
+        if (put(SOCJoinGame.toCmd(nickname, password, host, gname)))
+        {
+            D.ebugPrintln("**** sent SOCJoinGame ****");
+        }
     }
 
     /**
