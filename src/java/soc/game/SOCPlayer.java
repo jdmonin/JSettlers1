@@ -198,6 +198,11 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     private boolean playedDevCard;
 
     /**
+     * this is true if the player asked to reset the board this turn
+     */
+    private boolean boardResetAskedThisTurn;
+
+    /**
      * this is true if this player is a robot
      */
     private boolean robotFlag;
@@ -247,6 +252,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
         finalTotalVP = 0;
         playedDevCard = player.playedDevCard;
         needToDiscard = player.needToDiscard;
+        boardResetAskedThisTurn = player.boardResetAskedThisTurn;
         robotFlag = player.robotFlag;
         faceId = player.faceId;
         ourNumbers = new SOCPlayerNumbers(player.ourNumbers);
@@ -330,6 +336,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
         devCardVP = 0;
         playedDevCard = false;
         needToDiscard = false;
+        boardResetAskedThisTurn = false;
         robotFlag = false;
         faceId = 1;
         ourNumbers = new SOCPlayerNumbers();
@@ -550,6 +557,24 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     public void setPlayedDevCard(boolean value)
     {
         playedDevCard = value;
+    }
+
+    /**
+     * @return true if the player asked to reset the board this turn
+     */
+    public boolean hasAskedBoardReset()
+    {
+        return boardResetAskedThisTurn;
+    }
+
+    /**
+     * set the boardResetAskedThisTurn flag
+     *
+     * @param value the value of the flag
+     */
+    public void setAskedBoardReset(boolean value)
+    {
+        boardResetAskedThisTurn = value;
     }
 
     /**

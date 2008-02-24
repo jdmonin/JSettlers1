@@ -1939,6 +1939,11 @@ public class SOCServer extends Server
 
                     break;
 
+                case SOCMessage.RESETBOARDVOTE:
+                    handleRESETBOARDVOTE(c, (SOCResetBoardVote) mes);
+
+                    break;
+
                 case SOCMessage.CREATEACCOUNT:
                     handleCREATEACCOUNT(c, (SOCCreateAccount) mes);
 
@@ -2852,6 +2857,9 @@ public class SOCServer extends Server
      * and adds it to the robotJoinRequests table.
      * Game state should be READY.
      * Called by handleSTARTGAME, resetBoardAndNotify.
+     * MUST be called ONLY from the one thread handling all inbound messages,
+     * or (race condition) the robots may ask to join before we've
+     * set up robotJoinRequests. 
      *
      * @param ga  Game to ask robots to join
      * @param robotSeats If robotSeats is null, robots are randomly selected.
@@ -3307,9 +3315,13 @@ public class SOCServer extends Server
                     {
                         if (ga.canEndTurn(ga.getPlayer((String) c.getData()).getPlayerNumber()))
                         {
+                            boolean hadBoardResetRequest = (-1 != ga.getResetVoteRequester());
                             ga.endTurn();
+                            if (hadBoardResetRequest)
+                                messageToGame(gname, new SOCResetBoardReject(gname));
+
                             boolean wantsRollPrompt = sendGameState(ga, false);
-                            
+
                             /**
                              * clear any trade offers
                              */
@@ -4295,7 +4307,8 @@ public class SOCServer extends Server
 
     /**
      * handle "reset-board request" message.
-     * Reset the board to a copy with same name and players.
+     * Start a vote, or reset the game to a copy with
+     * same name and (copy of) players, new layout.
      *
      * @see #resetBoardAndNotify(String, String)
      *
@@ -4304,20 +4317,95 @@ public class SOCServer extends Server
      */
     private void handleRESETBOARDREQUEST(StringConnection c, SOCResetBoardRequest mes)
     {
-        // JM TODO - handle human-game properly (start voting, etc)
         if (c == null)
             return;
         String gaName = mes.getGame();
         SOCGame ga = gameList.getGameData(gaName);
         if (ga == null)
-            return;
-        SOCPlayer player = ga.getPlayer((String) c.getData());
-        if (player == null)
+            return;        
+        SOCPlayer reqPlayer = ga.getPlayer((String) c.getData());
+        if (reqPlayer == null)
         {
             return;  // Not playing in that game (Security)
         }
+        
+        // Is there more than one human player?
+        // Grab connection information for humans and robots.
+        StringConnection[] humanConns = new StringConnection[SOCGame.MAXPLAYERS];
+        StringConnection[] robotConns = new StringConnection[SOCGame.MAXPLAYERS];
+        int numHuman = SOCGameBoardReset.sortPlayerConnections(ga, null, gameList.getMembers(gaName), humanConns, robotConns);
 
-        resetBoardAndNotify (gaName, player.getName());
+        int reqPN = reqPlayer.getPlayerNumber();
+        if (numHuman < 2)
+        {
+            // Go ahead and reset.
+            resetBoardAndNotify(gaName, reqPN); 
+        }
+        else
+        {
+            // Put it to a vote
+            messageToGame(gaName, new SOCGameTextMsg
+                (gaName, SERVERNAME, (String) c.getData() + " requests a board reset - please vote."));
+            String vrCmd = SOCResetBoardVoteRequest.toCmd(gaName, reqPN);
+            ga.resetVoteBegin(reqPN);
+            for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
+                if ((i != reqPN) && (humanConns[i] != null))
+                    humanConns[i].put(vrCmd);
+        }            
+    }
+
+    /**
+     * handle message of player's vote for a "reset-board" request.
+     * Reset the game to a copy with same name and (copy of) players, new layout.
+     *
+     * @see #resetBoardAndNotify(String, String)
+     *
+     * @param c  the connection
+     * @param mes  the message
+     */
+    private void handleRESETBOARDVOTE(StringConnection c, SOCResetBoardVote mes)
+    {
+        if (c == null)
+            return;
+        String gaName = mes.getGame();
+        SOCGame ga = gameList.getGameData(gaName);
+        if (ga == null)
+            return;        
+        SOCPlayer reqPlayer = ga.getPlayer((String) c.getData());
+        if (reqPlayer == null)
+        {
+            return;  // Not playing in that game (Security)
+        }
+        
+        boolean votingComplete = false;
+        try
+        {
+            int pn = reqPlayer.getPlayerNumber();
+            boolean vyes = mes.getPlayerVote();
+
+            // Register to game
+            votingComplete = ga.resetVoteRegister(pn, vyes);
+            // Tell other players
+            messageToGame (gaName, new SOCResetBoardVote(gaName, pn, vyes));
+        }
+        catch (IllegalArgumentException e) {}  // TODO log?
+        catch (IllegalStateException e) {}     // TODO log?
+
+        if (! votingComplete)
+        {
+            return;
+        }
+        
+        if (ga.getResetVoteResult())
+        {
+            // Vote succeeded - Go ahead and reset.
+            resetBoardAndNotify(gaName, ga.getResetVoteRequester());
+        }
+        else
+        {
+            // Vote rejected - Let everyone know.
+            messageToGame(gaName, new SOCResetBoardReject(gaName));
+        }                
     }
 
     /**
@@ -5544,53 +5632,61 @@ public class SOCServer extends Server
     }
 
     /**
-     * Reset the board to a copy with same players.
+     * Reset the board to a copy with same players but new layout.
      *<OL>
-     * <LI value=0> Copy the board and player positions.
-     * <LI value=1> Send ResetGameJoinAuth to each client (like sending JoinGameAuth at new game)
+     * <LI value=1> Reset the board, remember player positions.
+     * <LI value=2> Send ResetBoardAuth to each client (like sending JoinGameAuth at new game)
      *    Humans will reset their copy of the game.
      *    Robots will leave the game and request to re-join.
-     * <LI value=2> Send messages as if each human player has clicked "join" (except JoinGameAuth)
-     * <LI value=3> Send as if each human player has clicked "sit here"
-     * <LI value=4a> If no robots, send to game as if someone else has
+     *    (This simplifies the robot client.)
+     * <LI value=3> Send messages as if each human player has clicked "join" (except JoinGameAuth)
+     * <LI value=4> Send as if each human player has clicked "sit here"
+     * <LI value=5a> If no robots, send to game as if someone else has
      *              clicked "start game", and set up state to begin game play.
-     * <LI value=4b>  If there are robots, set up wait-request queue (robotJoinRequests).
-     *     Robots will send JOINGAME and SITDOWN, as they do when joining a newly created game.
+     * <LI value=5b>  If there are robots, If there are robots, set up wait-request
+     *     queue (robotJoinRequests). Game will wait for robots to send
+     *     JOINGAME and SITDOWN, as they do when joining a newly created game.
      *     Once all robots have re-joined, the game will begin.
      *</OL>
+     * MUST be called ONLY from the one thread handling all inbound messages,
+     * or (race condition) the robots may ask to join before we've
+     * set up robotJoinRequests. 
      */
-    private void resetBoardAndNotify (String gaName, String requestingPlayer)
+    private void resetBoardAndNotify (String gaName, int requestingPlayer)
     {
-        // Reset the board to a copy with same players.
-        // Takes the monitorForGame if exists.
-        SOCGameReset reGameInfo = gameList.resetGame(gaName);
-        if (reGameInfo == null)
+        /**
+         * 1. Reset the board, remember player positions.
+         *    Takes the monitorForGame if exists.
+         */
+        SOCGameBoardReset reBoard = gameList.resetBoard(gaName);
+        if (reBoard == null)
             return;
-        SOCGame reGame = reGameInfo.newGame;
+        SOCGame reGame = reBoard.newGame;
 
-        D.ebugPrintln("*** Game " + gaName + " board reset by " + requestingPlayer + " ***");
+        // Must release before calling methods below
+        gameList.releaseMonitorForGame(gaName);
+
+        messageToGameUrgent(gaName, ">>> Game " + gaName + " board reset by "
+            + reGame.getPlayer(requestingPlayer).getName());
 
         /**
          * Player connection data:
          * - Humans are copied from old to new game
          * - Robots aren't copied to new game, must re-join
          */
-        StringConnection[] huConns = reGameInfo.humanConns;
-        StringConnection[] roConns = reGameInfo.robotConns;
-
-        // Must release before calling methods below
-        gameList.releaseMonitorForGame(gaName);
+        StringConnection[] huConns = reBoard.humanConns;
+        StringConnection[] roConns = reBoard.robotConns;
 
         /**
          * Notify old game's players. (Humans and robots)
          *
-         * 1. Send ResetGameJoinAuth to each (like sending JoinGameAuth at new game).
+         * 1. Send ResetBoardAuth to each (like sending JoinGameAuth at new game).
          *    Humans will reset their copy of the game.
          *    Robots will leave the game and request to re-join.
          */
         for (int pn = 0; pn < SOCGame.MAXPLAYERS; ++pn)
         {
-            SOCResetGameJoinAuth resetMsg = new SOCResetGameJoinAuth(gaName, pn, requestingPlayer);
+            SOCResetBoardAuth resetMsg = new SOCResetBoardAuth(gaName, pn, requestingPlayer);
             if (huConns[pn] != null)
                 messageToPlayer(huConns[pn], resetMsg);
             else if (roConns[pn] != null)
@@ -5619,19 +5715,20 @@ public class SOCServer extends Server
          * 4a. If no robots, send to game as if someone else has
          *     clicked "start game", and set up state to begin game play.
          */
-        if (! reGameInfo.hadRobots)
+        if (! reBoard.hadRobots)
             startGame (reGame);
 
         /**
-         * 4b. If there are robots, set up wait-request queue (robotJoinRequests).
-         *     Robots will send JOINGAME and SITDOWN, as they do when
-         *     joining a newly created game.
+         * 4b. If there are robots, set up wait-request queue
+         *     (robotJoinRequests) and ask robots to re-join.
+         *     Game will wait for robots to send JOINGAME and SITDOWN,
+         *     as they do when joining a newly created game.
          *     Once all robots have re-joined, the game will begin.
          */
         else
         {
             reGame.setGameState(SOCGame.READY);
-            readyGameAskRobotsJoin(reGame, reGameInfo.robotConns);
+            readyGameAskRobotsJoin(reGame, reBoard.robotConns);
         }
 
         // All set.

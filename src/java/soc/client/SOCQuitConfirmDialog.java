@@ -109,7 +109,7 @@ class SOCQuitConfirmDialog extends AskDialog
      */
     public void button3Chosen()
     {
-        pi.requestResetBoard();
+        pi.resetBoardRequest();
     }
 
     /**

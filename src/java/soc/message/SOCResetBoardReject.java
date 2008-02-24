@@ -22,20 +22,15 @@ package soc.message;
 
 import java.util.StringTokenizer;
 
-import soc.server.genericServer.StringConnection;
-
-
 /**
- * This message from client to server requests a "reset board" of
- * a game being played. (New game, same name, same players, new layout).
+ * This message from server informs all clients that the board reset
+ * request has been rejected in voting.
  *
- * If reset is allowed, server will respond with {@link soc.message.SOCResetBoardAuth}
- * and subsequent messages. For details, see 
- * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
- *
+ * @see SOCResetBoardRequest
  * @author Jeremy D. Monin <jeremy@nand.net>
+ *
  */
-public class SOCResetBoardRequest extends SOCMessage
+public class SOCResetBoardReject extends SOCMessage
 {
     /**
      * Name of game
@@ -43,13 +38,13 @@ public class SOCResetBoardRequest extends SOCMessage
     private String game;
 
     /**
-     * Create a ResetBoardRequest message.
+     * Create a SOCResetBoardReject message.
      *
      * @param ga  the name of the game
      */
-    public SOCResetBoardRequest(String ga)
+    public SOCResetBoardReject(String ga)
     {
-        messageType = RESETBOARDREQUEST;
+        messageType = RESETBOARDREJECT;
         game = ga;
     }
 
@@ -62,7 +57,7 @@ public class SOCResetBoardRequest extends SOCMessage
     }
 
     /**
-     * RESETBOARDREQUEST sep game
+     * RESETBOARDREJECT sep game
      *
      * @return the command string
      */
@@ -72,25 +67,26 @@ public class SOCResetBoardRequest extends SOCMessage
     }
 
     /**
-     * RESETBOARDREQUEST sep game
+     * RESETBOARDREJECT sep game
      *
      * @param ga  the name of the game
      * @return the command string
      */
     public static String toCmd(String ga)
     {
-        return RESETBOARDREQUEST + sep + ga;
+        return RESETBOARDREJECT + sep + ga;
     }
 
     /**
-     * Parse the command String into a ResetBoardRequest message
+     * Parse the command String into a SOCResetBoardReject message
      *
      * @param s   the String to parse
-     * @return    a ResetBoardRequest message
+     * @return    a SOCResetBoardAuth message, or null if the data is garbled
      */
-    public static SOCResetBoardRequest parseDataStr(String s)
+    public static SOCResetBoardReject parseDataStr(String s)
     {
-        return new SOCResetBoardRequest(s);
+        // s is just the game name
+        return new SOCResetBoardReject(s);
     }
 
     /**
@@ -98,6 +94,6 @@ public class SOCResetBoardRequest extends SOCMessage
      */
     public String toString()
     {
-        return "SOCResetBoardRequest:game=" + game;
+        return "SOCResetBoardReject:game=" + game;
     }
 }

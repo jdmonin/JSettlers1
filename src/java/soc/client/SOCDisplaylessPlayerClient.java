@@ -84,7 +84,7 @@ import soc.message.SOCPotentialSettlements;
 import soc.message.SOCPutPiece;
 import soc.message.SOCRejectConnection;
 import soc.message.SOCRejectOffer;
-import soc.message.SOCResetGameJoinAuth;
+import soc.message.SOCResetBoardAuth;
 import soc.message.SOCResourceCount;
 import soc.message.SOCRollDice;
 import soc.message.SOCSetPlayedDevCard;
@@ -688,10 +688,10 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 break;
 
             /**
-             * handle board reset (new game with same players, same game name).
+             * handle board reset (new game with same players, same game name, new layout).
              */
-            case SOCMessage.RESETGAMEJOINAUTH:
-                handleRESETGAMEJOINAUTH((SOCResetGameJoinAuth) mes);
+            case SOCMessage.RESETBOARDAUTH:
+                handleRESETBOARDAUTH((SOCResetBoardAuth) mes);
 
                 break;
 
@@ -1670,16 +1670,18 @@ public class SOCDisplaylessPlayerClient implements Runnable
 
     /**
      * handle board reset
-     * (new game with same players, same game name).
+     * (new game with same players, same game name, new layout).
      * Create new Game object, destroy old one.
-     * The reset message will be followed with others which will fill in the game state.
+     * For human players, the reset message will be followed
+     * with others which will fill in the game state.
+     * For robots, they must discard game state and ask to re-join.
      *
      * @param mes  the message
-     * 
+     *
      * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
      * @see soc.game.SOCGame#resetAsCopy()
      */
-    protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
+    protected void handleRESETBOARDAUTH(SOCResetBoardAuth mes)
     {
         String gname = mes.getGame();
         SOCGame ga = (SOCGame) games.get(gname);

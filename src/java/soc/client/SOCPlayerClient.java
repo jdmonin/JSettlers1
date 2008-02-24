@@ -1416,10 +1416,34 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 break;
 
             /**
-             * handle board reset (new game with same players, same game name).
+             * handle board reset (new game with same players, same game name, new layout).
              */
-            case SOCMessage.RESETGAMEJOINAUTH:
-                handleRESETGAMEJOINAUTH((SOCResetGameJoinAuth) mes);
+            case SOCMessage.RESETBOARDAUTH:
+                handleRESETBOARDAUTH((SOCResetBoardAuth) mes);
+
+                break;
+
+            /**
+             * a player is requesting a board reset: we must vote
+             */
+            case SOCMessage.RESETBOARDVOTEREQUEST:
+                handleRESETBOARDVOTEREQUEST((SOCResetBoardVoteRequest) mes);
+
+                break;
+
+            /**
+             * another player has voted on a board reset request
+             */
+            case SOCMessage.RESETBOARDVOTE:
+                handleRESETBOARDVOTE((SOCResetBoardVote) mes);
+
+                break;
+
+            /**
+             * voting complete, board reset request rejected
+             */
+            case SOCMessage.RESETBOARDREJECT:
+                handleRESETBOARDREJECT((SOCResetBoardReject) mes);
 
                 break;
 
@@ -2894,16 +2918,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
     /**
      * handle board reset
-     * (new game with same players, same game name).
+     * (new game with same players, same game name, new layout).
      * Create new Game object, destroy old one.
-     * The reset message will be followed with others which will fill in the game state.
+     * For human players, the reset message will be followed
+     * with others which will fill in the game state.
+     * For robots, they must discard game state and ask to re-join.
      *
      * @param mes  the message
-     * 
+     *
      * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
      * @see soc.game.SOCGame#resetAsCopy()
      */
-    protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
+    protected void handleRESETBOARDAUTH(SOCResetBoardAuth mes)
     {
         String gname = mes.getGame();
         SOCGame ga = (SOCGame) games.get(gname);
@@ -2916,10 +2942,65 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         SOCGame greset = ga.resetAsCopy();
         greset.isLocal = ga.isLocal;
         games.put(gname, greset);
-        pi.resetBoard(greset, mes.getPlayerNumber(), mes.getRequestingPlayer());
+        pi.resetBoard(greset, mes.getRejoinPlayerNumber(), mes.getRequestingPlayerNumber());
         ga.destroyGame();
     }
 
+    /**
+     * a player is requesting a board reset: we must vote.
+     *
+     * @param mes  the message
+     */
+    protected void handleRESETBOARDVOTEREQUEST(SOCResetBoardVoteRequest mes)
+    {
+        String gname = mes.getGame();
+        SOCGame ga = (SOCGame) games.get(gname);
+        if (ga == null)
+            return;  // Not one of our games
+        SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gname);
+        if (pi == null)
+            return;  // Not one of our games
+
+        pi.resetBoardAskVote(mes.getRequestingPlayer());
+    }
+
+    /**
+     * another player has voted on a board reset request: display the vote.
+     *
+     * @param mes  the message
+     */
+    protected void handleRESETBOARDVOTE(SOCResetBoardVote mes)
+    {
+        String gname = mes.getGame();
+        SOCGame ga = (SOCGame) games.get(gname);
+        if (ga == null)
+            return;  // Not one of our games
+        SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gname);
+        if (pi == null)
+            return;  // Not one of our games
+
+        pi.resetBoardVoted(mes.getPlayerNumber(), mes.getPlayerVote());
+    }
+
+    /**
+     * voting complete, board reset request rejected
+     *
+     * @param mes  the message
+     */
+    protected void handleRESETBOARDREJECT(SOCResetBoardReject mes)
+    {
+        String gname = mes.getGame();
+        SOCGame ga = (SOCGame) games.get(gname);
+        if (ga == null)
+            return;  // Not one of our games
+        SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gname);
+        if (pi == null)
+            return;  // Not one of our games
+
+        pi.resetBoardRejected();
+    }
+
+    
     /**
      * add a new game to the initial window's list of games
      *
@@ -3433,14 +3514,30 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * Player wants to request to reset the board (same players, new game, new layout).
      * Send {@link soc.message.SOCResetBoardRequest} to server;
      * it will either respond with a
-     * {@link soc.message.SOCResetGameJoinAuth} message,
+     * {@link soc.message.SOCResetBoardAuth} message,
      * or will tell other players to vote yes/no on the request.
+     * Before calling, check player.hasAskedBoardReset().
      */
-    public void requestResetBoard(SOCGame ga)
+    public void resetBoardRequest(SOCGame ga)
     {
         put(SOCResetBoardRequest.toCmd(ga.getName()), ga.isLocal);
     }
 
+    /**
+     * Player is responding to a board-reset vote from another player.
+     * Send {@link soc.message.SOCResetBoardRequest} to server;
+     * it will either respond with a
+     * {@link soc.message.SOCResetBoardAuth} message,
+     * or will tell other players to vote yes/no on the request.
+     *
+     * @param ga Game to vote on
+     * @param pn Player number of our player who is voting
+     * @param voteYes If true, this player votes yes; if false, no
+     */
+    public void resetBoardVote(SOCGame ga, int pn, boolean voteYes)
+    {
+        put(SOCResetBoardVote.toCmd(ga.getName(), pn, voteYes), ga.isLocal);
+    }
 
     /**
      * handle local client commands for channels

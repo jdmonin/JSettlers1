@@ -68,6 +68,7 @@ public class SOCGame implements Serializable, Cloneable
      * This game is an obsolete old copy of a new (reset) game with the same name.
      * To assist logic, constant value is greater than OVER.
      * @see #resetAsCopy()
+     * @see #getResetOldGameState()
      */
     public static final int RESET_OLD = 1302;
 
@@ -143,6 +144,32 @@ public class SOCGame implements Serializable, Cloneable
      * true if the game came from a board reset
      */
     private boolean isFromBoardReset;
+
+    /**
+     * If a board reset vote is active, player number who requested the vote.
+     * All human players must vote unanimously, or board reset is rejected.
+     * -1 if no vote is active.
+     * Synchronize on {@link #boardResetVotes} before reading or writing.
+     */
+    private int boardResetVoteRequester;
+
+    /**
+     * If a board reset vote is active, votes are recorded here.
+     * 0 for no vote yet.  1 for yes.  2 for no.
+     * Indexed 0 to SOCGame.MAXPLAYERS-1.
+     * Synchronize on this object before reading or writing.
+     */
+    private int boardResetVotes[];
+
+    /**
+     * If a board reset vote is active, we're waiting to receive this many more votes.
+     * All human players vote, except the vote requester. Robots do not vote.
+     * Synchronize on {@link #boardResetVotes} before reading or writing.
+     * When the vote is complete, this is 0.
+     * Undefined before the first vote; this field is not reset each turn.
+     * Set in resetVoteBegin, resetVoteRegister.
+     */
+    private int boardResetVotesWaiting;
 
     /**
      * the game board
@@ -259,6 +286,7 @@ public class SOCGame implements Serializable, Cloneable
         players = new SOCPlayer[MAXPLAYERS];
         seats = new int[MAXPLAYERS];
         seatLocks = new boolean[MAXPLAYERS];
+        boardResetVotes = new int[MAXPLAYERS];
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
@@ -272,6 +300,7 @@ public class SOCGame implements Serializable, Cloneable
         currentDice = -1;
         playerWithLargestArmy = -1;
         playerWithLongestRoad = -1;
+        boardResetVoteRequester = -1;
         playerWithWin = -1;
         numDevCards = 25;
         gameState = NEW;
@@ -294,6 +323,7 @@ public class SOCGame implements Serializable, Cloneable
         players = new SOCPlayer[MAXPLAYERS];
         seats = new int[MAXPLAYERS];
         seatLocks = new boolean[MAXPLAYERS];
+        boardResetVotes = new int[MAXPLAYERS];
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
@@ -307,6 +337,7 @@ public class SOCGame implements Serializable, Cloneable
         currentDice = -1;
         playerWithLargestArmy = -1;
         playerWithLongestRoad = -1;
+        boardResetVoteRequester = -1;
         numDevCards = 25;
         gameState = NEW;
         oldPlayerWithLongestRoad = new Stack();
@@ -592,6 +623,22 @@ public class SOCGame implements Serializable, Cloneable
         gameState = gs;
         if ((gameState == OVER) && (playerWithWin == -1))
             checkForWinner();
+    }
+   
+    /**
+     * If the game board was reset, get the old game state.
+     *
+     * @return the old game state
+     * @throws IllegalStateException Game state must be RESET_OLD
+     *    when called; during normal game play, oldGameState is private.
+     */
+    public int getResetOldGameState() throws IllegalStateException
+    {
+        if (gameState != RESET_OLD)
+            throw new IllegalStateException
+                ("Current state is not RESET_OLD: " + gameState);
+
+        return oldGameState;
     }
 
     /**
@@ -1352,6 +1399,10 @@ public class SOCGame implements Serializable, Cloneable
         advanceTurn();
         players[currentPlayerNumber].setPlayedDevCard(false);
         players[currentPlayerNumber].getDevCards().newToOld();
+        if (boardResetVoteRequester != -1)
+            boardResetVoteRequester = -1;
+        for (int i = 0; i < MAXPLAYERS; ++i)
+            players[i].setAskedBoardReset(false);
     }
 
     /**
@@ -2769,21 +2820,28 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * create a new game with same players and name, new board;
+     * Create a new game with same players and name, new board;
      * like calling constructor otherwise.
      * State of current game can be any state. State of copy is NEW.
      * Deep copy: Player names, faceIDs, and robot-flag are copied from
      * old game, but all other fields set as new Player and Board objects.
      * Robot players are NOT carried over, and must be asked to re-join.
      * (This simplifies the robot client.)
+     *<P>
      * Old game's state becomes RESET_OLD.
-     * Please call destroyGame() on old game when done examining its state. 
+     * Old game's previous state is saved to {@link #getResetOldGameState()}.
+     * Please call destroyGame() on old game when done examining its state.
+     *<P>
+     * Assumes that if the game had more than one human player,
+     * they've already voted interactively to reset the board.
+     * @see #resetVoteBegin(int)
      */
     public SOCGame resetAsCopy()
     {
         SOCGame cp = new SOCGame(name, active);
         cp.isFromBoardReset = true;
-        this.gameState = RESET_OLD;
+        oldGameState = gameState;  // for getResetOldGameState()
+        gameState = RESET_OLD;
         for (int i = 0; i < MAXPLAYERS; i++)
         {
             boolean wasRobot = false;
@@ -2801,9 +2859,146 @@ public class SOCGame implements Serializable, Cloneable
             if (wasRobot)
                 cp.seats[i] = VACANT;
             else
-                cp.seats[i] = seats[i];  // reset if addPlayer cleared VACANT for non-in-use player position
+                cp.seats[i] = seats[i];  // reset in case addPlayer cleared VACANT for non-in-use player position
         }
         return cp;
+    }
+
+    /**
+     * Begin a board-reset vote.
+     *
+     * @param reqPN Player number requesting the vote
+     * @throws IllegalArgumentException If this player number has already
+     *     requested a reset this turn
+     * @throws IllegalStateException If there is alread a vote in progress 
+     *
+     * @see #getResetVoteRequester()
+     * @see #resetVoteRegister(int, boolean)
+     * @see #getResetVoteResult()
+     */
+    public void resetVoteBegin(int reqPN) throws IllegalArgumentException, IllegalStateException
+    {
+        if (players[reqPN].hasAskedBoardReset())
+            throw new IllegalArgumentException("Player has already asked to reset this turn");
+
+        int numVoters = 0;
+        synchronized (boardResetVotes)
+        {
+             if (boardResetVoteRequester != -1)
+                 throw new IllegalStateException("Already voting");
+             boardResetVoteRequester = reqPN;
+             for (int i = 0; i < MAXPLAYERS; ++i)
+             {
+                 boardResetVotes[i] = 0;
+                 if ((i != reqPN) && ! (isSeatVacant(i) || players[i].isRobot()))
+                     ++numVoters;
+             }
+             boardResetVotesWaiting = numVoters;
+        }
+
+        if (gameState >= PLAY)
+        {
+            players[reqPN].setAskedBoardReset(true);
+            // During game setup, normal end-of-turn flags aren't
+            // cleared.  Easier to just not set this one.
+        }
+    }
+
+    /**
+     * If a board reset vote is active, player number who requested the vote.
+     * All human players must vote unanimously, or board reset is rejected.
+     * -1 if no vote is active.
+     * After the vote completes, this is set to -1 if the vote was rejected,
+     * but retains the requester number if the vote succeeded and the board
+     * will soon be reset.
+     *
+     * @return player number who requested the vote.
+     *
+     * @see #resetVoteBegin(int)
+     */
+    public int getResetVoteRequester()
+    {
+        int rv;
+        synchronized (boardResetVotes)
+        {
+            rv = boardResetVoteRequester;
+        }
+        return rv;
+    }
+
+    /**
+     * @return if a board-reset vote is active (waiting for votes).
+     */
+    public boolean getResetVoteActive()
+    {
+        boolean va;
+        synchronized (boardResetVotes)
+        {
+            va = (boardResetVotesWaiting > 0);
+        }
+        return va;        
+    }
+
+    /**
+     * Register this player's vote in a board reset request.
+     *
+     * @param pn  Player number
+     * @param votingYes Are they voting yes, or no?
+     * @return True if voting is now complete, false if still waiting for other votes
+     * @throws IllegalArgumentException If pn already voted, or can't vote (vacant or robot).
+     * @throws IllegalStateException    If voting is not currently active.
+     */
+    public boolean resetVoteRegister(int pn, boolean votingYes)
+        throws IllegalArgumentException, IllegalStateException
+    {
+        boolean vcomplete;
+        synchronized (boardResetVotes)
+        {
+            if (boardResetVotes[pn] != 0)
+                throw new IllegalArgumentException("Already voted: " + pn);
+            if (isSeatVacant(pn) || players[pn].isRobot())
+                throw new IllegalArgumentException("Seat cannot vote: " + pn);
+            if ((0 == boardResetVotesWaiting) || (-1 == boardResetVoteRequester))
+                throw new IllegalStateException("Voting is not active");
+            if (votingYes)
+                boardResetVotes[pn] = 1;
+            else
+                boardResetVotes[pn] = 2;
+            --boardResetVotesWaiting;
+            vcomplete = (0 == boardResetVotesWaiting);
+            if (vcomplete)
+            {
+                if (! getResetVoteResult())
+                    boardResetVoteRequester = -1;  // Board Reset rejected; clear requester.
+            }
+        }
+        return vcomplete;
+    }
+
+    /**
+     * If a board-reset vote is complete, give its result.
+     * All human players must vote unanimously, or board reset is rejected.
+     *
+     * @return True if accepted, false if rejected.
+     * @throws IllegalStateException if voting is still active. See {@link #getResetVoteActive()}.
+     */
+    public boolean getResetVoteResult() throws IllegalStateException
+    {
+        boolean vr;
+        synchronized (boardResetVotes)
+        {
+            if (boardResetVotesWaiting > 0)
+                throw new IllegalStateException("Voting is still active");
+
+            vr = true;  // Assume no "no" votes
+            for (int i = 0; i < MAXPLAYERS; ++i)
+                if (boardResetVotes[i] == 2)
+                {
+                    vr = false;
+                    break;
+                }
+        }
+        return vr;        
     }
 
 }

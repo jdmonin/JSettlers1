@@ -174,6 +174,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     protected SOCGame game;
 
     /**
+     * this other player has requested a board reset; voting is under way.
+     * Null if no board reset vote is under way.
+     *
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     */
+    protected SOCHandPanel boardResetRequester;
+
+    /**
      * number of columns in the text output area
      */
     protected int ncols;
@@ -343,7 +351,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         /** If player requests window close, ask if they're sure, leave game if so */
         if (firstCall)
+        {
             addWindowListener(new MyWindowAdapter(this));
+        }
     }
 
     /**
@@ -528,11 +538,83 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
     /**
      * Player wants to request to reset the board (same players, new game, new layout).
-     * Send request to server.
+     * If acceptable, send request to server.
+     * If not (if they've already done so this turn), say so in text area.
      */
-    public void requestResetBoard()
+    public void resetBoardRequest()
     {
-        client.requestResetBoard(game);
+        SOCPlayer pl = game.getPlayer(clientHandPlayerNum); 
+        if (! pl.hasAskedBoardReset())
+        {
+            if (game.getGameState() >= SOCGame.PLAY)
+            {
+                pl.setAskedBoardReset(true);
+                // During game setup, normal end-of-turn flags aren't
+                // cleared.  Easier to just not set this one.
+            }
+            client.resetBoardRequest(game);
+        }
+        else
+        {
+            textDisplay.append("*** You may ask only once per turn to reset the board.\n");
+        }
+    }
+
+    /**
+     * Another player has voted on a board reset request.
+     * Show the vote.
+     */
+    public void resetBoardVoted(int pn, boolean vyes)
+    {
+        String voteMsg;
+        if (vyes)
+            voteMsg = "Go ahead.";
+        else
+            voteMsg = "No thanks.";
+        textDisplay.append("* " + game.getPlayer(pn).getName() + " has voted: " + voteMsg + "\n");
+        hands[pn].resetBoardSetMessage(voteMsg, true);
+    }
+
+    /**
+     * Voting complete, board reset was rejected.
+     * Display text message and clear the offer.
+     */
+    public void resetBoardRejected()
+    {
+        textDisplay.append("** The board reset was rejected.\n");
+        for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
+            hands[i].resetBoardSetMessage(null, false);  // Clear all votes
+        boardResetRequester = null;
+        // May have already been null, if we're the requester and it was rejected.
+    }
+
+    /**
+     * Creates and shows a new ResetBoardVoteDialog.
+     * If the game is over, the "Reset" button is the default;
+     * otherwise, "No" is default.
+     * Also announces the vote request (text) and sets boardResetRequester.
+     * Dialog is shown in a separate thread, to continue message
+     * treating and screen redraws as the other players vote.
+     *
+     * @param pn Player number of the player requesting the board reset
+     */
+    public void resetBoardAskVote(int pnRequester)
+    {
+        boolean gaOver = (game.getGameState() >= SOCGame.OVER);
+        String requester =  game.getPlayer(pnRequester).getName();
+        boardResetRequester = hands[pnRequester];
+        if (pnRequester != clientHandPlayerNum)
+        {
+            String pleaseMsg;
+            if (gaOver)
+                pleaseMsg = "Restart Game?";
+            else
+                pleaseMsg = "Reset Board?";
+            boardResetRequester.resetBoardSetMessage(pleaseMsg, false);
+        }
+
+        ResetBoardVoteDialog rbvd = new ResetBoardVoteDialog(client, this, requester, gaOver);
+        new Thread(rbvd).start();  // run method will show it
     }
 
     /**
@@ -856,19 +938,20 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * The reset message will be followed with others which will fill in the game state.
      *
      * @param newGame New game object
-     * @param playerNumber Sanity check - must be our correct player number in this game
-     * @param requesterName Player who requested the board reset  
+     * @param rejoinPlayerNumber Sanity check - must be our correct player number in this game
+     * @param requesterNumber Player who requested the board reset  
      * 
      * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
      */
-    public void resetBoard(SOCGame newGame, int playerNumber, String requesterName)
+    public void resetBoard(SOCGame newGame, int rejoinPlayerNumber, int requesterNumber)
     {
         if (clientHand == null)
             return;
-        if (clientHandPlayerNum != playerNumber)
+        if (clientHandPlayerNum != rejoinPlayerNumber)
             return;
 
         // Clear out old state (similar to constructor)
+        int oldGameState = game.getResetOldGameState();
         game = newGame;
         clientHand.removePlayer();  // will cancel roll countdown timer
         clientHand = null;
@@ -877,8 +960,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         initInterfaceElements(false);  // new sub-components
         validate();
         repaint();
-        textDisplay.append("** The board was reset by " + requesterName + ".\n");
-        chatDisplay.append("** The board was reset by " + requesterName + ".\n");
+        String requesterName = game.getPlayer(requesterNumber).getName();
+        String resetMsg;
+        if (oldGameState != SOCGame.OVER)
+            resetMsg = "** The board was reset by " + requesterName + ".\n";
+        else
+            resetMsg = "** New game started by " + requesterName + ".\n";
+        textDisplay.append(resetMsg);
+        chatDisplay.append(resetMsg);
 
         // Further messages from server will fill in the rest.
     }
@@ -1021,6 +1110,80 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         boardPanel.doLayout();
     }
 
+    /**
+     * This is the dialog to vote on another player's board reset request.
+     * If game in progress, buttons are Reset and Continue Playing; default Continue.
+     * If game is over, buttons are Restart and No thanks; default Restart.
+     * Start a new thread to show, so message treating can continue as other players vote.
+     *
+     * @author Jeremy D Monin <jeremy@nand.net>
+     */
+    protected static class ResetBoardVoteDialog extends AskDialog implements Runnable
+    {
+        /**
+         * Creates a new ResetBoardVoteDialog.
+         *
+         * @param cli      Player client interface
+         * @param gamePI   Current game's player interface
+         * @param requester  Name of player requesting the reset
+         * @param gameIsOver The game is over - "Reset" button should be default (if not over, "Continue" is default)
+         */
+        protected ResetBoardVoteDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI, String requester, boolean gameIsOver)
+        {
+            super(cli, gamePI, "Reset board of game "
+                    + gamePI.getGame().getName() + "?",
+                (gameIsOver
+                    ? (requester + " wants to start a new game.")
+                    : (requester + " wants to reset the game being played.")),
+                (gameIsOver
+                    ? "Restart"
+                    : "Reset"),
+                (gameIsOver
+                    ? "No thanks"
+                    : "Continue playing"),
+                null,
+                (gameIsOver ? 1 : 2));
+        }
+
+        /**
+         * React to the Reset button. (call playerClient.resetBoardVote)
+         */
+        public void button1Chosen()
+        {
+            pcli.resetBoardVote(pi.getGame(), pi.getClientPlayerNumber(), true);
+        }
+
+        /**
+         * React to the No button. (call playerClient.resetBoardVote)
+         */
+        public void button2Chosen()
+        {
+            pcli.resetBoardVote(pi.getGame(), pi.getClientPlayerNumber(), false);
+        }
+
+        /**
+         * There is no button 3.
+         */
+        public void button3Chosen() {}
+
+        /**
+         * React to the dialog window closed by user. (Vote no)
+         */
+        public void windowCloseChosen()
+        {
+            button2Chosen();
+        }
+
+        /**
+         * In new thread, show ourselves.
+         */
+        public void run()
+        {
+            show();
+        }
+
+    }  // class ResetBoardVoteDialog
+    
     private static class MyWindowAdapter extends WindowAdapter
     {
         private SOCPlayerInterface pi;
@@ -1037,7 +1200,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         {
             // leaveGame();
             SOCQuitConfirmDialog.createAndShow(pi.getClient(), pi);
-        }
+        }        
     }
 
     /**

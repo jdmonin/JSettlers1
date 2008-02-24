@@ -62,7 +62,7 @@ import soc.message.SOCPotentialSettlements;
 import soc.message.SOCPutPiece;
 import soc.message.SOCRejectConnection;
 import soc.message.SOCRejectOffer;
-import soc.message.SOCResetGameJoinAuth;
+import soc.message.SOCResetBoardAuth;
 import soc.message.SOCResourceCount;
 import soc.message.SOCRobotDismiss;
 import soc.message.SOCServerPing;
@@ -582,10 +582,10 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                 break;
 
             /**
-             * handle board reset (new game with same players, same game name).
+             * handle board reset (new game with same players, same game name, new layout).
              */
-            case SOCMessage.RESETGAMEJOINAUTH:
-                handleRESETGAMEJOINAUTH((SOCResetGameJoinAuth) mes);
+            case SOCMessage.RESETBOARDAUTH:
+                handleRESETBOARDAUTH((SOCResetBoardAuth) mes);
 
                 break;
             }
@@ -668,10 +668,10 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     }
 
     /**
-     * handle the "join game request" message. Game resets are also handled this way.
+     * handle the "join game request" message. Board resets are also handled this way.
      * @param mes  the message
      *
-     * @see #handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth)
+     * @see #handleRESETBOARDAUTH(SOCResetBoardAuth)
      */
     protected void handleJOINGAMEREQUEST(SOCJoinGameRequest mes)
     {
@@ -1771,9 +1771,9 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
      * @see soc.game.SOCGame#resetAsCopy()
      * @see #handleJOINGAMEREQUEST(SOCJoinGameRequest)
      */
-    protected void handleRESETGAMEJOINAUTH(SOCResetGameJoinAuth mes)
+    protected void handleRESETBOARDAUTH(SOCResetBoardAuth mes)
     {
-        D.ebugPrintln("**** handleRESETGAMEJOINAUTH ****");
+        D.ebugPrintln("**** handleRESETBOARDAUTH ****");
 
         String gname = mes.getGame();
         SOCGame ga = (SOCGame) games.get(gname);
@@ -1789,9 +1789,9 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         brainQs.remove(gname);
         games.remove(gname);
         ga.destroyGame();
-        
+
         // now, react like handleJOINGAMEREQUEST
-        seatRequests.put(gname, new Integer(mes.getPlayerNumber()));
+        seatRequests.put(gname, new Integer(mes.getRejoinPlayerNumber()));
 
         if (put(SOCJoinGame.toCmd(nickname, password, host, gname)))
         {

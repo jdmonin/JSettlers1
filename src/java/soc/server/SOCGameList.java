@@ -311,10 +311,10 @@ public class SOCGameList
     }
 
     /**
-     * Reset the board of this game, create a new game of same name, same players.
-     * The new "reset" board takes the place of the old game in the game list.
-     * Robots are not copied and must re-join the game. (They're removed from the
-     * list of game members.)
+     * Reset the board of this game, create a new game of same name,
+     * same players, new layout.  The new "reset" board takes the place
+     * of the old game in the game list.  Robots are not copied and
+     * must re-join the game. (They're removed from the list of game members.)
      * Takes game monitor.
      * Destroys old game.
      * YOU MUST RELEASE the game monitor after returning.
@@ -324,7 +324,7 @@ public class SOCGameList
      * @see soc.game.SOCGame#resetAsCopy()
      * @see #releaseMonitorForGame(String)
      */
-    public SOCGameReset resetGame(String gaName)
+    public SOCGameBoardReset resetBoard(String gaName)
     {
         SOCGame oldGame = (SOCGame) gameData.get(gaName);
         if (oldGame == null)
@@ -334,7 +334,7 @@ public class SOCGameList
 
         // Create reset-copy of game;
         // also removes robots from game and its member list.
-        SOCGameReset reset = new SOCGameReset(oldGame, getMembers(gaName));
+        SOCGameBoardReset reset = new SOCGameBoardReset(oldGame, getMembers(gaName));
         SOCGame rgame = reset.newGame;
 
         // As in createGame, set expiration timer to 90 min. from now

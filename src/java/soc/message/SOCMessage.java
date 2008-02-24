@@ -126,7 +126,10 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public static final int UPDATEROBOTPARAMS = 1071;
     public static final int ROLLDICEPROMPT = 1072;     // JM 20071003
     public static final int RESETBOARDREQUEST = 1073;  // JM 20080217
-    public static final int RESETGAMEJOINAUTH = 1074;  // JM 20080217
+    public static final int RESETBOARDAUTH = 1074;     // JM 20080217
+    public static final int RESETBOARDVOTEREQUEST = 1075; // JM 20080223
+    public static final int RESETBOARDVOTE = 1076;     // JM 20080223
+    public static final int RESETBOARDREJECT = 1077;   // JM 20080223
     public static final int SERVERPING = 9999;
 
     /**
@@ -418,8 +421,17 @@ public abstract class SOCMessage implements Serializable, Cloneable
             case RESETBOARDREQUEST:  // JM 20080217
                 return SOCResetBoardRequest.parseDataStr(data);
 
-            case RESETGAMEJOINAUTH:  // JM 20080217
-                return SOCResetGameJoinAuth.parseDataStr(data);
+            case RESETBOARDAUTH:  // JM 20080217
+                return SOCResetBoardAuth.parseDataStr(data);
+            
+            case RESETBOARDVOTEREQUEST:  // JM 20080223
+                return SOCResetBoardVoteRequest.parseDataStr(data);
+
+            case RESETBOARDVOTE:  // JM 20080223
+                return SOCResetBoardVote.parseDataStr(data);
+
+            case RESETBOARDREJECT:  // JM 20080223
+                return SOCResetBoardReject.parseDataStr(data);
 
             default:
                 return null;

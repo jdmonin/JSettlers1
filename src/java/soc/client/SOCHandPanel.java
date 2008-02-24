@@ -85,8 +85,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String ROLL = "Roll";
     protected static final String QUIT = "Quit";
     protected static final String DONE = "Done";
-    /** Text of Done button at end of game becomes Reset button */
-    protected static final String DONE_RESET = "Reset";
+    /** Text of Done button at end of game becomes Restart button */
+    protected static final String DONE_RESTART = "Restart";
     protected static final String CLEAR = "Clear";
     protected static final String SEND = "Offer";
     protected static final String BANK = "Bank/Port";
@@ -183,7 +183,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Timer autoRollTimer;  // Created just once
     protected TimerTask autoRollTimerTask;  // Created every turn when countdown needed
     protected Button rollBut;
-    /** "Done" with turn during play; "Reset" for board at end of game */
+    /** "Done" with turn during play; also "Restart" for board reset at end of game */
     protected Button doneBut;
     protected Button quitBut;
     protected SOCPlayerInterface playerInterface;
@@ -202,7 +202,19 @@ public class SOCHandPanel extends Panel implements ActionListener
      * @see #playerSend
      */
     protected int[] playerSendMap;
+
+    /**
+     * Display other players' trade offers and related messages. Not used if playerIsClient.
+     * Also used to display board-reset vote messages.
+     *
+     * @see #offerIsResetMessage
+     */
     protected TradeOfferPanel offer;
+
+    /**
+     * If true, {@link #offer} is holding a message related to a board-reset vote.
+     */
+    protected boolean offerIsResetMessage;
 
     /**
      * When this flag is true, the panel is interactive.
@@ -459,7 +471,9 @@ public class SOCHandPanel extends Panel implements ActionListener
 
         offer = new TradeOfferPanel(this, player.getPlayerNumber());
         offer.setVisible(false);
+        offerIsResetMessage = false;
         add(offer);
+
         // set the starting state of the panel
         removePlayer();
     }
@@ -549,9 +563,9 @@ public class SOCHandPanel extends Panel implements ActionListener
             // sqPanel.setValues(zero, zero);
             client.endTurn(game);
         }
-        else if (target == DONE_RESET)
+        else if (target == DONE_RESTART)
         {
-            playerInterface.requestResetBoard();
+            playerInterface.resetBoardRequest();
         }
         else if (target == CLEAR)
         {
@@ -1013,7 +1027,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             if (game.getGameState() != SOCGame.OVER)
                 doneBut.setLabel(DONE);
             else
-                doneBut.setLabel(DONE_RESET);
+                doneBut.setLabel(DONE_RESTART);
             doneBut.setVisible(true);
             quitBut.setVisible(true);
 
@@ -1487,6 +1501,32 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
+     * Show or hide a message related to board-reset voting.
+     *
+     * @param message Message to show, or null to hide
+     * @param hideAfterDelay If true, show message and then after some seconds, hide it.
+     */
+    public void resetBoardSetMessage(String message, boolean hideAfterDelay)
+    {
+        // TODO current state of offer panel?  See clearTradeMsg.
+        // TODO hideAfterDelay
+
+        if (message != null)
+        {
+            offerIsResetMessage = true;
+            offer.setMessage(message);
+            offer.setVisible(true);
+            repaint();
+        }
+        else
+        {
+            // TODO restore prev state of offer panel?
+            offerIsResetMessage = false;
+            clearTradeMsg();
+        }
+    }
+    
+    /**
      * update the takeover button so that it only
      * allows takover when it's not the robot's turn
      */
@@ -1609,7 +1649,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                         bankBut.setEnabled(false);
                     if (interactive)
                         playCardBut.setEnabled(false);
-                    doneBut.setLabel(DONE_RESET);
+                    doneBut.setLabel(DONE_RESTART);
+                    doneBut.setEnabled(true);  // In case it's another player's turn
                 }
             }
             break;
