@@ -47,7 +47,7 @@ public class TradeOfferPanel extends Panel
 {
     public static final String OFFER_MODE = "offer";
     public static final String MESSAGE_MODE = "message";
-    
+
     protected static final int[] zero = { 0, 0, 0, 0, 0 };
     static final String OFFER = "counter";
     static final String ACCEPT = "accept";
@@ -144,6 +144,7 @@ public class TradeOfferPanel extends Panel
 
         /** Offer received */
         SquaresPanel squares;
+        /** send button for counter-offer */
         Button offerBut;
         Button acceptBut;
         Button rejectBut;
@@ -341,7 +342,7 @@ public class TradeOfferPanel extends Panel
             squares.setValues(giveInt, getInt);
 
             // enables accept,reject,offer Buttons if 'offered' is true
-            setCounterOfferVisible(false);
+            setCounterOfferVisible(counterOfferMode);
             validate();
         }
 
@@ -515,7 +516,10 @@ public class TradeOfferPanel extends Panel
             giveLab2.setVisible(visible);
             getLab2.setVisible(visible);
             if (! visible)
-                offerSquares.setValues(zero, zero);  // Clear counteroffer for next use
+            {
+                // Clear counteroffer for next use
+                offerSquares.setValues(zero, zero);
+            }
             offerSquares.setVisible(visible);
 
             sendBut.setVisible(visible);
@@ -534,6 +538,9 @@ public class TradeOfferPanel extends Panel
 
     /**
      * Switch to the Message from another player.
+     * If an offer/counteroffer were visible, they are
+     * not lost; call {@link #setOffer(SOCTradeOffer)} to
+     * show them again.
      *
      * @param  message  the message message to show
      */
@@ -546,6 +553,10 @@ public class TradeOfferPanel extends Panel
 
     /**
      * Update to view the of an offer from another player.
+     * If counter-offer was previously shown, show it again.
+     * This lets us restore the offer view after message mode.
+     * To clear values to zero, and hide the counter-offer box,
+     * call {@link #clearOffer()}.
      *
      * @param  currentOffer the trade being proposed
      */
@@ -554,6 +565,22 @@ public class TradeOfferPanel extends Panel
         offerPanel.update(currentOffer);
         cardLayout.show(this, mode = OFFER_MODE);
         validate();
+    }
+
+    /**
+     * Set the offer and counter-offer contents to zero.
+     * Clear counteroffer mode.
+     */
+    public void clearOffer()
+    {
+        offerPanel.squares.setValues(zero, zero);
+        offerPanel.offerSquares.setValues(zero, zero);
+        if (offerPanel.counterOfferMode)
+        {
+            offerPanel.counterOfferMode = false;
+            invalidate();
+        }
+        repaint();
     }
 
     /**
