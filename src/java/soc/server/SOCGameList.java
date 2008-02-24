@@ -338,10 +338,7 @@ public class SOCGameList
         SOCGame rgame = reset.newGame;
 
         // As in createGame, set expiration timer to 90 min. from now
-        Date stTime = rgame.getStartTime();
-        if (stTime == null)
-            stTime = new Date();
-        rgame.setExpiration(stTime.getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
+        rgame.setExpiration(new Date().getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
 
         // Adjust game-list
         gameData.remove(gaName);

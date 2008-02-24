@@ -799,6 +799,7 @@ public class SOCRobotBrain extends Thread
 
                         game.setCurrentPlayerNumber(((SOCTurn) mes).getPlayerNumber());
                         game.getPlayer(((SOCTurn) mes).getPlayerNumber()).getDevCards().newToOld();
+                        game.resetVoteClear();
 
                         //
                         // remove any expected states
@@ -2400,11 +2401,15 @@ public class SOCRobotBrain extends Thread
                     yield();
                 }
             }
-            catch (Exception e)
+            catch (Throwable e)
             {
-                D.ebugPrintln("*** Robot caught an exception - " + e);
-                System.out.println("*** Robot caught an exception - " + e);
-                e.printStackTrace();
+                // Ignore errors due to game reset in another thread
+                if ((game == null) || (game.getGameState() != SOCGame.RESET_OLD))
+                {
+                    D.ebugPrintln("*** Robot caught an exception - " + e);
+                    System.out.println("*** Robot caught an exception - " + e);
+                    e.printStackTrace();
+                }
             }
         }
         else

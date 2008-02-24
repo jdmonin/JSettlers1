@@ -3318,7 +3318,10 @@ public class SOCServer extends Server
                             boolean hadBoardResetRequest = (-1 != ga.getResetVoteRequester());
                             ga.endTurn();
                             if (hadBoardResetRequest)
+                            {
+                                // Cancel voting at end of turn
                                 messageToGame(gname, new SOCResetBoardReject(gname));
+                            }
 
                             boolean wantsRollPrompt = sendGameState(ga, false);
 
@@ -4309,6 +4312,10 @@ public class SOCServer extends Server
      * handle "reset-board request" message.
      * Start a vote, or reset the game to a copy with
      * same name and (copy of) players, new layout.
+     *<P>
+     * The requesting player doesn't vote, but server still
+     * sends the vote-request-message, to tell that client their
+     * request was accepted and voting has begun.
      *
      * @see #resetBoardAndNotify(String, String)
      *
@@ -4329,6 +4336,15 @@ public class SOCServer extends Server
             return;  // Not playing in that game (Security)
         }
         
+        // Is voting already active from another player?
+        // Or, has this player already asked for voting this turn?
+        if (ga.getResetVoteActive() || reqPlayer.hasAskedBoardReset())
+        {
+            // Ignore this second request. Can't send REJECT because
+            // that would end the already-active round of voting.
+            return;
+        }
+        
         // Is there more than one human player?
         // Grab connection information for humans and robots.
         StringConnection[] humanConns = new StringConnection[SOCGame.MAXPLAYERS];
@@ -4345,13 +4361,13 @@ public class SOCServer extends Server
         {
             // Put it to a vote
             messageToGame(gaName, new SOCGameTextMsg
-                (gaName, SERVERNAME, (String) c.getData() + " requests a board reset - please vote."));
+                (gaName, SERVERNAME, (String) c.getData() + " requests a board reset - other players please vote."));
             String vrCmd = SOCResetBoardVoteRequest.toCmd(gaName, reqPN);
             ga.resetVoteBegin(reqPN);
             for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
-                if ((i != reqPN) && (humanConns[i] != null))
+                if (humanConns[i] != null)
                     humanConns[i].put(vrCmd);
-        }            
+        }
     }
 
     /**

@@ -182,6 +182,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     protected SOCHandPanel boardResetRequester;
 
     /**
+     * Board reset voting: If voting is active and we haven't yet voted,
+     * track our dialog; this lets us dispose of it if voting is cancelled.
+     */
+    protected ResetBoardVoteDialog boardResetVoteDia;
+
+    /**
      * number of columns in the text output area
      */
     protected int ncols;
@@ -538,26 +544,22 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
     /**
      * Player wants to request to reset the board (same players, new game, new layout).
-     * If acceptable, send request to server.
-     * If not (if they've already done so this turn), say so in text area.
+     * If acceptable, send request to server. If not, say so in text area.
+     * Not acceptable if they've already done so this turn, or if voting
+     * is active because another player called for a vote.
      */
     public void resetBoardRequest()
     {
-        SOCPlayer pl = game.getPlayer(clientHandPlayerNum); 
+        if (game.getResetVoteActive())
+        {
+            textDisplay.append("*** Voting is already active. Try again when voting completes.\n");
+            return;
+        }
+        SOCPlayer pl = game.getPlayer(clientHandPlayerNum);        
         if (! pl.hasAskedBoardReset())
-        {
-            if (game.getGameState() >= SOCGame.PLAY)
-            {
-                pl.setAskedBoardReset(true);
-                // During game setup, normal end-of-turn flags aren't
-                // cleared.  Easier to just not set this one.
-            }
             client.resetBoardRequest(game);
-        }
         else
-        {
             textDisplay.append("*** You may ask only once per turn to reset the board.\n");
-        }
     }
 
     /**
@@ -572,7 +574,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         else
             voteMsg = "No thanks.";
         textDisplay.append("* " + game.getPlayer(pn).getName() + " has voted: " + voteMsg + "\n");
-        hands[pn].resetBoardSetMessage(voteMsg, true);
+        hands[pn].resetBoardSetMessage(voteMsg);
+        game.resetVoteRegister(pn, vyes);
     }
 
     /**
@@ -580,12 +583,18 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Display text message and clear the offer.
      */
     public void resetBoardRejected()
-    {
+    {        
         textDisplay.append("** The board reset was rejected.\n");
         for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
-            hands[i].resetBoardSetMessage(null, false);  // Clear all votes
+            hands[i].resetBoardSetMessage(null);  // Clear all votes
         boardResetRequester = null;
-        // May have already been null, if we're the requester and it was rejected.
+        if (boardResetVoteDia != null)
+        {
+            if (boardResetVoteDia.isShowing())
+                boardResetVoteDia.disposeQuietly();
+            boardResetVoteDia = null;
+        }
+        // Requester may have already been null, if we're the requester and it was rejected.
     }
 
     /**
@@ -595,13 +604,24 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Also announces the vote request (text) and sets boardResetRequester.
      * Dialog is shown in a separate thread, to continue message
      * treating and screen redraws as the other players vote.
+     *<P>
+     * If we are the requester, we update local game state
+     * but don't vote.
      *
      * @param pn Player number of the player requesting the board reset
      */
     public void resetBoardAskVote(int pnRequester)
     {
         boolean gaOver = (game.getGameState() >= SOCGame.OVER);
-        String requester =  game.getPlayer(pnRequester).getName();
+        try
+        {
+            game.resetVoteBegin(pnRequester);
+        }
+        catch (RuntimeException re)
+        {
+            D.ebugPrintln("resetBoardAskVote: Cannot: " + re);
+            return;
+        }
         boardResetRequester = hands[pnRequester];
         if (pnRequester != clientHandPlayerNum)
         {
@@ -610,11 +630,21 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 pleaseMsg = "Restart Game?";
             else
                 pleaseMsg = "Reset Board?";
-            boardResetRequester.resetBoardSetMessage(pleaseMsg, false);
-        }
+            boardResetRequester.resetBoardSetMessage(pleaseMsg);
 
-        ResetBoardVoteDialog rbvd = new ResetBoardVoteDialog(client, this, requester, gaOver);
-        new Thread(rbvd).start();  // run method will show it
+            String requester =  game.getPlayer(pnRequester).getName();
+            boardResetVoteDia = new ResetBoardVoteDialog(client, this, requester, gaOver);
+            boardResetVoteDia.showInNewThread();
+               // Separate thread so ours is not tied up; this allows server
+               // messages to be received, and screen to refresh, if other
+               // players vote before we do, or if voting is cancelled.
+        }
+    }
+
+    /** Callback from ResetBoardVoteDialog to clean up our reference when button is clicked */
+    private void resetBoardClearDia()
+    {
+        boardResetVoteDia = null;
     }
 
     /**
@@ -1120,6 +1150,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     protected static class ResetBoardVoteDialog extends AskDialog implements Runnable
     {
+        /** Runs in own thread to not tie up client's message-treater thread. */
+        private Thread rdt;
+
+        /** If true, don't call any methods from callbacks here */
+        private boolean askedDisposeQuietly;
+
         /**
          * Creates a new ResetBoardVoteDialog.
          *
@@ -1143,6 +1179,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                     : "Continue playing"),
                 null,
                 (gameIsOver ? 1 : 2));
+            rdt = null;
+            askedDisposeQuietly = false;
         }
 
         /**
@@ -1151,6 +1189,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         public void button1Chosen()
         {
             pcli.resetBoardVote(pi.getGame(), pi.getClientPlayerNumber(), true);
+            pi.resetBoardClearDia();
         }
 
         /**
@@ -1159,6 +1198,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         public void button2Chosen()
         {
             pcli.resetBoardVote(pi.getGame(), pi.getClientPlayerNumber(), false);
+            pi.resetBoardClearDia();
         }
 
         /**
@@ -1167,19 +1207,44 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         public void button3Chosen() {}
 
         /**
-         * React to the dialog window closed by user. (Vote no)
+         * React to the dialog window closed by user. (Vote No)
          */
         public void windowCloseChosen()
         {
-            button2Chosen();
+            if (! askedDisposeQuietly)
+                button2Chosen();
         }
 
         /**
-         * In new thread, show ourselves.
+         * Make a new thread and show() in that thread.
+         * Keep track of the thread, in case we need to dispose of it.
+         */
+        public void showInNewThread()
+        {
+            rdt = new Thread(this);
+            rdt.setDaemon(true);
+            rdt.setName("resetVoteDialog-" + pcli.getNickname());
+            rdt.start();  // run method will show the dialog
+        }
+
+        public void disposeQuietly()
+        {
+            askedDisposeQuietly = true;
+            rdt.stop();
+            dispose();
+        }
+
+        /**
+         * In new thread, show ourselves. Do not call
+         * directly; call {@link #showInNewThread()}.
          */
         public void run()
         {
-            show();
+            try
+            {
+                show();
+            }
+            catch (ThreadDeath e) {}
         }
 
     }  // class ResetBoardVoteDialog

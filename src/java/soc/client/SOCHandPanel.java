@@ -212,9 +212,14 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected TradeOfferPanel offer;
 
     /**
-     * If true, {@link #offer} is holding a message related to a board-reset vote.
+     * Board-reset voting: If true, {@link #offer} is holding a message related to a board-reset vote.
      */
     protected boolean offerIsResetMessage;
+
+    /**
+     * Board-reset voting: If true, {@link #offer} was holding an active trade offer before {@link #offerIsResetMessage} was set.
+     */
+    protected boolean offerIsResetWasTrade;
 
     /**
      * When this flag is true, the panel is interactive.
@@ -471,7 +476,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
         offer = new TradeOfferPanel(this, player.getPlayerNumber());
         offer.setVisible(false);
-        offerIsResetMessage = false;
+        offerIsResetMessage = false;        
         add(offer);
 
         // set the starting state of the panel
@@ -1419,9 +1424,14 @@ public class SOCHandPanel extends Panel implements ActionListener
 
             if (currentOffer != null)
             {
-                offer.setOffer(currentOffer);
-                offer.setVisible(true);
-                offer.repaint();
+                if (! offerIsResetMessage)
+                {
+                    offer.setOffer(currentOffer);
+                    offer.setVisible(true);
+                    offer.repaint();
+                }
+                else
+                    offerIsResetWasTrade = true;  // Will show after voting
             }
             else
             {
@@ -1446,7 +1456,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void clearTradeMsg()
     {
-        if (offer.getMode() == TradeOfferPanel.MESSAGE_MODE)
+        if ((offer.getMode() == TradeOfferPanel.MESSAGE_MODE) && ! offerIsResetMessage)
         {
             offer.setVisible(false);
             repaint();
@@ -1466,7 +1476,11 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void clearOffer(boolean updateSendCheckboxes)
     {
-        offer.setVisible(false);
+        if (! offerIsResetMessage)
+        {
+            offer.setVisible(false);
+            offer.clearOffer();  // Clear to zero the offer and counter-offer
+        }
 
         if (playerIsClient)
         {
@@ -1504,15 +1518,12 @@ public class SOCHandPanel extends Panel implements ActionListener
      * Show or hide a message related to board-reset voting.
      *
      * @param message Message to show, or null to hide
-     * @param hideAfterDelay If true, show message and then after some seconds, hide it.
      */
-    public void resetBoardSetMessage(String message, boolean hideAfterDelay)
+    public void resetBoardSetMessage(String message)
     {
-        // TODO current state of offer panel?  See clearTradeMsg.
-        // TODO hideAfterDelay
-
         if (message != null)
         {
+            offerIsResetWasTrade = (offer.isVisible() && (offer.getMode() == TradeOfferPanel.OFFER_MODE));
             offerIsResetMessage = true;
             offer.setMessage(message);
             offer.setVisible(true);
@@ -1520,9 +1531,12 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else
         {
-            // TODO restore prev state of offer panel?
+            // restore previous state of offer panel
             offerIsResetMessage = false;
-            clearTradeMsg();
+            if ((! offerIsResetWasTrade) || (! inPlay))
+                clearTradeMsg();
+            else
+                updateCurrentOffer();
         }
     }
     

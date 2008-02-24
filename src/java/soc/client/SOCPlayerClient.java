@@ -1424,7 +1424,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 break;
 
             /**
-             * a player is requesting a board reset: we must vote
+             * a player (or us) is requesting a board reset: we must vote
              */
             case SOCMessage.RESETBOARDVOTEREQUEST:
                 handleRESETBOARDVOTEREQUEST((SOCResetBoardVoteRequest) mes);
@@ -1992,6 +1992,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             ga.setCurrentDice(0);
             ga.setCurrentPlayerNumber(pnum);
             ga.getPlayer(pnum).getDevCards().newToOld();
+            ga.resetVoteClear();
 
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
             pi.updateAtTurn(pnum);
@@ -2947,7 +2948,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * a player is requesting a board reset: we must vote.
+     * a player is requesting a board reset: we must update
+     * local game state, and vote unless we are the requester.
      *
      * @param mes  the message
      */
@@ -3516,7 +3518,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * it will either respond with a
      * {@link soc.message.SOCResetBoardAuth} message,
      * or will tell other players to vote yes/no on the request.
-     * Before calling, check player.hasAskedBoardReset().
+     * Before calling, check player.hasAskedBoardReset()
+     * and game.getResetVoteActive().
      */
     public void resetBoardRequest(SOCGame ga)
     {

@@ -968,6 +968,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
             ga.setCurrentDice(0);
             ga.setCurrentPlayerNumber(mes.getPlayerNumber());
             ga.getPlayer(mes.getPlayerNumber()).getDevCards().newToOld();
+            ga.resetVoteClear();
         }
     }
 
