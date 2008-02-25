@@ -85,7 +85,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * @see #TEXTINPUT_INITIAL_PROMPT_MSG
      */
     protected boolean textInputHasSent;
-    
+
     /**
      * Number of change-of-turns during game, after which
      * the initial prompt message fades to light grey.
@@ -196,6 +196,18 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * width of text output area in pixels
      */
     protected int npix;
+
+    /**
+     * to reduce text clutter: server has just sent a dice result message.
+     * If the next text message from server is the roll,
+     *   replace: * It's Player's turn to roll the dice. \n * Player rolled a 4 and a 5.
+     *   with:    * It's Player's turn to roll. Rolled a 9.
+     *<P>
+     * Set to 0 at most times.
+     * Set to the roll result when roll text is expected.
+     * Will be cleared to 0 in {@link #print(String)}.
+     */
+    protected int textDisplayRollExpected;
 
     /**
      * the dialog for getting what resources the player wants to discard
@@ -328,6 +340,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         textDisplay.setForeground(Color.black);
         textDisplay.setEditable(false);
         add(textDisplay);
+        textDisplayRollExpected = 0;
 
         chatDisplay = new SnippingTextArea("", 40, 80, TextArea.SCROLLBARS_VERTICAL_ONLY, 100);
         chatDisplay.setFont(new Font("Monoco", Font.PLAIN, 10));
@@ -486,6 +499,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     public int getClientPlayerNumber()
     {
         return clientHandPlayerNum;
+    }
+
+    /**
+     * @param textDisplayRollExpected The roll result, or 0. JM TODO text
+     */
+    public void setTextDisplayRollExpected(int roll)
+    {
+        textDisplayRollExpected = roll;
     }
 
     /**
@@ -654,6 +675,41 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public void print(String s)
     {
+        if (textDisplayRollExpected > 0)
+        {
+            /*
+             * Special case: Roll message.  Reduce clutter.
+             * Instead of printing this message verbatim,
+             * change the textDisplay contents (if matching):
+             *   replace: * It's Player's turn to roll the dice. \n * Player rolled a 4 and a 5.
+             *   with:    * It's Player's turn to roll. Rolled a 9.
+             */
+
+            if ((s.startsWith("* ")) && (s.indexOf(" rolled a ") > 0))
+            {
+                String currentText = textDisplay.getText();
+                int L = currentText.length();
+                int i = currentText.lastIndexOf("'s turn to roll the dice.");
+                                                // 25 chars: length of match text
+                                                //  9 chars: length of " the dice"
+                if ((i > 0) && (30 > (L - i)))
+                {
+                    String rollText = ". Rolled a " + textDisplayRollExpected;
+                    currentText = currentText.substring(0, i+15)
+                        + rollText + currentText.substring(i+15+9);
+                    textDisplay.setText(currentText);
+                    //textDisplay.replaceRange(rollText, i+15, i+15+9);
+                    //textDisplay.replaceRange(rollText, i+5, i+5+9);                    
+                    //textDisplay.insert(rollText, 10); // i+5); // +15);
+                    textDisplayRollExpected = 0;
+
+                    return;  // <--- Early return ---
+                }
+            }
+
+            textDisplayRollExpected = 0;  // Reset for next call
+        }
+
         StringTokenizer st = new StringTokenizer(s, " \n", true);
         String row = "";
 

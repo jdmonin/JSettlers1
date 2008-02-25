@@ -2696,7 +2696,6 @@ public class SOCServer extends Server
                     {
                         SOCMoveRobberResult result = ga.moveRobber(player.getPlayerNumber(), mes.getCoordinates());
                         messageToGame(ga.getName(), new SOCMoveRobber(ga.getName(), player.getPlayerNumber(), mes.getCoordinates()));
-                        messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.getData() + " moved the robber."));
 
                         Vector victims = result.getVictims();
 
@@ -2709,10 +2708,22 @@ public class SOCServer extends Server
                             SOCPlayer victim = (SOCPlayer) victims.firstElement();
                             reportRobbery(ga, player, victim, result.getLoot());
                         }
+                        /** no victim */
+                        else if (victims.size() == 0)
+                        {
+                            /**
+                             * just say it was moved; nothing is stolen
+                             */
+                            messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.getData() + " moved the robber."));
+                        }
+                        else
+                        {
+                            /**
+                             * else, the player needs to choose a victim
+                             */
+                            messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.getData() + " moved the robber, must choose a victim."));                            
+                        }
 
-                        /**
-                         * else, the player needs to choose a victim
-                         */
                         sendGameState(ga);
                     }
                     else
@@ -2994,9 +3005,15 @@ public class SOCServer extends Server
                     if (ga.canRollDice(ga.getPlayer((String) c.getData()).getPlayerNumber()))
                     {
                         IntPair dice = ga.rollDice();
-                        messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " rolled a " + dice.getA() + " and a " + dice.getB() + "."));
+                        /**
+                         * Send roll results and then text to client.
+                         * Client expects to see DiceResult first, then text message;
+                         * to reduce visual clutter, SOCPlayerInterface.print
+                         * expects text message to follow a certain format.
+                         */
                         messageToGame(gn, new SOCDiceResult(gn, ga.getCurrentDice()));
-                        sendGameState(ga);  // For 7, give visual feedback before discard request
+                        messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " rolled a " + dice.getA() + " and a " + dice.getB() + "."));
+                        sendGameState(ga);  // For 7, give visual feedback before sending discard request
 
                         /**
                          * if the roll is not 7, tell players what they got
@@ -3004,6 +3021,7 @@ public class SOCServer extends Server
                         if (ga.getCurrentDice() != 7)
                         {
                             boolean noPlayersGained = true;
+                            StringBuffer gainsText = new StringBuffer();
 
                             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
                             {
@@ -3013,9 +3031,17 @@ public class SOCServer extends Server
     
                                     if (rsrcs.getTotal() != 0)
                                     {
-                                        noPlayersGained = false;
+                                        if (noPlayersGained)
+                                        {
+                                            noPlayersGained = false;
+                                        }
+                                        else
+                                        {
+                                            gainsText.append(" ");
+                                        }
 
-                                        String message = ga.getPlayer(i).getName() + " got ";
+                                        gainsText.append(ga.getPlayer(i).getName());
+                                        gainsText.append(" gets ");
                                         int cl;
                                         int or;
                                         int sh;
@@ -3030,55 +3056,59 @@ public class SOCServer extends Server
                                         if (cl > 0)
                                         {
                                             messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, cl));
-                                            message += (cl + " clay");
+                                            gainsText.append(cl);
+                                            gainsText.append(" clay");
     
                                             if ((or + sh + wh + wo) > 0)
                                             {
-                                                message += ", ";
+                                                gainsText.append(", ");
                                             }
                                         }
     
                                         if (or > 0)
                                         {
                                             messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.ORE, or));
-                                            message += (or + " ore");
+                                            gainsText.append(or);
+                                            gainsText.append(" ore");
     
                                             if ((sh + wh + wo) > 0)
                                             {
-                                                message += ", ";
+                                                gainsText.append(", ");
                                             }
                                         }
     
                                         if (sh > 0)
                                         {
                                             messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, sh));
-                                            message += (sh + " sheep");
+                                            gainsText.append(sh);
+                                            gainsText.append(" sheep");
     
                                             if ((wh + wo) > 0)
                                             {
-                                                message += ", ";
+                                                gainsText.append(", ");
                                             }
                                         }
     
                                         if (wh > 0)
                                         {
                                             messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, wh));
-                                            message += (wh + " wheat");
+                                            gainsText.append(wh);
+                                            gainsText.append(" wheat");
     
                                             if (wo > 0)
                                             {
-                                                message += ", ";
+                                                gainsText.append(", ");
                                             }
                                         }
     
                                         if (wo > 0)
                                         {
                                             messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, wo));
-                                            message += (wo + " wood");
+                                            gainsText.append(wo);
+                                            gainsText.append(" wood");
                                         }
     
-                                        message += ".";
-                                        messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, message));
+                                        gainsText.append(".");
                                     }
 
                                     //
@@ -3112,10 +3142,16 @@ public class SOCServer extends Server
                                 }  // if (! ga.isSeatVacant(i))
                             }  // for (i)
 
+                            String message;
                             if (noPlayersGained)
                             {
-                                messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, "No player got anything."));
+                                message = "No player gets anything.";
                             }
+                            else
+                            {
+                                message = gainsText.toString();
+                            }
+                            messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, message));
 
                             /*
                                if (D.ebugOn) {
@@ -5928,7 +5964,7 @@ public class SOCServer extends Server
 
         SOCResourceSet rset = game.getPlayer(name).getResources();
         int pnum = game.getPlayer(name).getPlayerNumber();
-        String outMes = "### " + name + " got";
+        String outMes = "### " + name + " gets";
 
         for (resourceType = SOCResourceConstants.CLAY;
                 resourceType <= SOCResourceConstants.WOOD; resourceType++)
@@ -6098,7 +6134,7 @@ public class SOCServer extends Server
         dcSet.add(1, SOCDevCardSet.NEW, cardType);
 
         int pnum = game.getPlayer(name).getPlayerNumber();
-        String outMes = "### " + name + " got a " + cardType + " card.";
+        String outMes = "### " + name + " gets a " + cardType + " card.";
         messageToGame(game.getName(), new SOCDevCard(game.getName(), pnum, SOCDevCard.DRAW, cardType));
         messageToGame(game.getName(), new SOCGameTextMsg(game.getName(), SERVERNAME, outMes));
     }
