@@ -22,6 +22,7 @@ package soc.client;
 
 import soc.disableDebug.D;
 
+import soc.game.SOCBoard;
 import soc.game.SOCDevCardConstants;
 import soc.game.SOCDevCardSet;
 import soc.game.SOCGame;
@@ -39,9 +40,12 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Label;
 import java.awt.List;
+import java.awt.MenuItem;
 import java.awt.Panel;
+import java.awt.PopupMenu;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
 
 import java.util.Timer;  // For auto-roll
 import java.util.TimerTask;
@@ -138,6 +142,20 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Label sheepLab;
     protected Label wheatLab;
     protected Label woodLab;
+    /**
+     * If playerIsClient, track cost of bank/port trade per resource.
+     * Index 0 unused; index 1 is {@link SOCResourceConstants#CLAY}, etc.
+     * Highest index is 5.
+     * Null, unless playerIsClient and addPlayer has been called.
+     */
+    protected int[] resourceTradeCost;
+    /**
+     * If playerIsClient, popup menus to bank/port trade resources.
+     * Index 0 unused; index 1 is {@link SOCResourceConstants#CLAY}, etc.
+     * Highest index is 5.
+     * Null, unless playerIsClient and addPlayer has been called.
+     */
+    protected ResourceTradePopupMenu[] resourceTradeMenu;
     protected ColorSquare settlementSq;
     protected ColorSquare citySq;
     protected ColorSquare roadSq;
@@ -311,26 +329,31 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(clayLab);
         claySq = new ColorSquare(ColorSquare.CLAY, 0);
         add(claySq);
+        claySq.setTooltipText("Right-click to trade clay");
 
         oreLab = new Label("Ore:");
         add(oreLab);
         oreSq = new ColorSquare(ColorSquare.ORE, 0);
         add(oreSq);
+        oreSq.setTooltipText("Right-click to trade ore");
 
         sheepLab = new Label("Sheep:");
         add(sheepLab);
         sheepSq = new ColorSquare(ColorSquare.SHEEP, 0);
         add(sheepSq);
+        sheepSq.setTooltipText("Right-click to trade sheep");
 
         wheatLab = new Label("Wheat:");
         add(wheatLab);
         wheatSq = new ColorSquare(ColorSquare.WHEAT, 0);
         add(wheatSq);
+        wheatSq.setTooltipText("Right-click to trade wheat");
 
         woodLab = new Label("Wood:");
         add(woodLab);
         woodSq = new ColorSquare(ColorSquare.WOOD, 0);
         add(woodSq);
+        woodSq.setTooltipText("Right-click to trade wood");
 
         //cardLab = new Label("Cards:");
         //add(cardLab);
@@ -905,6 +928,20 @@ public class SOCHandPanel extends Panel implements ActionListener
         woodSq.setVisible(false);
         woodLab.setVisible(false);
 
+        resourceTradeCost = null;
+        if (resourceTradeMenu != null)
+        {
+            for (int i = 0; i < resourceTradeMenu.length; ++i)
+            {
+                if (resourceTradeMenu[i] != null)
+                {
+                    resourceTradeMenu[i].destroy();
+                    resourceTradeMenu[i] = null;
+                }
+            }
+            resourceTradeMenu = null;
+        }
+
         //cardLab.setVisible(false);
         cardList.setVisible(false);
         playCardBut.setVisible(false);
@@ -1009,6 +1046,10 @@ public class SOCHandPanel extends Panel implements ActionListener
             wheatLab.setVisible(true);
             woodSq.setVisible(true);
             woodLab.setVisible(true);
+
+            resourceTradeCost = new int[6];
+            resourceTradeMenu = new ResourceTradePopupMenu[6];
+            updateResourceTradeCosts(true);
 
             //cardLab.setVisible(true);
             cardList.setVisible(true);
@@ -1726,6 +1767,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         case SETTLEMENTS:
 
             settlementSq.setIntValue(player.getNumPieces(SOCPlayingPiece.SETTLEMENT));
+            if (playerIsClient)
+                updateResourceTradeCosts(false);
 
             break;
 
@@ -1767,6 +1810,63 @@ public class SOCHandPanel extends Panel implements ActionListener
             updateValue(NUMRESOURCES);
         }
         updateValue(VICTORYPOINTS);
+    }
+
+    /**
+     * If playerIsClient, update cost of bank/port trade per resource.
+     * Update resourceTradeCost numbers and resourceTradeMenu text.
+     *
+     * @param doInit If true, fill resourceTradeMenu[] with newly constructed menus.
+     */
+    public void updateResourceTradeCosts(boolean doInit)
+    {
+        boolean has3Port = player.getPortFlag(SOCBoard.MISC_PORT);
+
+        for (int i = SOCResourceConstants.CLAY;
+                i <= SOCResourceConstants.WOOD; ++i)
+        {
+            int oldCost = resourceTradeCost[i];
+            int newCost;
+            if (player.getPortFlag(i))
+                newCost = 2;
+            else if (has3Port)
+                newCost = 3;
+            else
+                newCost = 4;
+            resourceTradeCost[i] = newCost;
+            if (doInit || (newCost != oldCost))
+            {
+                /**
+                 * Update menu text
+                 */
+                if (! doInit)
+                {
+                    resourceTradeMenu[i].updateCost(newCost);
+                }
+                else
+                {
+                    ColorSquare resSq;
+                    switch (i)
+                    {
+                    case SOCResourceConstants.CLAY:
+                        resSq = claySq;  break;
+                    case SOCResourceConstants.ORE:
+                        resSq = oreSq;   break;
+                    case SOCResourceConstants.SHEEP:
+                        resSq = sheepSq; break;
+                    case SOCResourceConstants.WHEAT:
+                        resSq = wheatSq; break;
+                    case SOCResourceConstants.WOOD:
+                        resSq = woodSq;  break;
+                    default:
+                        // Should not happen
+                        resSq = null;
+                    }
+                    resourceTradeMenu[i] = new
+                        ResourceTradePopupMenu(this, i, resSq, newCost);
+                }
+            }
+        }
     }
 
     /** Is this panel showing the client player,
@@ -2007,5 +2107,327 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
 
     }  // inner class HandPanelAutoRollTask
+
+    /**
+     * Menu item for right-click on resource square to trade with bank/port.
+     *
+     * @see soc.client.SOCHandPanel.ResourceTradePopupMenu
+     * @author Jeremy D Monin <jeremy@nand.net>
+     */
+    protected static class ResourceTradeMenuItem extends MenuItem
+    {
+        private int tradeFrom, tradeTo;
+        private int tradeNum;
+
+        /**
+         * Create a MenuItem with text of the form "Trade 2 brick for 1 wheat".
+         *
+         * @param numFrom  Number of resources to trade for 1 resource
+         * @param typeFrom Source resource type, as in {@link SOCResourceConstants}.
+         * @param typeTo   Target resource type, as in {@link SOCResourceConstants}.
+         *                 If typeFrom == typeTo, menuitem will be disabled.
+         */
+        public ResourceTradeMenuItem(int numFrom, int typeFrom, int typeTo)
+        {
+            super("Trade " + numFrom + " " + typeName(typeFrom)
+                    + " for 1 " + typeName(typeTo));
+            tradeNum = numFrom;
+            tradeFrom = typeFrom;
+            tradeTo = typeTo;
+            if (tradeFrom == tradeTo)
+                setEnabled(false);
+        }
+
+        /**
+         * Update menu item text to new cost of trade.
+         * @param numFrom Trade this many resources;
+         *                if the number is unchanged, the text is not updated.
+         */
+        public void setCost(int numFrom)
+        {
+            if (tradeNum == numFrom)
+                return;
+            tradeNum = numFrom;
+            setLabel("Trade " + numFrom + " " + typeName(tradeFrom)
+                    + " for 1 " + typeName(tradeTo));
+        }
+
+        /**
+         * Enable or disable this menu item.
+         * If from-to resources are same, always disabled.
+         */
+        public void setEnabled(boolean enable)
+        {
+            if (tradeFrom == tradeTo)
+                enable = false;
+            super.setEnabled(enable);
+        }
+
+        /**
+         * @return the resource type to trade from, shown in this menu item text
+         */
+        public int getTradeFrom()
+        {
+            return tradeFrom;
+        }
+
+        /**
+         * @return the resource type to trade to, shown in this menu item text
+         */
+        public int getTradeTo()
+        {
+            return tradeTo;
+        }
+
+        /**
+         * Create a bank-trade-request, send to the server.
+         */
+        public void createBankTradeRequest(SOCHandPanel hp)
+        {
+            // Code like actionPerformed for BANK button
+            SOCGame game = hp.getGame(); 
+            if (game.getGameState() != SOCGame.PLAY1)
+            {
+                hp.getPlayerInterface().print("* You cannot trade at this time.\n");
+                return;
+            }
+
+            int[] give = new int[5];
+            int[] get = new int[5];
+            give[tradeFrom - 1] = tradeNum;
+            get[tradeTo - 1] = 1;
+
+            SOCResourceSet giveSet = new SOCResourceSet(give[0], give[1], give[2], give[3], give[4], 0);
+            SOCResourceSet getSet = new SOCResourceSet(get[0], get[1], get[2], get[3], get[4], 0);
+            hp.getClient().bankTrade(game, giveSet, getSet);
+        }
+
+        /**
+         * Get the resource type name for this resource type number,
+         * such as "clay" or "ore".
+         *
+         * @param rtype Resource type, as in {@link SOCResourceConstants}.
+         * @return Lowercase resource name, or null if rtype is out of range.
+         */
+        public static String typeName(int rtype)
+        {
+            String tname;
+            switch (rtype)
+            {
+            case SOCResourceConstants.CLAY:
+                tname = "clay";  break;
+            case SOCResourceConstants.ORE:
+                tname = "ore";   break;
+            case SOCResourceConstants.SHEEP:
+                tname = "sheep"; break;
+            case SOCResourceConstants.WHEAT:
+                tname = "wheat"; break;
+            case SOCResourceConstants.WOOD:
+                tname = "wood";  break;
+            default:
+                // Should not happen
+                tname = null;            
+            }
+            return tname;
+        }
+    }
+
+    /**
+     * Menu for right-click on resource square to trade with bank/port.
+     *
+     * @author Jeremy D Monin <jeremy@nand.net>
+     */
+    /* package-access */ static class ResourceTradePopupMenu extends PopupMenu
+        implements java.awt.event.ActionListener, java.awt.event.MouseListener
+    {
+        private SOCHandPanel hpan;
+        private ColorSquare resSq;
+        private int resTypeFrom;
+        private int costFrom;
+        private ResourceTradeMenuItem[] tradeForItems;        
+
+        /** Menu attached to a resource colorsquare in the client player's handpanel */
+        public ResourceTradePopupMenu(SOCHandPanel hp, int typeFrom, ColorSquare sq, int numFrom)
+        {
+          super ("Bank/Port Trade");
+          init(hp, typeFrom, sq, numFrom);
+        }
+
+        /**
+         * Temporary menu for board popup menu
+         *
+         * @throws IllegalStateException If client not current player
+         */
+        public ResourceTradePopupMenu(SOCHandPanel hp, int typeFrom)
+            throws IllegalStateException
+        {
+            super ("Trade Port");
+            SOCPlayerInterface pi = hp.getPlayerInterface();
+            if (! pi.clientIsCurrentPlayer())
+                throw new IllegalStateException("Not current player");
+            init(hp, typeFrom, null, hp.resourceTradeCost[typeFrom]);
+        }
+
+        /** Common to both constructors */
+        private void init(SOCHandPanel hp, int typeFrom, ColorSquare sq, int numFrom)
+        {
+          hpan = hp;
+          resSq = sq;
+          resTypeFrom = typeFrom;
+          costFrom = numFrom;
+
+          if (resSq != null)
+          {
+              resSq.addMouseListener(this);
+              resSq.add(this);
+          }
+          tradeForItems = new ResourceTradeMenuItem[5];
+          for (int i = 0; i < 5; ++i)
+          {
+              tradeForItems[i] = new ResourceTradeMenuItem (numFrom, typeFrom, i+1);
+              add(tradeForItems[i]);
+              tradeForItems[i].addActionListener(this);
+          }
+        }
+
+        /**
+         * Show menu at this position. Before showing, enable or
+         * disable based on gamestate and player's resources.
+         * 
+         * @param x   Mouse x-position relative to colorsquare
+         * @param y   Mouse y-position relative to colorsquare
+         */
+        public void show(int x, int y)
+        {
+            setEnabledIfCanTrade(false);
+            super.show(resSq, x, y);
+        }
+
+        /**
+         * Enable or disable based on gamestate and player's resources.
+         *
+         * @param itemsOnly If true, enable/disable items, instead of the menu itself.
+         */
+        public void setEnabledIfCanTrade(boolean itemsOnly)
+        {
+            boolean canTrade = (hpan.getGame().getGameState() == SOCGame.PLAY1)
+                && (costFrom <= hpan.getPlayer().getResources().getAmount(resTypeFrom));
+            if (itemsOnly)
+            {
+                for (int i = 0; i < 5; ++i)
+                    tradeForItems[i].setEnabled(canTrade);
+            }
+            else
+            {
+                setEnabled(canTrade);
+            }
+        }
+
+        /** Update cost of trade; update menu item text. */
+        public void updateCost(int newCost)
+        {
+            if (costFrom == newCost)
+                return;
+            costFrom = newCost;
+            for (int i = 0; i < 5; ++i)
+                tradeForItems[i].setCost(newCost);
+        }
+
+        /**
+         * @return the resource type number from which this menu trades
+         */
+        public int getResourceType()
+        {
+            return resTypeFrom;
+        }
+
+        /** Handling the menu item **/
+        public void actionPerformed(ActionEvent e)
+        {
+            try
+            {
+                Object src = e.getSource(); 
+                ResourceTradeMenuItem mi = null;
+                for (int i = 0; i < 5; ++i)
+                {
+                    if (src == tradeForItems[i])
+                    {
+                        mi = tradeForItems[i];
+                        break;
+                    }
+                }
+                if (mi == null)
+                    return;
+
+                mi.createBankTradeRequest(hpan);
+
+            } catch (Throwable th) {
+                hpan.getPlayerInterface().chatPrintStackTrace(th);
+            }
+        }
+
+        /**
+         * Handle popup-click.
+         * mousePressed has xwindows/OS-X popup trigger.
+         */
+        public void mousePressed(MouseEvent evt)
+        {
+            mouseClicked(evt);  // same desired code: react to isPopupTrigger
+        }
+
+        /**
+         * Handle popup-click.
+         */
+        public void mouseClicked(MouseEvent evt)
+        {
+            try {
+                if (evt.isPopupTrigger())
+                {
+                    evt.consume();
+                    show(evt.getX(), evt.getY());
+                }
+            } catch (Throwable th) {
+                hpan.getPlayerInterface().chatPrintStackTrace(th);
+            }
+        }
+
+        /**
+         * Handle popup-click.
+         * mouseReleased has win32 popup trigger.
+         */
+        public void mouseReleased(MouseEvent evt)
+        {
+            mouseClicked(evt);  // same desired code: react to isPopupTrigger
+        }
+
+        /** Stub required for MouseListener */
+        public void mouseEntered(MouseEvent evt) {}
+
+        /** Stub required for MouseListener */
+        public void mouseExited(MouseEvent evt) {}
+
+        /** Cleanup, for removing this menu. */
+        public void destroy()
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                if (tradeForItems[i] != null)
+                {
+                    ResourceTradeMenuItem mi = tradeForItems[i];
+                    tradeForItems[i] = null;
+                    mi.removeActionListener(this);
+                }
+            }
+            removeAll();
+            hpan = null;
+            if (resSq != null)
+            {
+                resSq.removeMouseListener(this);
+                resSq.remove(this);
+                resSq = null;
+            }
+        }
+
+    }  /* static nested class ResourceTradePopupMenu */
 
 }  // class SOCHandPanel

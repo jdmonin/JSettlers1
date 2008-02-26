@@ -2477,11 +2477,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                  */
                 if (nickname.equals(pl.getName()))
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.CLAY);
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.ORE);
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.SHEEP);
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.WHEAT);
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.WOOD);
+                    SOCHandPanel php = pi.getPlayerHandPanel(mes.getPlayerNumber());
+                    php.updateValue(SOCHandPanel.CLAY);
+                    php.updateValue(SOCHandPanel.ORE);
+                    php.updateValue(SOCHandPanel.SHEEP);
+                    php.updateValue(SOCHandPanel.WHEAT);
+                    php.updateValue(SOCHandPanel.WOOD);
                 }
                 else
                 {
@@ -2554,7 +2555,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         ga.undoPutInitSettlement(pp);
 
         SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-        pi.getPlayerHandPanel(pl.getPlayerNumber()).updateResourcesVP();
+        SOCHandPanel hp = pi.getPlayerHandPanel(pl.getPlayerNumber());
+        hp.updateResourcesVP();
+        hp.updateResourceTradeCosts(false);
         pi.getBoardPanel().updateMode();
     }
 

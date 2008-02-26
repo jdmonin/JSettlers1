@@ -202,12 +202,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      *   PLACE_ROBBER for hex, or PLACE_INIT_SETTLEMENT for port.
      */
     private BoardToolTip hoverTip;
-    
+
     /**
      * Context menu for build/cancel-build
      */
     private BoardPopupMenu popupMenu;
-        
+
     /**
      * Tracks last menu-popup time.  Avoids misinterpretation of popup-click with placement-click
      * during initial placement: On Windows, popup-click must be caught in mouseReleased,
@@ -2519,6 +2519,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       SOCBoardPanel bp;
       MenuItem buildRoadItem, buildSettleItem, upgradeCityItem; // , aboutItem, exitItem;
       MenuItem cancelBuildItem;
+      /** determined at menu-show time, only over a useable port. Added, and removed at next menu-show */
+      SOCHandPanel.ResourceTradePopupMenu portTradeSubmenu;
       // About us;  // TODO - JM
       /** determined at menu-show time */
       private int menuPlayerID;
@@ -2568,6 +2570,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         buildSettleItem = new MenuItem("Build Settlement");
         upgradeCityItem = new MenuItem("Upgrade to City");
         cancelBuildItem = new MenuItem("Cancel build");
+        portTradeSubmenu = null;
 
         add(buildRoadItem);
         add(buildSettleItem);
@@ -2644,7 +2647,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
           super.show(bp, x, y);
       }
       
-      /** Custom show method that finds current game status and player status.
+      /**
+       * Custom show method that finds current game status and player status.
+       * Also checks for hovering-over-port for port-trade submenu.
        * 
        * @param x   Mouse x-position
        * @param y   Mouse y-position
@@ -2658,6 +2663,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
           isInitialPlacement = false;
           cancelBuildItem.setEnabled(false);
           cancelBuildItem.setLabel("Cancel build");
+          if (portTradeSubmenu != null)
+          {
+              // Cleanup from last time
+              remove(portTradeSubmenu);
+              portTradeSubmenu.destroy();
+              portTradeSubmenu = null;
+          }
          
           menuPlayerIsCurrent = (player != null) && playerInterface.clientIsCurrentPlayer();
           if (menuPlayerIsCurrent)
@@ -2698,7 +2710,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               hoverRoadID = 0;
               hoverSettlementID = 0;
               hoverCityID = 0;
-          } else {
+          }
+          else
+          {
               int cpn = game.getCurrentPlayerNumber();
 
               if (! isInitialPlacement)
@@ -2710,6 +2724,39 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               hoverRoadID = hR;
               hoverSettlementID = hS;
               hoverCityID = hC;
+              
+              // Is it a port?
+              int portType = -1;
+              int portId = 0;
+              if (hS != 0)
+                  portId = hS;
+              else if (hC != 0)
+                  portId = hC;
+              else if (bp.hoverTip.hoverMode == PLACE_INIT_SETTLEMENT)
+                  portId = bp.hoverTip.hoverID;
+
+              if (portId != 0)
+              {
+                  Integer coordInteger = new Integer(portId);
+                  for (portType = SOCBoard.MISC_PORT; portType <= SOCBoard.WOOD_PORT; portType++)
+                  {
+                      if (game.getBoard().getPortCoordinates(portType).contains(coordInteger))
+                          break;
+                  }
+
+                  if (portType > SOCBoard.WOOD_PORT)
+                      portType = -1;
+              }
+
+              // If port, can we use?
+              if ((portType != -1) && (portType != SOCBoard.MISC_PORT))
+              {
+                  // TODO separate menu for 3-for-1 port
+                  portTradeSubmenu = new SOCHandPanel.ResourceTradePopupMenu
+                      (playerInterface.getPlayerHandPanel(cpn), portType);                  
+                  add(portTradeSubmenu);
+                  portTradeSubmenu.setEnabledIfCanTrade(true);
+              }
           }
 
           super.show(bp, x, y);
