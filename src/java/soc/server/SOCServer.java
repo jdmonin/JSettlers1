@@ -234,7 +234,7 @@ public class SOCServer extends Server
     private void initSocServer(String databaseUserName, String databasePassword)
     {
         System.err.println("Java Settlers Server " + Version.version() +
-                           ", " + Version.copyright());
+                           ", build " + Version.buildnum() + ", " + Version.copyright());
         System.err.println("Network layer based on code by Cristian Bogdan; local network by Jeremy Monin.");
         
         /* Check for problems during super setup (such as port already in use) */

@@ -18,6 +18,7 @@ public class Version {
 
   public static String VERSION   = "project.version";
   public static String COPYRIGHT = "project.copyright";
+  public static String BUILDNUM  = "project.buildnum";
   
   public static String JRE_MIN_VERSION = "project.jre.min.version";
   public static String JRE_MIN_MAJOR   = "project.jre.min.major";
@@ -38,6 +39,7 @@ public class Version {
     // defaults in case build failed to produce version.info
     versionInfo.put(VERSION, "-error-");
     versionInfo.put(COPYRIGHT, "-error-");
+    versionInfo.put(BUILDNUM, "-unknown-");
     // JRE_MIN_VERSION default is built later
     try {
       String resource = "/resources/version.info";
@@ -62,6 +64,11 @@ public class Version {
   /** Return the copyright string. */
   public static String copyright() {
     return versionInfo.getProperty(COPYRIGHT);
+  }
+
+  /** Return the build-number string. */
+  public static String buildnum() {
+    return versionInfo.getProperty(BUILDNUM);
   }
 
   /** Return the minimum required jre. */
