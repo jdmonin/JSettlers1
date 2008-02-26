@@ -20,6 +20,8 @@
  **/
 package soc.client;
 
+import soc.client.SOCHandPanel.ResourceTradeMenuItem;
+import soc.client.SOCHandPanel.ResourceTradePopupMenu;
 import soc.game.SOCBoard;
 import soc.game.SOCCity;
 import soc.game.SOCGame;
@@ -2092,6 +2094,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int hoverRoadID;
         /** hover settlement or city node ID, or 0. Readonly please from outside this inner class */
         int hoverSettlementID, hoverCityID;
+        /** is hover a port at coordinate hoverID? */
+        boolean hoverIsPort;
         /** Mouse position */
         private int mouseX, mouseY;
         /** Our position (upper-left of tooltip box) */
@@ -2114,6 +2118,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             hoverRoadID = 0;
             hoverSettlementID = 0;
             hoverCityID = 0;
+            hoverIsPort = false;
             mouseX = 0;
             mouseY = 0;
             offsetX = 0;
@@ -2189,6 +2194,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             hoverRoadID = 0;
             hoverSettlementID = 0;
             hoverCityID = 0;
+            hoverIsPort = false;
             setHoverText(null);
         }
         
@@ -2278,6 +2284,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                             sb.append(" city: ");
                         else
                             sb.append(": ");  // port, not port city
+                        hoverIsPort = true;
                     }
                     else
                     {
@@ -2329,6 +2336,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                             hoverTextSet = true;
                             hoverMode = PLACE_INIT_SETTLEMENT;  // const used for hovering-at-port
                             hoverID = id;
+                            hoverIsPort = true;
                         }
                     }
                 }  // end if-node-has-settlement
@@ -2375,7 +2383,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 }
             }
             
-            // By now we've set hoverRoadID, hoverCityID, hoverSettlementID.
+            // By now we've set hoverRoadID, hoverCityID, hoverSettlementID, hoverIsPort.
             if (hoverTextSet)
             {
                 return;  // <--- Early return: Text and hover-pieces set ---
@@ -2650,7 +2658,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       /**
        * Custom show method that finds current game status and player status.
        * Also checks for hovering-over-port for port-trade submenu.
-       * 
+       *
        * @param x   Mouse x-position
        * @param y   Mouse y-position
        * @param hR  Hover road ID, or 0
@@ -2732,7 +2740,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                   portId = hS;
               else if (hC != 0)
                   portId = hC;
-              else if (bp.hoverTip.hoverMode == PLACE_INIT_SETTLEMENT)
+              else if (bp.hoverTip.hoverIsPort)
                   portId = bp.hoverTip.hoverID;
 
               if (portId != 0)
@@ -2748,12 +2756,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                       portType = -1;
               }
 
-              // If port, can we use?
-              if ((portType != -1) && (portType != SOCBoard.MISC_PORT))
+              // Menu differs based on port
+              if (portType != -1)
               {
-                  // TODO separate menu for 3-for-1 port
-                  portTradeSubmenu = new SOCHandPanel.ResourceTradePopupMenu
-                      (playerInterface.getPlayerHandPanel(cpn), portType);                  
+                  if (portType == SOCBoard.MISC_PORT)
+                      portTradeSubmenu = new ResourceTradeAllMenu
+                          (bp, playerInterface.getPlayerHandPanel(cpn));
+                  else
+                      portTradeSubmenu = new SOCHandPanel.ResourceTradeTypeMenu
+                          (playerInterface.getPlayerHandPanel(cpn), portType, false);                  
                   add(portTradeSubmenu);
                   portTradeSubmenu.setEnabledIfCanTrade(true);
               }
@@ -2879,6 +2890,91 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
       }
 
     }  // inner class BoardPopupMenu    
+
+    /**
+     * Menu for right-click on 3-for-1 port to trade all resource types with bank/port.
+     * Menu items won't necessarily say "trade 3", because the user may have a 2-for-1
+     * port, or may not have a 3-for-1 port (cost 4).
+     *
+     * @author Jeremy D Monin <jeremy@nand.net>
+     */
+    /* package-access */ static class ResourceTradeAllMenu extends SOCHandPanel.ResourceTradePopupMenu
+    {
+        private SOCBoardPanel bpanel;
+        private SOCHandPanel.ResourceTradeTypeMenu[] tradeFromTypes;        
+
+        /**
+         * Temporary menu for board popup menu
+         *
+         * @throws IllegalStateException If client not current player
+         */
+        public ResourceTradeAllMenu(SOCBoardPanel bp, SOCHandPanel hp)
+            throws IllegalStateException
+        {
+            super(hp, "Trade Port");
+            bpanel = bp;
+            SOCPlayerInterface pi = hp.getPlayerInterface();
+            if (! pi.clientIsCurrentPlayer())
+                throw new IllegalStateException("Not current player");
+
+          tradeFromTypes = new SOCHandPanel.ResourceTradeTypeMenu[5];
+          for (int i = 0; i < 5; ++i)
+          {
+              tradeFromTypes[i] = new SOCHandPanel.ResourceTradeTypeMenu(hp, i+1, true);
+              add(tradeFromTypes[i]);
+          }
+        }
+
+        /**
+         * Show menu at this position. Before showing, enable or
+         * disable based on gamestate and player's resources.
+         * 
+         * @param x   Mouse x-position relative to colorsquare
+         * @param y   Mouse y-position relative to colorsquare
+         */
+        public void show(int x, int y)
+        {
+            setEnabledIfCanTrade(false);
+            super.show(bpanel, x, y);
+        }
+
+        /**
+         * Enable or disable based on gamestate and player's resources.
+         *
+         * @param itemsOnly If true, enable/disable items, instead of the menu itself.
+         *                  The submenus are considered items.
+         *                  Items within submenus are also items. 
+         */
+        public void setEnabledIfCanTrade(boolean itemsOnly)
+        {
+            int gs = hpan.getGame().getGameState();
+            for (int i = 0; i < 5; ++i)
+            {
+                int numNeeded = tradeFromTypes[i].getResourceCost(); 
+                tradeFromTypes[i].setEnabledIfCanTrade(itemsOnly);
+                tradeFromTypes[i].setEnabledIfCanTrade
+                    ((gs == SOCGame.PLAY1)
+                     && (numNeeded <= hpan.getPlayer().getResources().getAmount(i+1)));                    
+            }
+        }
+
+        /** Cleanup, for removing this menu. */
+        public void destroy()
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                if (tradeFromTypes[i] != null)
+                {
+                    SOCHandPanel.ResourceTradeTypeMenu mi = tradeFromTypes[i];
+                    tradeFromTypes[i] = null;
+                    mi.destroy();
+                }
+            }
+            removeAll();
+            hpan = null;
+        }
+
+    }  /* static nested class ResourceTradeAllMenu */
 
     /** 
      * Used for the delay between sending a build-request message,

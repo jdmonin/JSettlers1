@@ -155,7 +155,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      * Highest index is 5.
      * Null, unless playerIsClient and addPlayer has been called.
      */
-    protected ResourceTradePopupMenu[] resourceTradeMenu;
+    protected ResourceTradeTypeMenu[] resourceTradeMenu;
     protected ColorSquare settlementSq;
     protected ColorSquare citySq;
     protected ColorSquare roadSq;
@@ -1048,7 +1048,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             woodLab.setVisible(true);
 
             resourceTradeCost = new int[6];
-            resourceTradeMenu = new ResourceTradePopupMenu[6];
+            resourceTradeMenu = new ResourceTradeTypeMenu[6];
             updateResourceTradeCosts(true);
 
             //cardLab.setVisible(true);
@@ -1863,7 +1863,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                         resSq = null;
                     }
                     resourceTradeMenu[i] = new
-                        ResourceTradePopupMenu(this, i, resSq, newCost);
+                        ResourceTradeTypeMenu(this, i, resSq, newCost);
                 }
             }
         }
@@ -2118,22 +2118,27 @@ public class SOCHandPanel extends Panel implements ActionListener
     {
         private int tradeFrom, tradeTo;
         private int tradeNum;
+        private boolean shortTxt;
 
         /**
-         * Create a MenuItem with text of the form "Trade 2 brick for 1 wheat".
+         * Create a bank/port trade MenuItem, with text such as "Trade 2 brick for 1 wheat".
          *
          * @param numFrom  Number of resources to trade for 1 resource
          * @param typeFrom Source resource type, as in {@link SOCResourceConstants}.
          * @param typeTo   Target resource type, as in {@link SOCResourceConstants}.
          *                 If typeFrom == typeTo, menuitem will be disabled.
+         * @param shortText If true, short ("For 1 wheat") vs full "Trade 2 brick for 1 wheat"
          */
-        public ResourceTradeMenuItem(int numFrom, int typeFrom, int typeTo)
+        public ResourceTradeMenuItem(int numFrom, int typeFrom, int typeTo, boolean shortText)
         {
-            super("Trade " + numFrom + " " + typeName(typeFrom)
-                    + " for 1 " + typeName(typeTo));
+            super( (shortText
+                    ? "For 1 "
+                    : ("Trade " + numFrom + " " + typeName(typeFrom) + " for 1 "))
+                   + typeName(typeTo));
             tradeNum = numFrom;
             tradeFrom = typeFrom;
             tradeTo = typeTo;
+            shortTxt = shortText;
             if (tradeFrom == tradeTo)
                 setEnabled(false);
         }
@@ -2148,8 +2153,11 @@ public class SOCHandPanel extends Panel implements ActionListener
             if (tradeNum == numFrom)
                 return;
             tradeNum = numFrom;
-            setLabel("Trade " + numFrom + " " + typeName(tradeFrom)
-                    + " for 1 " + typeName(tradeTo));
+            if (shortTxt)
+                setLabel("For 1 " + typeName(tradeTo));
+            else
+                setLabel("Trade " + numFrom + " " + typeName(tradeFrom)
+                        + " for 1 " + typeName(tradeTo));
         }
 
         /**
@@ -2235,46 +2243,93 @@ public class SOCHandPanel extends Panel implements ActionListener
     /**
      * Menu for right-click on resource square to trade with bank/port.
      *
+     * @see ResourceTradeTypeMenu
+     * @see SOCBoardPanel.ResourceTradeAllMenu
      * @author Jeremy D Monin <jeremy@nand.net>
      */
-    /* package-access */ static class ResourceTradePopupMenu extends PopupMenu
-        implements java.awt.event.ActionListener, java.awt.event.MouseListener
+    /* package-access */ static abstract class ResourceTradePopupMenu extends PopupMenu
     {
-        private SOCHandPanel hpan;
-        private ColorSquare resSq;
-        private int resTypeFrom;
-        private int costFrom;
-        private ResourceTradeMenuItem[] tradeForItems;        
+        protected SOCHandPanel hpan;
 
-        /** Menu attached to a resource colorsquare in the client player's handpanel */
-        public ResourceTradePopupMenu(SOCHandPanel hp, int typeFrom, ColorSquare sq, int numFrom)
+        protected ResourceTradePopupMenu(SOCHandPanel hp, String title)
         {
-          super ("Bank/Port Trade");
-          init(hp, typeFrom, sq, numFrom);
+            super(title);
+            hpan = hp;
         }
 
         /**
-         * Temporary menu for board popup menu
+         * Show menu at this position. Before showing, enable or
+         * disable based on gamestate and player's resources.
+         * 
+         * @param x   Mouse x-position relative to colorsquare
+         * @param y   Mouse y-position relative to colorsquare
+         *
+         * @see #setEnabledIfCanTrade(boolean)
+         */
+        public abstract void show(int x, int y);
+
+        /**
+         * Enable or disable based on gamestate and player's resources.
+         *
+         * @param itemsOnly If true, enable/disable items, instead of the menu itself.
+         */
+        public abstract void setEnabledIfCanTrade(boolean itemsOnly);
+
+        /** Cleanup, for removing this menu. */
+        public abstract void destroy();
+
+    }  /* static nested class ResourceTradePopupMenu */
+
+    /**
+     * Menu for right-click on resource square to trade one resource type with bank/port.
+     *
+     * @author Jeremy D Monin <jeremy@nand.net>
+     */
+    /* package-access */ static class ResourceTradeTypeMenu extends ResourceTradePopupMenu
+        implements java.awt.event.MouseListener, java.awt.event.ActionListener
+    {
+        private ColorSquare resSq;
+        private int resTypeFrom;
+        private int costFrom;
+        boolean isForThree1;
+        private ResourceTradeMenuItem[] tradeForItems;        
+
+        /** Menu attached to a resource colorsquare in the client player's handpanel */
+        public ResourceTradeTypeMenu(SOCHandPanel hp, int typeFrom, ColorSquare sq, int numFrom)
+        {
+          super(hp, "Bank/Port Trade");
+          init(typeFrom, sq, numFrom, false);
+        }
+
+        /**
+         * One-time-use menu for board popup menu.
+         *
+         * @param hp  Handpanel with player's information (including trade costs)
+         * @param typeFrom Resource type from which to trade
+         * @param forThree1 Is part of a 3-for-1 port trade menu, with all resource types
          *
          * @throws IllegalStateException If client not current player
          */
-        public ResourceTradePopupMenu(SOCHandPanel hp, int typeFrom)
+        public ResourceTradeTypeMenu(SOCHandPanel hp, int typeFrom, boolean forThree1)
             throws IllegalStateException
         {
-            super ("Trade Port");
+            super(hp, "Trade Port");
             SOCPlayerInterface pi = hp.getPlayerInterface();
             if (! pi.clientIsCurrentPlayer())
                 throw new IllegalStateException("Not current player");
-            init(hp, typeFrom, null, hp.resourceTradeCost[typeFrom]);
+            init(typeFrom, null, hp.resourceTradeCost[typeFrom], forThree1);
         }
 
         /** Common to both constructors */
-        private void init(SOCHandPanel hp, int typeFrom, ColorSquare sq, int numFrom)
+        private void init(int typeFrom, ColorSquare sq, int numFrom, boolean forThree1)
         {
-          hpan = hp;
           resSq = sq;
           resTypeFrom = typeFrom;
           costFrom = numFrom;
+          isForThree1 = forThree1;
+          if (forThree1)
+              setLabel("Trade " + costFrom + " "
+                  + ResourceTradeMenuItem.typeName(typeFrom) + " ");
 
           if (resSq != null)
           {
@@ -2284,7 +2339,7 @@ public class SOCHandPanel extends Panel implements ActionListener
           tradeForItems = new ResourceTradeMenuItem[5];
           for (int i = 0; i < 5; ++i)
           {
-              tradeForItems[i] = new ResourceTradeMenuItem (numFrom, typeFrom, i+1);
+              tradeForItems[i] = new ResourceTradeMenuItem(numFrom, typeFrom, i+1, forThree1);
               add(tradeForItems[i]);
               tradeForItems[i].addActionListener(this);
           }
@@ -2341,6 +2396,14 @@ public class SOCHandPanel extends Panel implements ActionListener
             return resTypeFrom;
         }
 
+        /**
+         * @return the cost to trade this resource (3-for-1 returns 3, etc)
+         */
+        public int getResourceCost()
+        {
+            return costFrom;
+        }
+
         /** Handling the menu item **/
         public void actionPerformed(ActionEvent e)
         {
@@ -2367,7 +2430,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
 
         /**
-         * Handle popup-click.
+         * Handle popup-click on resource colorsquare.
          * mousePressed has xwindows/OS-X popup trigger.
          */
         public void mousePressed(MouseEvent evt)
@@ -2376,7 +2439,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
 
         /**
-         * Handle popup-click.
+         * Handle popup-click on resource colorsquare.
          */
         public void mouseClicked(MouseEvent evt)
         {
@@ -2392,7 +2455,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
 
         /**
-         * Handle popup-click.
+         * Handle popup-click on resource colorsquare.
          * mouseReleased has win32 popup trigger.
          */
         public void mouseReleased(MouseEvent evt)
@@ -2428,6 +2491,6 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
         }
 
-    }  /* static nested class ResourceTradePopupMenu */
+    }  /* static nested class ResourceTradeTypeMenu */
 
 }  // class SOCHandPanel
