@@ -58,6 +58,12 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
     protected int wantW, wantH;
 
     /**
+     * Place window in center when displayed (in doLayout),
+     * don't change position afterwards
+     */
+    boolean didSetLocation;
+
+    /**
      * Creates a new SOCDiscardDialog object.
      *
      * @param pi   Client's player interface
@@ -76,6 +82,7 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
 
         discardBut = new Button("Discard");
 
+        didSetLocation = false;
         setLayout(null);
 
         msg = new Label("Please discard " + Integer.toString(numDiscards) + " resources.", Label.CENTER);
@@ -151,33 +158,40 @@ class SOCDiscardDialog extends Dialog implements ActionListener, MouseListener
     public void doLayout()
     {
         int x = getInsets().left;
-        int y = getInsets().top;
         int width = getSize().width - getInsets().left - getInsets().right;
         int height = getSize().height - getInsets().top - getInsets().bottom;
+
+        /* check visible-size vs insets */
+        if ((width < wantW) || (height < wantH))
+        {
+            if (width < wantW)
+                width = wantW + getInsets().left + getInsets().right;
+            if (height < wantH)
+                height = wantH + getInsets().top + getInsets().bottom;
+            setSize (width + 5, height + 5);
+            height = getSize().height - getInsets().top - getInsets().bottom;
+            width = getSize().width - getInsets().left - getInsets().right;
+        }
+
         int space = 5;
         int msgW = this.getFontMetrics(this.getFont()).stringWidth(msg.getText());
-
-        int cfx = playerInterface.getInsets().left;
-        int cfy = playerInterface.getInsets().top;
-        int cfwidth = playerInterface.getSize().width - playerInterface.getInsets().left - playerInterface.getInsets().right;
-        int cfheight = playerInterface.getSize().height - playerInterface.getInsets().top - playerInterface.getInsets().bottom;
-
         int sqwidth = ColorSquareLarger.WIDTH_L;
         int sqspace = (width - (5 * sqwidth)) / 6;
 
         int keepY;
         int discY;
 
-        /* check visible-size vs insets */
-        if ((width < wantW) || (height < wantH))
-        {
-            setSize (wantW + getInsets().left + getInsets().right,
-                     wantH + getInsets().top + getInsets().bottom);
-            height = getSize().height - getInsets().top - getInsets().bottom;
-        }
-
         /* put the dialog in the center of the game window */
-        setLocation(cfx + ((cfwidth - width) / 2), cfy + ((cfheight - height) / 2));
+        if (! didSetLocation)
+        {
+            int cfx = playerInterface.getInsets().left;
+            int cfy = playerInterface.getInsets().top;
+            int cfwidth = playerInterface.getSize().width - playerInterface.getInsets().left - playerInterface.getInsets().right;
+            int cfheight = playerInterface.getSize().height - playerInterface.getInsets().top - playerInterface.getInsets().bottom;
+
+            setLocation(cfx + ((cfwidth - width) / 2), cfy + ((cfheight - height) / 2));
+            didSetLocation = true;
+        }
 
         try
         {

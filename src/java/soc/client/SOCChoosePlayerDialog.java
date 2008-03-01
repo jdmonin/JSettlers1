@@ -52,6 +52,15 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
     Label msg;
     SOCPlayerInterface pi;
 
+    /** Desired size (visible size inside of insets) **/
+    protected int wantW, wantH;
+
+    /**
+     * Place window in center when displayed (in doLayout),
+     * don't change position afterwards
+     */
+    boolean didSetLocation;
+
     /**
      * Creates a new SOCChoosePlayerDialog object.
      *
@@ -69,8 +78,13 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
         setBackground(new Color(255, 230, 162));
         setForeground(Color.black);
         setFont(new Font("Geneva", Font.PLAIN, 12));
+        didSetLocation = false;
         setLayout(null);
-        setSize(350, 120);
+        // wantH formula based on doLayout
+        //    label: 20  button: 20  label: 16  spacing: 10
+        wantW = 320;
+        wantH = 20 + 10 + 20 + 10 + 16 + 5;
+        setSize(wantW + 10, wantH + 20);  // Can calc & add room for insets at doLayout
 
         msg = new Label("Please choose a player to steal from:", Label.CENTER);
         add(msg);
@@ -90,6 +104,9 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
 
             int rescount = pl.getResources().getTotal();            
             player_res_lbl[i] = new Label(rescount + " res.", Label.CENTER);
+            SOCHandPanel ph = pi.getPlayerHandPanel(players[i]);
+            player_res_lbl[i].setBackground(ph.getBackground());
+            player_res_lbl[i].setForeground(ph.getForeground());
             add(player_res_lbl[i]);
             String restooltip;
             switch (rescount)
@@ -133,17 +150,33 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
         int y = getInsets().top;
         int width = getSize().width - getInsets().left - getInsets().right;
         int height = getSize().height - getInsets().top - getInsets().bottom;
+
+        /* check visible-size vs insets */
+        if ((width < wantW) || (height < wantH))
+        {
+            if (width < wantW)
+                width = wantW + getInsets().left + getInsets().right;
+            if (height < wantH)
+                height = wantH + getInsets().top + getInsets().bottom;
+            setSize (width + 5, height + 5);
+            height = getSize().height - getInsets().top - getInsets().bottom;
+            width = getSize().width - getInsets().left - getInsets().right;
+        }
+
         int space = 10;
-
-        int piX = pi.getInsets().left;
-        int piY = pi.getInsets().top;
-        int piWidth = pi.getSize().width - pi.getInsets().left - pi.getInsets().right;
-        int piHeight = pi.getSize().height - pi.getInsets().top - pi.getInsets().bottom;
-
         int bwidth = (width - ((number - 1 + 2) * space)) / number;
 
         /* put the dialog in the center of the game window */
-        setLocation(piX + ((piWidth - width) / 2), piY + ((piHeight - height) / 2));
+        if (! didSetLocation)
+        {
+            int piX = pi.getInsets().left;
+            int piY = pi.getInsets().top;
+            int piWidth = pi.getSize().width - pi.getInsets().left - pi.getInsets().right;
+            int piHeight = pi.getSize().height - pi.getInsets().top - pi.getInsets().bottom;
+
+            setLocation(piX + ((piWidth - width) / 2), piY + ((piHeight - height) / 2));
+            didSetLocation = true;
+        }
 
         try
         {
@@ -151,8 +184,8 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
 
             for (int i = 0; i < number; i++)
             {
-                buttons[i].setBounds(x + space + (i * (bwidth + space)), (getInsets().bottom + height) - (20 + space), bwidth, 20);
-                player_res_lbl[i].setBounds(x + space + (i * (bwidth + space)), (getInsets().bottom + height) - space, bwidth, 16);
+                buttons[i].setBounds(x + space + (i * (bwidth + space)), (getInsets().top + height) - (20 + space + 16 + 5), bwidth, 20);
+                player_res_lbl[i].setBounds(x + space + (i * (bwidth + space)), (getInsets().top + height) - (16 + 5), bwidth, 16);
             }
         }
         catch (NullPointerException e) {}
