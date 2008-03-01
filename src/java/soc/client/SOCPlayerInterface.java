@@ -1039,7 +1039,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         // Clear out old state (similar to constructor)
         int oldGameState = game.getResetOldGameState();
         game = newGame;
-        clientHand.removePlayer();  // will cancel roll countdown timer
+        for (int i = 0; i < hands.length; ++i)
+        {
+            hands[i].removePlayer();  // will cancel roll countdown timer, right-click menus, etc
+            hands[i].disable();
+            hands[i].destroy();
+        }
         clientHand = null;
         clientHandPlayerNum = -1;
         removeAll();  // old sub-components

@@ -143,16 +143,16 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Label wheatLab;
     protected Label woodLab;
     /**
-     * If playerIsClient, track cost of bank/port trade per resource.
-     * Index 0 unused; index 1 is {@link SOCResourceConstants#CLAY}, etc.
-     * Highest index is 5.
+     * For right-click resource to trade - If playerIsClient, track cost
+     * of bank/port trade per resource. Index 0 unused; index 1 is
+     * {@link SOCResourceConstants#CLAY}, etc. Highest index is 5.
      * Null, unless playerIsClient and addPlayer has been called.
      */
     protected int[] resourceTradeCost;
     /**
-     * If playerIsClient, popup menus to bank/port trade resources.
-     * Index 0 unused; index 1 is {@link SOCResourceConstants#CLAY}, etc.
-     * Highest index is 5.
+     * For right-click resource to trade - If playerIsClient, popup menus
+     * to bank/port trade resources. Index 0 unused; index 1 is
+     * {@link SOCResourceConstants#CLAY}, etc. Highest index is 5.
      * Null, unless playerIsClient and addPlayer has been called.
      */
     protected ResourceTradeTypeMenu[] resourceTradeMenu;
@@ -986,6 +986,21 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
+     * Remove elements to clean up this panel.
+     * Calls removePlayer() as part of cleanup.
+     */
+    public void destroy()
+    {
+        removePlayer();
+        claySq.disable();
+        oreSq.disable();
+        sheepSq.disable();
+        wheatSq.disable();
+        woodSq.disable();
+        removeAll();
+    }
+
+    /**
      * DOCUMENT ME!
      *
      * @param name DOCUMENT ME!
@@ -1048,7 +1063,22 @@ public class SOCHandPanel extends Panel implements ActionListener
             woodLab.setVisible(true);
 
             resourceTradeCost = new int[6];
-            resourceTradeMenu = new ResourceTradeTypeMenu[6];
+            if (resourceTradeMenu != null)
+            {
+                // Forgot to call removePlayer
+                for (int i = 0; i < resourceTradeMenu.length; ++i)
+                {
+                    if (resourceTradeMenu[i] != null)
+                    {
+                        resourceTradeMenu[i].destroy();
+                        resourceTradeMenu[i] = null;
+                    }
+                }
+            }
+            else
+            {
+                resourceTradeMenu = new ResourceTradeTypeMenu[6];
+            }
             updateResourceTradeCosts(true);
 
             //cardLab.setVisible(true);
@@ -2333,8 +2363,8 @@ public class SOCHandPanel extends Panel implements ActionListener
 
           if (resSq != null)
           {
-              resSq.addMouseListener(this);
               resSq.add(this);
+              resSq.addMouseListener(this);
           }
           tradeForItems = new ResourceTradeMenuItem[5];
           for (int i = 0; i < 5; ++i)
@@ -2444,7 +2474,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         public void mouseClicked(MouseEvent evt)
         {
             try {
-                if (evt.isPopupTrigger())
+                if ((resSq == evt.getSource()) && evt.isPopupTrigger())
                 {
                     evt.consume();
                     show(evt.getX(), evt.getY());
@@ -2481,14 +2511,14 @@ public class SOCHandPanel extends Panel implements ActionListener
                     mi.removeActionListener(this);
                 }
             }
-            removeAll();
             hpan = null;
             if (resSq != null)
             {
-                resSq.removeMouseListener(this);
                 resSq.remove(this);
+                resSq.removeMouseListener(this);
                 resSq = null;
             }
+            removeAll();
         }
 
     }  /* static nested class ResourceTradeTypeMenu */
