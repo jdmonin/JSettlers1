@@ -4539,11 +4539,19 @@ public class SOCServer extends Server
         //c.put(SOCGameState.toCmd(gameName, gameData.getGameState()));
         for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
-            SOCPlayer pl = gameData.getPlayer(i);
-
-            if ((pl.getName() != null) && (!gameData.isSeatVacant(i)))
+            /**
+             * send the already-seated player information;
+             * if isReset, don't send, because sitDown will
+             * be sent from resetBoardAndNotify.
+             */
+            if (! isReset)
             {
-                c.put(SOCSitDown.toCmd(gameName, pl.getName(), i, pl.isRobot()));
+                SOCPlayer pl = gameData.getPlayer(i);
+                String plName = pl.getName(); 
+                if ((plName != null) && (!gameData.isSeatVacant(i)))
+                {
+                    c.put(SOCSitDown.toCmd(gameName, plName, i, pl.isRobot()));
+                }
             }
 
             /**
