@@ -492,7 +492,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     public synchronized void init()
     {
         System.out.println("Java Settlers Client " + Version.version() +
-                           ", " + Version.copyright());
+                           ", build " + Version.buildnum() + ", " + Version.copyright());
         System.out.println("Network layer based on code by Cristian Bogdan; local network by Jeremy Monin.");
 
         String param = null;
