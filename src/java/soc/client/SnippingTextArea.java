@@ -196,7 +196,7 @@ public class SnippingTextArea extends TextArea
             lines--;
         }
 
-        if (isShowing())
+        if (isDisplayable())
             super.setCaretPosition(getText().length());
     }
 }
