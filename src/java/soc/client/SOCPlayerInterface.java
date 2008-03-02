@@ -198,7 +198,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     protected int npix;
 
     /**
-     * to reduce text clutter: server has just sent a dice result message.
+     * To reduce text clutter: server has just sent a dice result message.
      * If the next text message from server is the roll,
      *   replace: * It's Player's turn to roll the dice. \n * Player rolled a 4 and a 5.
      *   with:    * It's Player's turn to roll. Rolled a 9.
@@ -206,6 +206,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Set to 0 at most times.
      * Set to the roll result when roll text is expected.
      * Will be cleared to 0 in {@link #print(String)}.
+     * Whenever this field is nonzero, textmessages from the server
+     * will be scanned for " rolled a ".
      */
     protected int textDisplayRollExpected;
 
@@ -502,7 +504,19 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * @param textDisplayRollExpected The roll result, or 0. JM TODO text
+     * To reduce text clutter: server has just sent a dice result message.
+     * If the next text message from server is the roll,
+     *   replace: * It's Player's turn to roll the dice. \n * Player rolled a 4 and a 5.
+     *   with:    * It's Player's turn to roll. Rolled a 9.
+     *<P>
+     * Set to 0 at most times.
+     * Set to the roll result when roll text is expected.
+     * Will be cleared to 0 in {@link #print(String)}.
+     *<P>
+     * Whenever this field is nonzero, textmessages from the server
+     * will be scanned for " rolled a ".
+     *
+     * @param textDisplayRollExpected The expected roll result, or 0.
      */
     public void setTextDisplayRollExpected(int roll)
     {

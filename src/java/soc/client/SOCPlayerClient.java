@@ -52,6 +52,7 @@ import java.awt.BorderLayout;
 import java.awt.Button;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Frame;
@@ -122,6 +123,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Exception ex = null;    // Network errors (TCP communication)
     protected Exception ex_L = null;  // Local errors (stringport pipes)
     protected boolean connected = false;
+    /**
+     * Once true, disable "nick" textfield, etc.
+     * Remains true, even if connected becomes false.
+     */
+    protected boolean hasJoinedServer;
 
     /**
      * For local practice games (pipes, not TCP), the name of the pipe.
@@ -1475,6 +1481,16 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         pass.setText("");
         pass.setEditable(false);
         gotPassword = true;
+        if (! hasJoinedServer)
+        {
+            Container c = getParent();
+            if ((c != null) && (c instanceof Frame))
+            {
+                Frame fr = (Frame) c;
+                fr.setTitle(fr.getTitle() + " [" + nick.getText() + "]");
+            }
+            hasJoinedServer = true;
+        }
 
         ChannelFrame cf = new ChannelFrame(mes.getChannel(), this);
         cf.setVisible(true);
@@ -1636,6 +1652,16 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         pass.setEditable(false);
         pass.setText("");
         gotPassword = true;
+        if (! hasJoinedServer)
+        {
+            Container c = getParent();
+            if ((c != null) && (c instanceof Frame))
+            {
+                Frame fr = (Frame) c;
+                fr.setTitle(fr.getTitle() + " [" + nick.getText() + "]");
+            }
+            hasJoinedServer = true;
+        }
 
         SOCGame ga = new SOCGame(mes.getGame());
 
@@ -2557,7 +2583,6 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
         SOCHandPanel hp = pi.getPlayerHandPanel(pl.getPlayerNumber());
         hp.updateResourcesVP();
-        hp.updateResourceTradeCosts(false);
         pi.getBoardPanel().updateMode();
     }
 

@@ -992,11 +992,6 @@ public class SOCHandPanel extends Panel implements ActionListener
     public void destroy()
     {
         removePlayer();
-        claySq.disable();
-        oreSq.disable();
-        sheepSq.disable();
-        wheatSq.disable();
-        woodSq.disable();
         removeAll();
     }
 
@@ -1823,7 +1818,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * Re-read player's resource info and victory points, update the display.
+     * Re-read player's resource info and victory points, update the
+     * display and resource trade costs and resourceTradeMenu text.
      */
     public void updateResourcesVP()
     {
@@ -1834,6 +1830,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             updateValue(SHEEP);
             updateValue(WHEAT);
             updateValue(WOOD);
+            updateResourceTradeCosts(false);
         }
         else
         {
@@ -1863,9 +1860,11 @@ public class SOCHandPanel extends Panel implements ActionListener
                 newCost = 3;
             else
                 newCost = 4;
-            resourceTradeCost[i] = newCost;
+
             if (doInit || (newCost != oldCost))
             {
+                resourceTradeCost[i] = newCost;
+
                 /**
                  * Update menu text
                  */
@@ -2344,8 +2343,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             throws IllegalStateException
         {
             super(hp, "Trade Port");
-            SOCPlayerInterface pi = hp.getPlayerInterface();
-            if (! pi.clientIsCurrentPlayer())
+            if (! hp.getPlayerInterface().clientIsCurrentPlayer())
                 throw new IllegalStateException("Not current player");
             init(typeFrom, null, hp.resourceTradeCost[typeFrom], forThree1);
         }
@@ -2395,8 +2393,10 @@ public class SOCHandPanel extends Panel implements ActionListener
          */
         public void setEnabledIfCanTrade(boolean itemsOnly)
         {
+            SOCPlayer p = hpan.getPlayer();
             boolean canTrade = (hpan.getGame().getGameState() == SOCGame.PLAY1)
-                && (costFrom <= hpan.getPlayer().getResources().getAmount(resTypeFrom));
+                && (hpan.getGame().getCurrentPlayerNumber() == p.getPlayerNumber())
+                && (costFrom <= p.getResources().getAmount(resTypeFrom));
             if (itemsOnly)
             {
                 for (int i = 0; i < 5; ++i)
