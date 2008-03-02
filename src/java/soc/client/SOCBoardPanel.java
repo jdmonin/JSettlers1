@@ -2232,8 +2232,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
          * Does not affect the "hilight" variable used by SOCBoardPanel during
          * initial placement, and during placement from clicking "Buy" buttons.
          * 
-         * @param x Cursor x
-         * @param y Cursor y
+         * @param x Cursor x, from upper-left of board
+         * @param y Cursor y, from upper-left of board
          */
         private void handleHover(int x, int y)
         {
@@ -2293,7 +2293,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                         else
                             sb.append("Settlement: ");
                     }
-                    sb.append(p.getPlayer().getName());
+                    String plName = p.getPlayer().getName();
+                    if (plName == null)
+                        plName = "unowned";
+                    sb.append(plName);
                     setHoverText(sb.toString());
                     hoverTextSet = true;
 
@@ -2367,7 +2370,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                         hoverMode = PLACE_ROAD;
                         hoverPiece = p;
                         hoverID = id;
-                        setHoverText("Road: " + p.getPlayer().getName());
+                        String plName = p.getPlayer().getName();
+                        if (plName == null)
+                            plName = "unowned";
+                        setHoverText("Road: " + plName);
                     }
                     hoverRoadID = 0;
                     
