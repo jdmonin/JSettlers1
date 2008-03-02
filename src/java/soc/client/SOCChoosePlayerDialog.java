@@ -148,19 +148,21 @@ class SOCChoosePlayerDialog extends Dialog implements ActionListener
     {
         int x = getInsets().left;
         int y = getInsets().top;
-        int width = getSize().width - getInsets().left - getInsets().right;
-        int height = getSize().height - getInsets().top - getInsets().bottom;
+        int padW = getInsets().left + getInsets().right;
+        int padH = getInsets().top + getInsets().bottom;
+        int width = getSize().width - padW;
+        int height = getSize().height - padH;
 
         /* check visible-size vs insets */
-        if ((width < wantW) || (height < wantH))
+        if ((width < wantW + padW) || (height < wantH + padH))
         {
-            if (width < wantW)
-                width = wantW + getInsets().left + getInsets().right;
-            if (height < wantH)
-                height = wantH + getInsets().top + getInsets().bottom;
-            setSize (width + 5, height + 5);
-            height = getSize().height - getInsets().top - getInsets().bottom;
-            width = getSize().width - getInsets().left - getInsets().right;
+            if (width < wantW + padW)
+                width = wantW + 1;
+            if (height < wantH + padH)
+                height = wantH + 1;
+            setSize (width + padW, height + padH);
+            width = getSize().width - padW;
+            height = getSize().height - padH;
         }
 
         int space = 10;
