@@ -2404,7 +2404,7 @@ public class SOCRobotBrain extends Thread
             catch (Throwable e)
             {
                 // Ignore errors due to game reset in another thread
-                if ((game == null) || (game.getGameState() != SOCGame.RESET_OLD))
+                if (alive && ((game == null) || (game.getGameState() != SOCGame.RESET_OLD)))
                 {
                     D.ebugPrintln("*** Robot caught an exception - " + e);
                     System.out.println("*** Robot caught an exception - " + e);
@@ -2687,8 +2687,11 @@ public class SOCRobotBrain extends Thread
             catch (Exception e)
             {
                 tracker.releaseMonitor();
-                System.out.println("Exception caught - " + e);
-                e.printStackTrace();
+                if (alive)
+                {
+                    System.out.println("Exception caught - " + e);
+                    e.printStackTrace();
+                }
             }
 
             tracker.releaseMonitor();
@@ -2720,8 +2723,11 @@ public class SOCRobotBrain extends Thread
             catch (Exception e)
             {
                 tracker.releaseMonitor();
-                System.out.println("Exception caught - " + e);
-                e.printStackTrace();
+                if (alive)
+                {
+                    System.out.println("Exception caught - " + e);
+                    e.printStackTrace();
+                }
             }
 
             tracker.releaseMonitor();
@@ -2751,8 +2757,11 @@ public class SOCRobotBrain extends Thread
             catch (Exception e)
             {
                 tracker.releaseMonitor();
-                System.out.println("Exception caught - " + e);
-                e.printStackTrace();
+                if (alive)
+                {
+                    System.out.println("Exception caught - " + e);
+                    e.printStackTrace();
+                }
             }
 
             tracker.releaseMonitor();
