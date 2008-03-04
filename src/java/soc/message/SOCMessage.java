@@ -124,12 +124,12 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public static final int STATUSMESSAGE = 1069;
     public static final int CREATEACCOUNT = 1070;
     public static final int UPDATEROBOTPARAMS = 1071;
-    public static final int ROLLDICEPROMPT = 1072;     // JM 20071003
-    public static final int RESETBOARDREQUEST = 1073;  // JM 20080217
-    public static final int RESETBOARDAUTH = 1074;     // JM 20080217
-    public static final int RESETBOARDVOTEREQUEST = 1075; // JM 20080223
-    public static final int RESETBOARDVOTE = 1076;     // JM 20080223
-    public static final int RESETBOARDREJECT = 1077;   // JM 20080223
+    public static final int ROLLDICEPROMPT = 1072;     // autoroll, 20071003, sf patch #1812254
+    public static final int RESETBOARDREQUEST = 1073;  // resetboard, 20080217, sf patch#tbd
+    public static final int RESETBOARDAUTH = 1074;     // resetboard, 20080217, sf patch#tbd
+    public static final int RESETBOARDVOTEREQUEST = 1075; // resetboard, 20080223, sf patch#tbd
+    public static final int RESETBOARDVOTE = 1076;     // resetboard, 20080223, sf patch#tbd
+    public static final int RESETBOARDREJECT = 1077;   // resetboard, 20080223, sf patch#tbd
     public static final int SERVERPING = 9999;
 
     /**
@@ -415,22 +415,22 @@ public abstract class SOCMessage implements Serializable, Cloneable
             case SERVERPING:
                 return SOCServerPing.parseDataStr(data);
 
-            case ROLLDICEPROMPT:    // JM 20071003
+            case ROLLDICEPROMPT:     // autoroll, 20071003, sf patch #1812254
                 return SOCRollDicePrompt.parseDataStr(data);
 
-            case RESETBOARDREQUEST:  // JM 20080217
+            case RESETBOARDREQUEST:  // resetboard, 20080217, sf patch#tbd
                 return SOCResetBoardRequest.parseDataStr(data);
 
-            case RESETBOARDAUTH:  // JM 20080217
+            case RESETBOARDAUTH:     // resetboard, 20080217, sf patch#tbd
                 return SOCResetBoardAuth.parseDataStr(data);
-            
-            case RESETBOARDVOTEREQUEST:  // JM 20080223
+
+            case RESETBOARDVOTEREQUEST:  // resetboard, 20080223, sf patch#tbd
                 return SOCResetBoardVoteRequest.parseDataStr(data);
 
-            case RESETBOARDVOTE:  // JM 20080223
+            case RESETBOARDVOTE:     // resetboard, 20080223, sf patch#tbd
                 return SOCResetBoardVote.parseDataStr(data);
 
-            case RESETBOARDREJECT:  // JM 20080223
+            case RESETBOARDREJECT:   // resetboard, 20080223, sf patch#tbd
                 return SOCResetBoardReject.parseDataStr(data);
 
             default:
