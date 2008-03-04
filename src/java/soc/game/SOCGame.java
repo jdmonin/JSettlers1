@@ -70,7 +70,7 @@ public class SOCGame implements Serializable, Cloneable
      * @see #resetAsCopy()
      * @see #getResetOldGameState()
      */
-    public static final int RESET_OLD = 1302;
+    public static final int RESET_OLD = 1001;
 
     /**
      * seat states
