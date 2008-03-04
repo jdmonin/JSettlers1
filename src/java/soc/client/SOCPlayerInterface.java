@@ -1225,7 +1225,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     protected static class ResetBoardVoteDialog extends AskDialog implements Runnable
     {
-        /** Runs in own thread to not tie up client's message-treater thread. */
+        /** Runs in own thread, to not tie up client's message-treater thread. */
         private Thread rdt;
 
         /** If true, don't call any methods from callbacks here */
@@ -1275,11 +1275,6 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             pcli.resetBoardVote(pi.getGame(), pi.getClientPlayerNumber(), false);
             pi.resetBoardClearDia();
         }
-
-        /**
-         * There is no button 3.
-         */
-        public void button3Chosen() {}
 
         /**
          * React to the dialog window closed by user. (Vote No)
@@ -1340,7 +1335,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         {
             // leaveGame();
             SOCQuitConfirmDialog.createAndShow(pi.getClient(), pi);
-        }        
+        }
     }
 
     /**
@@ -1415,4 +1410,5 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         public void focusGained(FocusEvent e) {}
 
     }
+
 }

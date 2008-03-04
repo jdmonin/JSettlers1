@@ -40,6 +40,11 @@ import java.awt.event.WindowListener;
 
 /**
  * This is the generic dialog to ask players a two- or three-choice question.
+ *<P>
+ * To react to button presses, override the abstract methods
+ * {@link #button1Chosen()}, {@link #button2Chosen()}, 
+ * {@link #windowCloseChosen()}, and (for a three-choice
+ * question) override {@link #button3Chosen()}.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
@@ -320,8 +325,9 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     /**
      * The optional button 3 has been chosen by the user. React accordingly.
      * actionPerformed has already called dialog.dispose().
+     * Please override this empty stub if you have a third button.
      */
-    public abstract void button3Chosen();
+    public void button3Chosen() { }
 
     /**
      * The dialog window was closed by the user, or ESC was pressed. React accordingly.

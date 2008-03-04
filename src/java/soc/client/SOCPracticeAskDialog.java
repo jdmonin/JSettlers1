@@ -59,11 +59,6 @@ class SOCPracticeAskDialog extends AskDialog
     }
 
     /**
-     * Stub: this window has no third button
-     */
-    public void button3Chosen() {}
-
-    /**
      * React to the dialog window closed by user, or Esc pressed. (same as Show button)
      */
     public void windowCloseChosen()

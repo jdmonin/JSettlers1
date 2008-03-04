@@ -105,7 +105,7 @@ class SOCQuitConfirmDialog extends AskDialog
     }
 
     /**
-     * React to the Reset Board button.
+     * React to the Reset Board button. (call playerInterface.resetBoardRequest)
      */
     public void button3Chosen()
     {
