@@ -568,9 +568,9 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     }
 
     /**
-     * set the boardResetAskedThisTurn flag
+     * set the flag indicating if the player asked to reset the board this turn
      *
-     * @param value the value of the flag
+     * @param true to set, false to clear
      */
     public void setAskedBoardReset(boolean value)
     {

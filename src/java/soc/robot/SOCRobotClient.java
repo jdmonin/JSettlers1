@@ -668,7 +668,8 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     }
 
     /**
-     * handle the "join game request" message. Board resets are also handled this way.
+     * handle the "join game request" message.
+     * Board resets are handled similarly.
      * @param mes  the message
      *
      * @see #handleRESETBOARDAUTH(SOCResetBoardAuth)
@@ -1758,6 +1759,7 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
             }
         }
     }
+
     /**
      * handle board reset
      * (new game with same players, same game name).

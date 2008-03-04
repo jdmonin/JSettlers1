@@ -2581,8 +2581,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         ga.undoPutInitSettlement(pp);
 
         SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-        SOCHandPanel hp = pi.getPlayerHandPanel(pl.getPlayerNumber());
-        hp.updateResourcesVP();
+        pi.getPlayerHandPanel(pl.getPlayerNumber()).updateResourcesVP();
         pi.getBoardPanel().updateMode();
     }
 
@@ -3032,7 +3031,6 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         pi.resetBoardRejected();
     }
 
-    
     /**
      * add a new game to the initial window's list of games
      *

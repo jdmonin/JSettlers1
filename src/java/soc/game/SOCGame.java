@@ -66,7 +66,7 @@ public class SOCGame implements Serializable, Cloneable
     public static final int OVER = 1000; // The game is over
     /**
      * This game is an obsolete old copy of a new (reset) game with the same name.
-     * To assist logic, constant value is greater than OVER.
+     * To assist logic, numeric constant value is greater than OVER.
      * @see #resetAsCopy()
      * @see #getResetOldGameState()
      */
@@ -83,7 +83,7 @@ public class SOCGame implements Serializable, Cloneable
     public static final boolean LOCKED = true;
     public static final boolean UNLOCKED = false;
     /**
-     * boardResetVotes states: no vote yet, yes, no.
+     * boardResetVotes states: no vote sent; yes; no.
      */
     public static final int VOTE_NONE = 0;
     public static final int VOTE_YES  = 1;
@@ -2556,7 +2556,7 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * the current player plays a Road Building card.
+     * The current player plays a Road Building card.
      * This card directs the player to place 2 roads.
      * Checks of game rules online show "MAY" or "CAN", not "MUST" place 2.
      * If they have 2 or more roads, may place 2; gameState becomes PLACING_FREE_ROAD1.

@@ -4346,8 +4346,9 @@ public class SOCServer extends Server
 
     /**
      * handle "reset-board request" message.
-     * Start a vote, or reset the game to a copy with
-     * same name and (copy of) players, new layout.
+     * If multiple human players, start a vote.
+     * Otherwise, reset the game to a copy with
+     * same name and (copy of) same players, new layout.
      *<P>
      * The requesting player doesn't vote, but server still
      * sends the vote-request-message, to tell that client their
@@ -4408,7 +4409,9 @@ public class SOCServer extends Server
 
     /**
      * handle message of player's vote for a "reset-board" request.
-     * Reset the game to a copy with same name and (copy of) players, new layout.
+     * Register the player's vote.
+     * If all votes have now arrived, and the vote is unanimous,
+     * reset the game to a copy with same name and players, new layout.
      *
      * @see #resetBoardAndNotify(String, String)
      *
@@ -4435,13 +4438,21 @@ public class SOCServer extends Server
             int pn = reqPlayer.getPlayerNumber();
             boolean vyes = mes.getPlayerVote();
 
-            // Register to game
+            // Register in game
             votingComplete = ga.resetVoteRegister(pn, vyes);
             // Tell other players
             messageToGame (gaName, new SOCResetBoardVote(gaName, pn, vyes));
         }
-        catch (IllegalArgumentException e) {}  // TODO log?
-        catch (IllegalStateException e) {}     // TODO log?
+        catch (IllegalArgumentException e)
+        {
+            D.ebugPrintln("*Error in player voting: game " + ga.getName() + ": " + e);
+            return;
+        }
+        catch (IllegalStateException e)
+        {
+            D.ebugPrintln("*Voting not active: game " + ga.getName());
+            return;
+        }
 
         if (! votingComplete)
         {
