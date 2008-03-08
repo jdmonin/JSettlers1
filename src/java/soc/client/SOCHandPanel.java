@@ -60,6 +60,9 @@ import java.util.TimerTask;
  */
 public class SOCHandPanel extends Panel implements ActionListener
 {
+    /** Minimum desired width, in pixels */
+    public static final int WIDTH_MIN = 218;
+
     public static final int ROADS = 0;
     public static final int SETTLEMENTS = 1;
     public static final int CITIES = 2;
@@ -597,16 +600,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if (target == CLEAR)
         {
-            if (playerIsClient)
-            {
-                clearOffer(true);  // Zero the square panel numbers, etc. (TODO) better descr.
-            } else {
-                // TODO can target ever be CLEAR without playerIsClient ?
-                sqPanel.setValues(zero, zero);
-                clearBut.disable();
-                sendBut.disable();
-            }
-
+            clearOffer(true);    // Zero the square panel numbers, unless board-reset vote in progress
             if (game.getGameState() == SOCGame.PLAY1)
             {
                 client.clearOffer(game);
@@ -1605,7 +1599,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                 updateCurrentOffer();
         }
     }
-    
+
     /**
      * update the takeover button so that it only
      * allows takover when it's not the robot's turn

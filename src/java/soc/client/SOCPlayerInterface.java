@@ -64,6 +64,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     protected SOCBoardPanel boardPanel;
 
     /**
+     * Is the boardpanel stretched beyond normal size in {@link #doLayout()}?
+     */
+    protected boolean boardIsScaled;
+
+    /**
      * where the player types in text
      */
     protected TextField textInput;
@@ -151,7 +156,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Set by SOCHandPanel's removePlayer() and addPlayer() methods.
      */
     protected SOCHandPanel clientHand;
-    
+
     /**
      * Player ID of clientHand, or -1.
      * Set by SOCHandPanel's removePlayer() and addPlayer() methods.
@@ -331,6 +336,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         boardPanel.setBackground(new Color(112, 45, 10));
         boardPanel.setForeground(Color.black);
         boardPanel.setSize(SOCBoardPanel.getPanelX(), SOCBoardPanel.getPanelY());
+        boardIsScaled = false;
         add(boardPanel);
 
         /**
@@ -493,7 +499,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         else
             return clientHand.isClientAndCurrentPlayer();
     }
-    
+
     /** If client player is active in game, their player number.
      * 
      * @return client's player ID, or -1.
@@ -1089,6 +1095,16 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
+     * if debug is enabled, print this in the chat display.
+     */
+    public void chatPrintDebug(String debugMsg)
+    {
+        if (! D.ebugIsEnabled())
+            return;
+        chatPrint(debugMsg + "\n");
+    }
+
+    /**
      * if debug is enabled, print this exception's stack trace in
      * the chat display.  This eases tracing of exceptions when
      * our code is called in AWT threads (such as EventDispatch).
@@ -1162,6 +1178,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         dim.width -= (i.left + i.right);
         dim.height -= (i.top + i.bottom);
 
+        /**
+         * Classic Sizing
         int bw = SOCBoardPanel.getPanelX();
         int bh = SOCBoardPanel.getPanelY();
         int hw = (dim.width - bw - 16) / 2;
@@ -1170,8 +1188,60 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         int kh = buildingPanel.getSize().height;
         int tfh = textInput.getSize().height;
         int tah = dim.height - bh - kh - tfh - 16;
+         */
 
-        boardPanel.setBounds(i.left + hw + 8, i.top + tfh + tah + 8, SOCBoardPanel.getPanelX(), SOCBoardPanel.getPanelY());
+        /**
+         * Stretch-board Sizing:
+         * If board can be at least 20% past minimum width,
+         * based on minimum handpanel width, scale it larger.
+         * Otherwise, go with normal widths (widen handpanels instead).
+         */
+        int bw = (dim.width - 16 - (2*SOCHandPanel.WIDTH_MIN));
+        int bh = (int) ((bw * (long) SOCBoardPanel.panely) / SOCBoardPanel.panelx);
+        int kh = buildingPanel.getSize().height;
+        int tfh = textInput.getSize().height;
+        if (bh > (dim.height - kh - 16 - (int)(5.5f * tfh)))
+        {
+            // Window is wide: board would be taller than fits in window.
+            // Re-calc board max height, then board width.
+            bh = dim.height - kh - 16 - (int)(5.5f * tfh);
+            bw = (int) ((bh * (long) SOCBoardPanel.panelx) / SOCBoardPanel.panely);
+        }
+        int hw = (dim.width - bw - 16) / 2;
+        int tah = dim.height - bh - kh - tfh - 16;
+        boolean canScaleBoard = (bw >= (1.2f * SOCBoardPanel.panelx));
+        if (canScaleBoard)
+        {
+            try
+            {
+                boardPanel.setBounds(i.left + hw + 8, i.top + tfh + tah + 8, bw, bh);
+            }
+            catch (IllegalArgumentException e)
+            {
+                canScaleBoard = false;
+            }
+        }
+        if (! canScaleBoard)
+        {
+            bw = SOCBoardPanel.panelx;
+            bh = SOCBoardPanel.panely;
+            hw = (dim.width - bw - 16) / 2;
+            tah = dim.height - bh - kh - tfh - 16;
+            try
+            {
+                boardPanel.setBounds(i.left + hw + 8, i.top + tfh + tah + 8, bw, bh);
+            }
+            catch (IllegalArgumentException ee)
+            {
+                bw = boardPanel.getSize().width;
+                bh = boardPanel.getSize().height;
+                hw = (dim.width - bw - 16) / 2;
+                tah = dim.height - bh - kh - tfh - 16;
+            }
+        }
+        boardIsScaled = canScaleBoard;
+        int hh = (dim.height - 12) / 2;
+        int kw = bw;
 
         buildingPanel.setBounds(i.left + hw + 8, i.top + tah + tfh + bh + 12, kw, kh);
 

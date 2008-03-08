@@ -61,7 +61,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private static String IMAGEDIR = "/soc/client/images";
 
     /**
-     * size of the whole panel
+     * size of the whole panel, internal-pixels "scale"
+     * {@link #scaledPanelx} {@link #scaledPanely};
+     * also minimum acceptable size in screen pixels.
      */
     public static final int panelx = 379;
     public static final int panely = 340;
@@ -132,6 +134,27 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     {
         6, 4, 2, 0, 0, 2, 4, 6, 8, 16, 16, 8, 6, 6
     };
+
+    /**
+     * Arrow, left-pointing.
+     * First point is top of arrow-tip, last point is bottom of tip.
+     * @see #ARROW_SZ 
+     */
+    private static final int[] arrowLX =
+    {
+        0,  17, 18, 18, 36, 36, 18, 18, 17,  0
+    };
+    private static final int[] arrowLY =
+    {
+        17,  0,  0,  6,  6, 30, 30, 36, 36, 19
+    };
+
+    /** Arrow fits in a 37 x 37 square. @see #arrowLX */
+    private static final int ARROW_SZ = 37;
+
+    /** Arrow color: r=106,g=183,b=183 cyan */
+    private static final Color ARROW_COLOR = new Color(106, 183, 183);
+
     public final static int NONE = 0;
     public final static int PLACE_ROAD = 1;
     public final static int PLACE_SETTLEMENT = 2;
@@ -164,10 +187,30 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     protected static int POPUP_MENU_IGNORE_MS = 150;
 
     /**
-     * hex size
+     * hex size, internal-pixels
      */
     private int HEXWIDTH = 55;
     private int HEXHEIGHT = 64;
+
+    /**
+     * actual size on-screen, not internal-pixels size
+     * {@link #panelx} {@link #panely}
+     */
+    protected boolean isScaled;
+    protected int scaledPanelx;
+    protected int scaledPanely;
+    /**
+     * Time of last resize, as returned by {@link System#currentTimeMillis()}
+     */
+    protected long scaledAt;
+    /**
+     * If board is scaled, could be waiting for an image to resize.
+     * If it still hasn't appeared after 7 seconds, we'll give
+     * up and create a new one.  (This can happen due to AWT bugs.)
+     * Set in {@link #drawHex(Graphics, int)}, checked in {@link #drawBoard(Graphics)}.
+     * @see #scaledHexFail
+     */
+    protected boolean scaledMissedImage;
 
     /**
      * translate hex ID to number to get coords
@@ -175,22 +218,39 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private int[] hexIDtoNum;
 
     /**
-     * Hex pix
+     * Hex pix - shared original-resolution copy.
+     * @see #scaledHexes
      */
     private static Image[] hexes;
     private static Image[] ports;
+    /**
+     * Hex pix - private scaled copy, if isScaled.
+     * @see #hexes
+     */
+    private Image[] scaledHexes;
+    private Image[] scaledPorts;
+    /**
+     * Hex pix - Flag to check if rescaling failed, if isScaled.
+     * @see #hexes
+     * @see #drawHex(Graphics, int)
+     */
+    private boolean[] scaledHexFail;
+    private boolean[] scaledPortFail;
 
     /**
      * number pix
      */
     private static Image[] numbers;
+    private Image[] scaledNumbers;
+    private boolean[] scaledNumberFail;
 
     /**
-     * arrow/dice pix
+     * dice pix (for arrow). @see #DICE_SZ
      */
-    private static Image arrowR;
-    private static Image arrowL;
     private static Image[] dice;
+
+    /** Dice number fits in a 25 x 25 square. @see #dice */
+    private static final int DICE_SZ = 25;
 
     /**
      * Old pointer coords for interface
@@ -313,6 +373,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         player = null;
         playerNumber = -1;
         board = game.getBoard();
+        isScaled = false;
+        scaledPanelx = panelx;
+        scaledPanely = panely;
+        scaledMissedImage = false;
 
         int i;
 
@@ -400,6 +464,20 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         // load the static images
         loadImages(this);
+
+        // point to static images, unless we're later resized
+        scaledHexes = new Image[hexes.length];
+        scaledPorts = new Image[ports.length];
+        scaledNumbers = new Image[numbers.length];
+        for (i = hexes.length - 1; i>=0; --i)
+            scaledHexes[i] = hexes[i];
+        for (i = ports.length - 1; i>=0; --i)
+            scaledPorts[i] = ports[i];
+        for (i = numbers.length - 1; i>=0; --i)
+            scaledNumbers[i] = numbers[i];
+        scaledHexFail = new boolean[hexes.length];
+        scaledPortFail = new boolean[ports.length];
+        scaledNumberFail = new boolean[numbers.length];
     }
 
     private final void initEdgeMapAux(int x1, int y1, int x2, int y2, int startHex)
@@ -682,8 +760,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * @return DOCUMENT ME!
      */
     public Dimension getPreferredSize()
-    {
-        return new Dimension(panelx, panely);
+    {        
+        return new Dimension(scaledPanelx, scaledPanely);
     }
 
     /**
@@ -696,6 +774,102 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         return new Dimension(panelx, panely);
     }
 
+    public void setSize(int newX, int newY)
+        throws IllegalArgumentException
+    {
+        // TODO warnings, javadocs
+        if ((newX == scaledPanelx) && (newY == scaledPanely))
+            return;  // Already sized.
+
+        // If below min-size, rescaleBoard throws
+        // IllegalArgumentException. Pass to our caller.
+        resizeBoard(newX, newY);
+
+        // Resize
+        super.setSize(newX, newY);
+        repaint();
+    }
+
+    public void setSize(Dimension sz)
+        throws IllegalArgumentException
+    {
+        setSize (sz.width, sz.height);
+    }
+
+    public void setBounds(int x, int y, int w, int h)
+        throws IllegalArgumentException
+    {
+        // overrode because of pi.doLayout (TODO docu).
+        if ((w != scaledPanelx) || (h != scaledPanely))            
+        {
+            resizeBoard(w, h);
+        }
+        super.setBounds(x, y, w, h);
+    }
+
+    // TODO javadocs
+    // does not call repaint
+    // ignores if 0,0 (called during initial layout)
+    private void resizeBoard(int newX, int newY)
+        throws IllegalArgumentException
+    {
+        if ((newX == 0) || (newY == 0))
+            return;
+        if ((newX < panelx) || (newY < panely))
+            throw new IllegalArgumentException("Below minimum size");
+    
+        // Set vars
+        scaledPanelx = newX;
+        scaledPanely = newY;
+        isScaled = ((scaledPanelx != panelx) || (scaledPanely != panely));
+        scaledAt = System.currentTimeMillis();
+
+        // Off-screen buffer is now the wrong size.
+        // paint() will create a new one.
+        if (buffer != null)
+        {
+            buffer.flush();
+            buffer = null;
+        }
+
+        if (! isScaled)
+        {
+            int i;
+            for (i = scaledHexes.length - 1; i>=0; --i)
+                scaledHexes[i] = hexes[i];
+            for (i = ports.length - 1; i>=0; --i)
+                scaledPorts[i] = ports[i];
+            for (i = numbers.length - 1; i>=0; --i)
+                scaledNumbers[i] = numbers[i];
+        }
+        else
+        {
+            int w = scaleToActualX(hexes[0].getWidth(null));
+            int h = scaleToActualY(hexes[0].getHeight(null));
+            for (int i = scaledHexes.length - 1; i>=0; --i)
+            {
+                scaledHexes[i] = hexes[i].getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                scaledHexFail[i] = false;
+            }
+
+            w = scaleToActualX(ports[1].getWidth(null));
+            h = scaleToActualY(ports[1].getHeight(null));
+            for (int i = scaledPorts.length - 1; i>=1; --i)
+            {
+                scaledPorts[i] = ports[i].getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                scaledPortFail[i] = false;
+            }
+
+            w = scaleToActualX(numbers[0].getWidth(null));
+            h = scaleToActualY(numbers[0].getHeight(null));
+            for (int i = scaledNumbers.length - 1; i>=0; --i)
+            {
+                scaledNumbers[i] = numbers[i].getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                scaledNumberFail[i] = false;
+            }
+        }
+    }
+
     /**
      * Redraw the board using double buffering. Don't call this directly, use
      * {@link Component#repaint()} instead.
@@ -705,7 +879,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         try {
         if (buffer == null)
         {
-            buffer = this.createImage(panelx, panely);
+            buffer = this.createImage(scaledPanelx, scaledPanely);
         }
         drawBoard(buffer.getGraphics());
         if (hoverTip.isVisible())
@@ -736,20 +910,103 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int[] hexLayout = board.getHexLayout();
         int[] numberLayout = board.getNumberLayout();
         int hexType = hexLayout[hexNum];
+        /**
+         * If board is scaled, could be waiting for an image to resize.
+         * If it still hasn't appeared after 7 seconds, we'll give
+         * up and create a new one.  (This can happen due to AWT bugs.)
+         * drawBoard will repaint with the new image.
+         */
+        boolean missedDraw = false;
+
+        int x = hexX[hexNum];
+        int y = hexY[hexNum];
+        if (isScaled)
+        {
+            x = scaleToActualX(x); 
+            y = scaleToActualY(y);
+        }
 
         tmp = hexType & 15; // get only the last 4 bits;
-        g.drawImage(hexes[tmp], hexX[hexNum], hexY[hexNum], this);
+        if (! g.drawImage(scaledHexes[tmp], x, y, this))
+        {
+            if (isScaled && (7000 < (System.currentTimeMillis() - scaledAt)))
+            {
+                missedDraw = true;
+                if (scaledHexFail[tmp])
+                {
+                    scaledHexes[tmp] = hexes[tmp];  // fallback
+                }
+                else
+                {
+                    scaledHexFail[tmp] = true;
+                    int w = scaleToActualX(hexes[0].getWidth(null));
+                    int h = scaleToActualY(hexes[0].getHeight(null));
+                    scaledHexes[tmp] = hexes[tmp].getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                }
+            }
+        }
 
         tmp = hexType >> 4; // get the facing of the port
 
         if (tmp > 0)
         {
-            g.drawImage(ports[tmp], hexX[hexNum], hexY[hexNum], this);
+            if (! g.drawImage(scaledPorts[tmp], x, y, this))
+            {
+                if (isScaled && (7000 < (System.currentTimeMillis() - scaledAt)))
+                {
+                    missedDraw = true;
+                    if (scaledPortFail[tmp])
+                    {
+                        scaledPorts[tmp] = ports[tmp];  // fallback
+                    }
+                    else
+                    {
+                        scaledPortFail[tmp] = true;
+                        int w = scaleToActualX(ports[1].getWidth(null));
+                        int h = scaleToActualY(ports[1].getHeight(null));
+                        scaledPorts[tmp] = ports[tmp].getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                    }
+                }
+            }
         }
 
         if (numberLayout[hexNum] >= 0)
         {
-            g.drawImage(numbers[numberLayout[hexNum]], hexX[hexNum] + 17, hexY[hexNum] + 22, this);
+            if (! isScaled)
+            {
+                x += 17;
+                y += 22;
+            }
+            else
+            {
+                x = scaleToActualX(hexX[hexNum] + 17);
+                y = scaleToActualY(hexY[hexNum] + 22);
+            }
+            if (! g.drawImage(scaledNumbers[numberLayout[hexNum]], x, y, this))
+            {
+                if (isScaled && (7000 < (System.currentTimeMillis() - scaledAt)))
+                {
+                    missedDraw = true;
+                    int i = numberLayout[hexNum];
+                    if (scaledNumberFail[i])
+                    {
+                        scaledNumbers[i] = numbers[i];  // fallback
+                    }
+                    else
+                    {
+                        scaledNumberFail[i] = true;
+                        int w = scaleToActualX(numbers[0].getWidth(null));
+                        int h = scaleToActualY(numbers[0].getHeight(null));                    
+                        scaledNumbers[i] = numbers[i].getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                    }
+                }
+            }
+        }
+        
+        if (missedDraw)
+        {
+            // drawBoard will check this field after all hexes are drawn.
+            scaledMissedImage = true;
         }
     }
 
@@ -766,13 +1023,20 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int[] tmpX = new int[14];
         int[] tmpY = new int[14];
         int hexNum = hexIDtoNum[hexID];
+        int hx = hexX[hexNum] + 19;
+        int hy = hexY[hexNum] + 23;
 
         for (int i = 0; i < 14; i++)
         {
-            tmpX[i] = robberX[i] + hexX[hexNum] + 19;
-            tmpY[i] = robberY[i] + hexY[hexNum] + 23;
+            tmpX[i] = robberX[i] + hx;
+            tmpY[i] = robberY[i] + hy;
         }
-        
+        if (isScaled)
+        {
+            scaleToActualX(tmpX);
+            scaleToActualY(tmpY);
+        }
+
         Color rFill, rOutline;
         if (fullNotGhost)
         {
@@ -845,40 +1109,39 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int i;
         int[] tmpX = new int[5];
         int[] tmpY = new int[5];
-        int hexNum;
+        int hexNum, roadX[], roadY[];
 
         if ((((edgeNum & 0x0F) + (edgeNum >> 4)) % 2) == 0)
         { // If first and second digit 
             hexNum = hexIDtoNum[edgeNum + 0x11]; // are even, then it is '|'.
-
-            for (i = 0; i < 5; i++)
-            {
-                tmpX[i] = vertRoadX[i] + hexX[hexNum];
-                tmpY[i] = vertRoadY[i] + hexY[hexNum];
-            }
+            roadX = vertRoadX;
+            roadY = vertRoadY;
         }
         else if (((edgeNum >> 4) % 2) == 0)
         { // If first digit is even,
             hexNum = hexIDtoNum[edgeNum + 0x10]; // then it is '/'.
-            hexNum = hexIDtoNum[edgeNum + 0x10];
-
-            for (i = 0; i < 5; i++)
-            {
-                tmpX[i] = upRoadX[i] + hexX[hexNum];
-                tmpY[i] = upRoadY[i] + hexY[hexNum];
-            }
+            roadX = upRoadX;
+            roadY = upRoadY;
         }
         else
         { // Otherwise it is '\'.
             hexNum = hexIDtoNum[edgeNum + 0x01];
-
-            for (i = 0; i < 5; i++)
-            {
-                tmpX[i] = downRoadX[i] + hexX[hexNum];
-                tmpY[i] = downRoadY[i] + hexY[hexNum];
-            }
+            roadX = downRoadX;
+            roadY = downRoadY;
+        }
+        int hx = hexX[hexNum];
+        int hy = hexY[hexNum];
+        for (i = 0; i < 5; i++)
+        {
+            tmpX[i] = roadX[i] + hx;
+            tmpY[i] = roadY[i] + hy;
         }
 
+        if (isScaled)
+        {
+            scaleToActualX(tmpX);
+            scaleToActualY(tmpY);
+        }
         if (isHilight)
             g.setColor(playerInterface.getPlayerColor(pn, true));
         else
@@ -900,27 +1163,36 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int i;
         int[] tmpX = new int[7];
         int[] tmpY = new int[7];
-        int hexNum;
+        int hexNum, hx, hy;
 
         if (((nodeNum >> 4) % 2) == 0)
         { // If first digit is even,
             hexNum = hexIDtoNum[nodeNum + 0x10]; // then it is a 'Y' node
+            hx = hexX[hexNum];
+            hy = hexY[hexNum] + 17;
 
             for (i = 0; i < 7; i++)
             {
-                tmpX[i] = settlementX[i] + hexX[hexNum];
-                tmpY[i] = settlementY[i] + hexY[hexNum] + 17;
+                tmpX[i] = settlementX[i] + hx;
+                tmpY[i] = settlementY[i] + hy;
             }
         }
         else
         { // otherwise it is an 'A' node
             hexNum = hexIDtoNum[nodeNum - 0x01];
+            hx = hexX[hexNum] + 27;
+            hy = hexY[hexNum] + 2;
 
             for (i = 0; i < 7; i++)
             {
-                tmpX[i] = settlementX[i] + hexX[hexNum] + 27;
-                tmpY[i] = settlementY[i] + hexY[hexNum] + 2;
+                tmpX[i] = settlementX[i] + hx;
+                tmpY[i] = settlementY[i] + hy;
             }
+        }
+        if (isScaled)
+        {
+            scaleToActualX(tmpX);
+            scaleToActualY(tmpY);
         }
 
         // System.out.println("NODEID = "+Integer.toHexString(nodeNum)+" | HEXNUM = "+hexNum);
@@ -944,27 +1216,36 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int i;
         int[] tmpX = new int[13];
         int[] tmpY = new int[13];
-        int hexNum;
+        int hexNum, hx, hy;
 
         if (((nodeNum >> 4) % 2) == 0)
         { // If first digit is even,
             hexNum = hexIDtoNum[nodeNum + 0x10]; // then it is a 'Y' node
+            hx = hexX[hexNum];
+            hy = hexY[hexNum] + 17;
 
             for (i = 0; i < 13; i++)
             {
-                tmpX[i] = cityX[i] + hexX[hexNum];
-                tmpY[i] = cityY[i] + hexY[hexNum] + 17;
+                tmpX[i] = cityX[i] + hx;
+                tmpY[i] = cityY[i] + hy;
             }
         }
         else
         { // otherwise it is an 'A' node
             hexNum = hexIDtoNum[nodeNum - 0x01];
+            hx = hexX[hexNum] + 27;
+            hy = hexY[hexNum] + 2;
 
             for (i = 0; i < 13; i++)
             {
-                tmpX[i] = cityX[i] + hexX[hexNum] + 27;
-                tmpY[i] = cityY[i] + hexY[hexNum] + 2;
+                tmpX[i] = cityX[i] + hx;
+                tmpY[i] = cityY[i] + hy;
             }
+        }
+        if (isScaled)
+        {
+            scaleToActualX(tmpX);
+            scaleToActualY(tmpY);
         }
 
         if (isHilight)
@@ -990,59 +1271,111 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * draw the arrow that shows whose turn it is
+     * draw the arrow that shows whose turn it is.
+     *
+     * @param g Graphics
+     * @param pnum Player position: 0 for top-left, 1 for top-right,
+     *             2 for bottom-right, 3 for bottom-left
+     * @param diceResult Roll result to show, if rolled.
+     *                   To show, diceResult must be at least 2,
+     *                   and gamestate not SOCGame.PLAY.
      */
     private final void drawArrow(Graphics g, int pnum, int diceResult)
     {
+        int arrowX, arrowY, diceX, diceY;
+        boolean arrowLeft;
+
         switch (pnum)
         {
         case 0:
 
             // top left
-            g.drawImage(arrowL, 3, 5, this);
-
-            if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
-            {
-                g.drawImage(dice[diceResult], 13, 10, this);
-            }
+            arrowX = 3;  arrowY = 5;  arrowLeft = true;
+            diceX = 13;  diceY = 10;
 
             break;
 
         case 1:
 
             // top right
-            g.drawImage(arrowR, 339, 5, this);
-
-            if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
-            {
-                g.drawImage(dice[diceResult], 339, 10, this);
-            }
+            arrowX = 339;  arrowY = 5;  arrowLeft = false;
+            diceX = 339;  diceY = 10;
 
             break;
 
         case 2:
 
             // bottom right
-            g.drawImage(arrowR, 339, 298, this);
-
-            if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
-            {
-                g.drawImage(dice[diceResult], 339, 303, this);
-            }
+            arrowX = 339;  arrowY = 298;  arrowLeft = false;
+            diceX = 339;  diceY = 303;
 
             break;
 
-        case 3:
+        default:  // 3: (Default prevents compiler var-not-init errors)
 
             // bottom left
-            g.drawImage(arrowL, 3, 298, this);
-
-            if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
-            {
-                g.drawImage(dice[diceResult], 13, 303, this);
-            }
+            arrowX = 3;  arrowY = 298;  arrowLeft = true;
+            diceX = 13;  diceY = 303;
 
             break;
+
+        }
+
+        /**
+         * Arrow
+         */
+        int[] tmpX = new int[arrowLX.length];
+        int[] tmpY = new int[arrowLX.length];
+        int i;
+        for (i = 0; i < tmpX.length; ++i)
+        {
+            tmpY[i] = arrowLY[i];
+            if (arrowLeft)
+                tmpX[i] = arrowLX[i];
+            else
+                tmpX[i] = (ARROW_SZ - 1) - arrowLX[i];
+        }
+        if (isScaled)
+        {
+            arrowX = scaleToActualX(arrowX);
+            arrowY = scaleToActualY(arrowY);
+            scaleToActualX(tmpX);
+            scaleToActualY(tmpY);
+
+            // Ensure arrow-tip sides are 45 degrees.
+            int p = Math.abs(tmpX[0] - tmpX[1]);
+            if (p != Math.abs(tmpY[0] - tmpY[1]))
+            {
+                tmpY[0] = tmpY[1] + p;
+            }
+            int L = tmpX.length - 1;
+            p = Math.abs(tmpX[L] - tmpX[L-1]);
+            if (p != Math.abs(tmpY[L] - tmpY[L-1]))
+            {
+                tmpY[L] = tmpY[L-1] - p;
+            }
+        }
+        g.translate(arrowX, arrowY);
+        g.setColor(ARROW_COLOR);
+        g.fillPolygon(tmpX, tmpY, tmpX.length);
+        g.setColor(Color.BLACK);
+        g.drawPolygon(tmpX, tmpY, tmpX.length);
+        g.translate(-arrowX, -arrowY);
+
+        /**
+         * Dice
+         */
+        if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
+        {
+            if (isScaled)
+            {
+                // Dice number is not scaled, but arrow is.
+                // Move to keep centered in arrow.
+                int adj = (scaleToActualX(DICE_SZ) - DICE_SZ) / 2;
+                diceX = scaleToActualX(diceX) + adj;
+                diceY = scaleToActualY(diceY) + adj;
+            }
+            g.drawImage(dice[diceResult], diceX, diceY, this);
         }
     }
 
@@ -1054,11 +1387,22 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         g.setPaintMode();
 
         g.setColor(getBackground());
-        g.fillRect(0, 0, panelx, panely);
+        g.fillRect(0, 0, scaledPanelx, scaledPanely);
 
+        scaledMissedImage = false;
         for (int i = 0; i < 37; i++)
         {
             drawHex(g, i);
+        }
+        if (scaledMissedImage)
+        {
+            // With recent board resize, one or more rescaled images still hasn't
+            // been completed after 7 seconds.  We've asked for a new scaled copy
+            // of this image.  Repaint now, and repaint 3 seconds later.
+            // (The delay gives time for the new scaling to complete.)
+            scaledAt = System.currentTimeMillis();
+            repaint();
+            new DelayedRepaint(this).start();            
         }
 
         int gameState = game.getGameState();
@@ -1186,6 +1530,93 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             break;
         }
+    }
+
+    /**
+     * Convert x-array from internal to actual scaled coordinates.
+     * If not isScaled, do nothing.
+     *
+     * @param xa Int array to be scaled; each member is an x-coordinate.
+     */
+    public void scaleToActualX(int[] xa)
+    {
+        if (! isScaled)
+            return;
+        for (int i = xa.length - 1; i >= 0; --i)
+            xa[i] = (int) ((xa[i] * (long) scaledPanelx) / panelx);
+    }
+
+    /**
+     * Convert y-array from internal to actual scaled coordinates.
+     * If not isScaled, do nothing.
+     *
+     * @param ya Int array to be scaled; each member is an y-coordinate.
+     */
+    public void scaleToActualY(int[] ya)
+    {
+        if (! isScaled)
+            return;
+        for (int i = ya.length - 1; i >= 0; --i)
+            ya[i] = (int) ((ya[i] * (long) scaledPanely) / panely);
+    }
+
+    /**
+     * Convert x-coordinate from internal to actual scaled coordinates.
+     * If not isScaled, return input.
+     *
+     * @param x x-coordinate to be scaled
+     */
+    public int scaleToActualX(int x)
+    {
+        if (! isScaled)
+            return x;
+        else
+            return (int) ((x * (long) scaledPanelx) / panelx);
+    }
+
+    /**
+     * Convert y-coordinate from internal to actual scaled coordinates.
+     * If not isScaled, return input.
+     *
+     * @param y y-coordinate to be scaled
+     */
+    public int scaleToActualY(int y)
+    {
+        if (! isScaled)
+            return y;
+        else
+            return (int) ((y * (long) scaledPanely) / panely);
+    }
+
+    /**
+     * Convert an x-coordinate from actual-scaled to internal-scaled coordinates.
+     * If not isScaled, return input.
+     *
+     * @param x x-coordinate to be scaled
+     */
+    public int scaleFromActualX(int x)
+    {
+        if (! isScaled)
+            return x;
+        return (int) ((x * (long) panelx) / scaledPanelx);
+    }
+
+    /**
+     * Convert a y-coordinate from actual-scaled to internal-scaled coordinates.
+     * If not isScaled, return input.
+     *
+     * @param y y-coordinate to be scaled
+     */
+    public int scaleFromActualY(int y)
+    {
+        if (! isScaled)
+            return y;
+        return (int) ((y * (long) panely) / scaledPanely);
+    }
+
+    public boolean isScaled()
+    {
+        return isScaled;
     }
 
     /**
@@ -1383,6 +1814,17 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         try {
         int x = e.getX();
         int y = e.getY();
+        int xb, yb;
+        if (isScaled)
+        {
+            xb = scaleFromActualX(x);
+            yb = scaleFromActualX(y);
+        }
+        else
+        {
+            xb = x;
+            yb = y;
+        }
 
         int edgeNum;
         int nodeNum;
@@ -1399,7 +1841,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                edgeNum = findEdge(x, y);
+                edgeNum = findEdge(xb, yb);
 
                 // Figure out if this is a legal road
                 // It must be attached to the last stlmt
@@ -1427,7 +1869,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                edgeNum = findEdge(x, y);
+                edgeNum = findEdge(xb, yb);
 
                 if ((player == null) || !player.isPotentialRoad(edgeNum))
                 {
@@ -1453,7 +1895,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                nodeNum = findNode(x, y);
+                nodeNum = findNode(xb, yb);
 
                 if ((player == null) || !player.isPotentialSettlement(nodeNum))
                 {
@@ -1484,7 +1926,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                nodeNum = findNode(x, y);
+                nodeNum = findNode(xb, yb);
 
                 if ((player == null) || !player.isPotentialCity(nodeNum))
                 {
@@ -1509,7 +1951,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                hexNum = findHex(x, y);
+                hexNum = findHex(xb, yb);
 
                 if (hexNum == board.getRobberHex())
                 {
@@ -1540,7 +1982,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                nodeNum = findNode(x, y);
+                nodeNum = findNode(xb, yb);
 
                 //if (!otherPlayer.isPotentialSettlement(nodeNum))
                 //  nodeNum = 0;
@@ -1563,7 +2005,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                edgeNum = findEdge(x, y);
+                edgeNum = findEdge(xb, yb);
 
                 if (!otherPlayer.isPotentialRoad(edgeNum))
                 {
@@ -1589,7 +2031,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             {
                 ptrOldX = x;
                 ptrOldY = y;
-                nodeNum = findNode(x, y);
+                nodeNum = findNode(xb, yb);
 
                 if (!otherPlayer.isPotentialCity(nodeNum))
                 {
@@ -2034,12 +2476,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 tracker.addImage(numbers[i], 0);
             }
 
-            arrowL = tk.getImage(clazz.getResource(IMAGEDIR + "/arrowL.gif"));
-            arrowR = tk.getImage(clazz.getResource(IMAGEDIR + "/arrowR.gif"));
-
-            tracker.addImage(arrowL, 0);
-            tracker.addImage(arrowR, 0);
-
             for (int i = 2; i < 13; i++)
             {
                 dice[i] = tk.getImage(clazz.getResource(IMAGEDIR + "/dice" + i + ".gif"));
@@ -2073,6 +2509,55 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     public static int getPanelY()
     {
         return panely;
+    }
+
+
+    /**
+     * With a recent board resize, one or more rescaled images still hasn't
+     * been completed after 7 seconds.  We've asked for a new scaled copy
+     * of this image.  Wait 3 seconds and repaint the board.
+     * (The delay gives time for the new scaling to complete.)
+     *
+     * @see SOCBoardPanel#scaledMissedImage
+     * @see SOCBoardPanel#drawHex(Graphics, int)
+     * @author Jeremy D Monin <jeremy@nand.net>
+     */
+    protected static class DelayedRepaint extends Thread
+    {
+        /**
+         * Assumes since boolean is a simple var, will have atomic access. 
+         */
+        private static boolean alreadyActive = false;
+        private SOCBoardPanel bp;
+
+        public DelayedRepaint (SOCBoardPanel bp)
+        {
+            setDaemon(true);
+            this.bp = bp;
+        }
+
+        public void run()
+        {
+            if (alreadyActive)
+                return;
+
+            alreadyActive = true;
+            try
+            {
+                this.setName("delayedRepaint");
+            }
+            catch (Throwable th) {}
+            try
+            {
+                Thread.sleep(3000);
+            }
+            catch (InterruptedException e) {}
+            finally
+            {
+                bp.repaint();
+                alreadyActive = false;
+            }
+        }
     }
     
     
@@ -2232,14 +2717,25 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
          * Does not affect the "hilight" variable used by SOCBoardPanel during
          * initial placement, and during placement from clicking "Buy" buttons.
          * 
-         * @param x Cursor x, from upper-left of board
-         * @param y Cursor y, from upper-left of board
+         * @param x Cursor x, from upper-left of board: actual coordinates, not board-internal scaled coordinates
+         * @param y Cursor y, from upper-left of board: actual coordinates, not board-internal scaled coordinates
          */
         private void handleHover(int x, int y)
         {
             mouseX = x;
             mouseY = y;
-            
+            int xb, yb;
+            if (! isScaled)
+            {
+                xb = x;
+                yb = y;
+            }
+            else
+            {
+                xb = scaleFromActualX(x);
+                yb = scaleFromActualX(y);
+            }
+
             // Previous: hoverMode, hoverID, hoverText
             int id;
             boolean modeAllowsHoverPieces = ((mode != PLACE_INIT_SETTLEMENT)
@@ -2257,7 +2753,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             }
 
             // Look first for settlements
-            id = findNode(x,y);
+            id = findNode(xb,yb);
             if (id > 0)
             {
                 // Are we already looking at it?
@@ -2351,7 +2847,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             }
 
             // If not over a settlement, look for a road
-            id = findEdge(x,y);
+            id = findEdge(xb,yb);
             if (id > 0)
             {
                 // Are we already looking at it?
@@ -2397,7 +2893,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             // If no road, look for a hex
             //  - reminder: socboard.getHexTypeFromCoord, getNumberOnHexFromCoord, socgame.getPlayersOnHex
-            id = findHex(x,y);
+            id = findHex(xb,yb);
             if (id > 0)
             {
                 // Are we already looking at it?
@@ -2454,7 +2950,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 bpanel.repaint();
                 return;
             }
-            
+
             // If no hex, nothing.
             hoverMode = NONE;
             setHoverText(null);
