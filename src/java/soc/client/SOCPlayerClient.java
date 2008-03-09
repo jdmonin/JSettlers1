@@ -4027,6 +4027,10 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             System.exit(1);
         }
 
+        System.out.println("Java Settlers Client " + Version.version() +
+                ", build " + Version.buildnum() + ", " + Version.copyright());
+        System.out.println("Network layer based on code by Cristian Bogdan; local network by Jeremy Monin.");
+
         Frame frame = new Frame("SOCPlayerClient");
         frame.setBackground(new Color(Integer.parseInt("61AF71",16)));
         frame.setForeground(Color.black);
