@@ -62,11 +62,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
     /**
      * size of the whole panel, internal-pixels "scale"
-     * {@link #scaledPanelx} {@link #scaledPanely};
+     * {@link #scaledPanelX} {@link #scaledPanelY};
      * also minimum acceptable size in screen pixels.
      */
-    public static final int panelx = 379;
-    public static final int panely = 340;
+    public static final int PANELX = 379;
+    public static final int PANELY = 340;
     
     private static final int deltaY = 46;     //How many pixels to drop for each row of hexes
     private static final int deltaX = 54;     //How many pixels to move over for a new hex
@@ -138,13 +138,23 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * Arrow, left-pointing.
      * First point is top of arrow-tip, last point is bottom of tip.
-     * @see #ARROW_SZ 
+     * arrowXL[4] is rightmost X coordinate.
+     * (These points are important for adjustment when scaling in {@link #rescaleCoordinateArrays()})
+     * @see #ARROW_SZ
      */
-    private static final int[] arrowLX =
+    private static final int[] arrowXL =
     {
         0,  17, 18, 18, 36, 36, 18, 18, 17,  0
     };
-    private static final int[] arrowLY =
+    /**
+     * Arrow, right-pointing.
+     * Calculated when needed by flipping arrowXL.
+     */
+    private static int[] arrowXR = null;
+    /**
+     * Arrow, y-coordinates: same whether pointing left or right.
+     */
+    private static final int[] arrowY =
     {
         17,  0,  0,  6,  6, 30, 30, 36, 36, 19
     };
@@ -194,15 +204,17 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
     /**
      * actual size on-screen, not internal-pixels size
-     * {@link #panelx} {@link #panely}
+     * {@link #PANELX} {@link #PANELY}
      */
     protected boolean isScaled;
-    protected int scaledPanelx;
-    protected int scaledPanely;
+    protected int scaledPanelX;
+    protected int scaledPanelY;
+
     /**
      * Time of last resize, as returned by {@link System#currentTimeMillis()}
      */
     protected long scaledAt;
+
     /**
      * If board is scaled, could be waiting for an image to resize.
      * If it still hasn't appeared after 7 seconds, we'll give
@@ -223,12 +235,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private static Image[] hexes;
     private static Image[] ports;
+
     /**
-     * Hex pix - private scaled copy, if isScaled.
+     * Hex pix - private scaled copy, if isScaled. Otherwise points to static copies.
      * @see #hexes
      */
     private Image[] scaledHexes;
     private Image[] scaledPorts;
+
     /**
      * Hex pix - Flag to check if rescaling failed, if isScaled.
      * @see #hexes
@@ -251,6 +265,33 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
     /** Dice number fits in a 25 x 25 square. @see #dice */
     private static final int DICE_SZ = 25;
+
+    /**
+     * Coordinate arrays for drawing the playing pieces.
+     * Local copy if isScaled, otherwise points to static arrays.
+     */
+    private int[] scaledVertRoadX, scaledVertRoadY;
+
+    /***  road looks like "/"  ***/
+    private int[] scaledUpRoadX, scaledUpRoadY;
+
+    /***  road looks like "\"  ***/
+    private int[] scaledDownRoadX, scaledDownRoadY;
+
+    /***  settlement  ***/
+    private int[] scaledSettlementX, scaledSettlementY;
+
+    /***  city  ***/
+    private int[] scaledCityX, scaledCityY;
+
+    /***  robber  ***/
+    private int[] scaledRobberX, scaledRobberY;
+
+    /** 
+     * arrow, left-pointing and right-pointing.
+     * @see #rescaleCoordinateArrays()
+     */
+    private int[] scaledArrowXL, scaledArrowXR, scaledArrowY; 
 
     /**
      * Old pointer coords for interface
@@ -374,8 +415,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         playerNumber = -1;
         board = game.getBoard();
         isScaled = false;
-        scaledPanelx = panelx;
-        scaledPanely = panely;
+        scaledPanelX = PANELX;
+        scaledPanelY = PANELY;
         scaledMissedImage = false;
 
         int i;
@@ -478,6 +519,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         scaledHexFail = new boolean[hexes.length];
         scaledPortFail = new boolean[ports.length];
         scaledNumberFail = new boolean[numbers.length];
+
+        // point to static coordinate arrays, unless we're later resized.
+        // If this is the first instance, calculate arrowXR.
+        rescaleCoordinateArrays();
     }
 
     private final void initEdgeMapAux(int x1, int y1, int x2, int y2, int startHex)
@@ -761,7 +806,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public Dimension getPreferredSize()
     {        
-        return new Dimension(scaledPanelx, scaledPanely);
+        return new Dimension(scaledPanelX, scaledPanelY);
     }
 
     /**
@@ -771,22 +816,22 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public Dimension getMinimumSize()
     {
-        return new Dimension(panelx, panely);
+        return new Dimension(PANELX, PANELY);
     }
 
-    public void setSize(int newX, int newY)
+    public void setSize(int newW, int newH)
         throws IllegalArgumentException
     {
         // TODO warnings, javadocs
-        if ((newX == scaledPanelx) && (newY == scaledPanely))
+        if ((newW == scaledPanelX) && (newH == scaledPanelY))
             return;  // Already sized.
 
         // If below min-size, rescaleBoard throws
         // IllegalArgumentException. Pass to our caller.
-        resizeBoard(newX, newY);
+        rescaleBoard(newW, newH);
 
         // Resize
-        super.setSize(newX, newY);
+        super.setSize(newW, newH);
         repaint();
     }
 
@@ -799,10 +844,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     public void setBounds(int x, int y, int w, int h)
         throws IllegalArgumentException
     {
-        // overrode because of pi.doLayout (TODO docu).
-        if ((w != scaledPanelx) || (h != scaledPanely))            
+        // called from PlayerInterface.doLayout
+        if ((w != scaledPanelX) || (h != scaledPanelY))            
         {
-            resizeBoard(w, h);
+            rescaleBoard(w, h);
         }
         super.setBounds(x, y, w, h);
     }
@@ -810,18 +855,20 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     // TODO javadocs
     // does not call repaint
     // ignores if 0,0 (called during initial layout)
-    private void resizeBoard(int newX, int newY)
+    private void rescaleBoard(int newX, int newY)
         throws IllegalArgumentException
     {
         if ((newX == 0) || (newY == 0))
             return;
-        if ((newX < panelx) || (newY < panely))
+        if ((newX < PANELX) || (newY < PANELY))
             throw new IllegalArgumentException("Below minimum size");
     
-        // Set vars
-        scaledPanelx = newX;
-        scaledPanely = newY;
-        isScaled = ((scaledPanelx != panelx) || (scaledPanely != panely));
+        /**
+         * Set vars
+         */
+        scaledPanelX = newX;
+        scaledPanelY = newY;
+        isScaled = ((scaledPanelX != PANELX) || (scaledPanelY != PANELY));
         scaledAt = System.currentTimeMillis();
 
         // Off-screen buffer is now the wrong size.
@@ -832,6 +879,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             buffer = null;
         }
 
+        /**
+         * Scale coordinate arrays for drawing pieces,
+         * or (if not isScaled) point to static arrays.
+         */
+        rescaleCoordinateArrays();
+
+        /**
+         * Scale images
+         */
         if (! isScaled)
         {
             int i;
@@ -871,6 +927,106 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
+     * Scale coordinate arrays for drawing pieces,
+     * or (if not isScaled) point to static arrays.
+     * Called from constructor and rescaleBoard.
+     */
+    private void rescaleCoordinateArrays()
+    {
+        if (! isScaled)
+        {
+            scaledVertRoadX = vertRoadX;     scaledVertRoadY = vertRoadY;
+            scaledUpRoadX   = upRoadX;       scaledUpRoadY   = upRoadY;
+            scaledDownRoadX = downRoadX;     scaledDownRoadY = downRoadY;
+            scaledSettlementX = settlementX; scaledSettlementY = settlementY;
+            scaledCityX     = cityX;         scaledCityY     = cityY;
+            scaledRobberX   = robberX;       scaledRobberY   = robberY;
+            scaledArrowXL   = arrowXL;       scaledArrowY    = arrowY;
+            if (arrowXR == null)
+            {
+                int[] axr = new int[arrowXL.length];
+                for (int i = 0; i < arrowXL.length; ++i)
+                    axr[i] = (ARROW_SZ - 1) - arrowXL[i];
+                arrowXR = axr;
+                // Assigned to field only when complete,
+                // so another thread won't see a
+                // partially calculated arrowXR.
+            }
+            scaledArrowXR = arrowXR;
+        }
+        else
+        {
+            scaledVertRoadX = scaleCopyToActualX(vertRoadX); 
+            scaledVertRoadY = scaleCopyToActualY(vertRoadY);
+            scaledUpRoadX   = scaleCopyToActualX(upRoadX);
+            scaledUpRoadY   = scaleCopyToActualY(upRoadY);
+            scaledDownRoadX = scaleCopyToActualX(downRoadX);     
+            scaledDownRoadY = scaleCopyToActualY(downRoadY);
+            scaledSettlementX = scaleCopyToActualX(settlementX);
+            scaledSettlementY = scaleCopyToActualY(settlementY);
+            scaledCityX     = scaleCopyToActualX(cityX);
+            scaledCityY     = scaleCopyToActualY(cityY);
+            scaledRobberX   = scaleCopyToActualX(robberX);
+            scaledRobberY   = scaleCopyToActualY(robberY);
+            scaledArrowXL   = scaleCopyToActualX(arrowXL);
+            scaledArrowY    = scaleCopyToActualY(arrowY);
+
+            // Ensure arrow-tip sides are 45 degrees.
+            int p = Math.abs(scaledArrowXL[0] - scaledArrowXL[1]);
+            if (p != Math.abs(scaledArrowY[0] - scaledArrowY[1]))
+            {
+                scaledArrowY[0] = scaledArrowY[1] + p;
+            }
+            int L = scaledArrowXL.length - 1;
+            p = Math.abs(scaledArrowXL[L] - scaledArrowXL[L-1]);
+            if (p != Math.abs(scaledArrowY[L] - scaledArrowY[L-1]))
+            {
+                scaledArrowY[L] = scaledArrowY[L-1] - p;
+            }
+
+            // Now, flip for scaledArrowXR
+            scaledArrowXR = new int[scaledArrowXL.length];
+            int xmax = scaledArrowXL[4];  // Element defined as having max coord in arrowXL
+            for (int i = 0; i < scaledArrowXR.length; ++i)
+                scaledArrowXR[i] = xmax - scaledArrowXL[i];
+        }
+    }
+
+    /**
+     * Rescale to actual screen coordinates - Create a copy
+     * of array, and scale the copy's elements as X coordinates.
+     *
+     * @param xa Int array to be scaled; each member is an x-coordinate.
+     * @return Scaled copy of xorig
+     *
+     * @see #scaleToActualX(int[])
+     */
+    public int[] scaleCopyToActualX(int[] xa)
+    {
+        int[] xs = new int[xa.length];
+        for (int i = xa.length - 1; i >= 0; --i)
+            xs[i] = scaleToActualX(xa[i]);
+        return xs;
+    }
+
+    /**
+     * Rescale to actual screen coordinates - Create a copy
+     * of array, and scale the copy's elements as Y coordinates.
+     *
+     * @param ya Int array to be scaled; each member is a y-coordinate.
+     * @return Scaled copy of yorig
+     *
+     * @see #scaleToActualY(int[])
+     */
+    public int[] scaleCopyToActualY(int[] ya)
+    {
+        int[] ys = new int[ya.length];
+        for (int i = ya.length - 1; i >= 0; --i)
+            ys[i] = scaleToActualY(ya[i]);
+        return ys;
+    }
+
+    /**
      * Redraw the board using double buffering. Don't call this directly, use
      * {@link Component#repaint()} instead.
      */
@@ -879,7 +1035,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         try {
         if (buffer == null)
         {
-            buffer = this.createImage(scaledPanelx, scaledPanely);
+            buffer = this.createImage(scaledPanelX, scaledPanelY);
         }
         drawBoard(buffer.getGraphics());
         if (hoverTip.isVisible())
@@ -927,6 +1083,29 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         }
 
         tmp = hexType & 15; // get only the last 4 bits;
+
+        /**
+         * If previous scaling has failed, hex will be smaller (fallback)
+         * compared to rest of the board graphics.  This is rare but
+         * must be visually handled.  Center the smaller graphic in
+         * the larger hex space, so it won't overlap other hexes.
+         */
+        boolean recenterPrevMiss = false;
+        int xm=0, ym=0;
+        if (isScaled && (scaledHexes[tmp] == hexes[tmp]))
+        {
+            recenterPrevMiss = true;
+            int w = hexes[tmp].getWidth(null);
+            int h = hexes[tmp].getHeight(null);
+            xm = (scaleToActualX(w) - w) / 2;
+            ym = (scaleToActualY(h) - h) / 2;
+            x += xm;
+            y += ym;
+        }
+
+        /**
+         * Draw the hex graphic
+         */
         if (! g.drawImage(scaledHexes[tmp], x, y, this))
         {
             if (isScaled && (7000 < (System.currentTimeMillis() - scaledAt)))
@@ -945,11 +1124,31 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 }
             }
         }
+        if (recenterPrevMiss)
+        {
+            // Don't "center" further drawing
+            x -= xm;
+            y -= ym;
+            recenterPrevMiss = false;
+        }
 
+        /**
+         * Draw the port graphic
+         */
         tmp = hexType >> 4; // get the facing of the port
 
         if (tmp > 0)
         {
+            if (isScaled && (scaledPorts[tmp] == ports[tmp]))
+            {
+                recenterPrevMiss = true;
+                int w = ports[tmp].getWidth(null);
+                int h = ports[tmp].getHeight(null);
+                xm = (scaleToActualX(w) - w) / 2;
+                ym = (scaleToActualY(h) - h) / 2;
+                x += xm;
+                y += ym;
+            }
             if (! g.drawImage(scaledPorts[tmp], x, y, this))
             {
                 if (isScaled && (7000 < (System.currentTimeMillis() - scaledAt)))
@@ -968,8 +1167,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     }
                 }
             }
+
+            // Don't adj x,y to un-"center" further drawing:
+            // If scaled, x,y will be recalculated anyway.
+            // If not scaled, recenterPrevMiss is false.
         }
 
+        /**
+         * Draw the number
+         */
         if (numberLayout[hexNum] >= 0)
         {
             if (! isScaled)
@@ -1002,7 +1208,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 }
             }
         }
-        
+
         if (missedDraw)
         {
             // drawBoard will check this field after all hexes are drawn.
@@ -1020,21 +1226,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private final void drawRobber(Graphics g, int hexID, boolean fullNotGhost)
     {
-        int[] tmpX = new int[14];
-        int[] tmpY = new int[14];
         int hexNum = hexIDtoNum[hexID];
         int hx = hexX[hexNum] + 19;
         int hy = hexY[hexNum] + 23;
-
-        for (int i = 0; i < 14; i++)
-        {
-            tmpX[i] = robberX[i] + hx;
-            tmpY[i] = robberY[i] + hy;
-        }
         if (isScaled)
         {
-            scaleToActualX(tmpX);
-            scaleToActualY(tmpY);
+            hx = scaleToActualX(hx);
+            hy = scaleToActualY(hy);
         }
 
         Color rFill, rOutline;
@@ -1094,10 +1292,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             }  // cached ghost color?
         }  // normal or ghost?
 
+        g.translate(hx, hy);
         g.setColor(rFill);
-        g.fillPolygon(tmpX, tmpY, 13);
+        g.fillPolygon(scaledRobberX, scaledRobberY, 13);
         g.setColor(rOutline);
-        g.drawPolygon(tmpX, tmpY, 14);
+        g.drawPolygon(scaledRobberX, scaledRobberY, 14);
+        g.translate(-hx, -hy);
     }
 
     /**
@@ -1106,53 +1306,47 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private final void drawRoad(Graphics g, int edgeNum, int pn, boolean isHilight)
     {
         // Draw a road
-        int i;
-        int[] tmpX = new int[5];
-        int[] tmpY = new int[5];
         int hexNum, roadX[], roadY[];
 
         if ((((edgeNum & 0x0F) + (edgeNum >> 4)) % 2) == 0)
         { // If first and second digit 
             hexNum = hexIDtoNum[edgeNum + 0x11]; // are even, then it is '|'.
-            roadX = vertRoadX;
-            roadY = vertRoadY;
+            roadX = scaledVertRoadX;
+            roadY = scaledVertRoadY;
         }
         else if (((edgeNum >> 4) % 2) == 0)
         { // If first digit is even,
             hexNum = hexIDtoNum[edgeNum + 0x10]; // then it is '/'.
-            roadX = upRoadX;
-            roadY = upRoadY;
+            roadX = scaledUpRoadX;
+            roadY = scaledUpRoadY;
         }
         else
         { // Otherwise it is '\'.
             hexNum = hexIDtoNum[edgeNum + 0x01];
-            roadX = downRoadX;
-            roadY = downRoadY;
+            roadX = scaledDownRoadX;
+            roadY = scaledDownRoadY;
         }
         int hx = hexX[hexNum];
         int hy = hexY[hexNum];
-        for (i = 0; i < 5; i++)
-        {
-            tmpX[i] = roadX[i] + hx;
-            tmpY[i] = roadY[i] + hy;
-        }
-
         if (isScaled)
         {
-            scaleToActualX(tmpX);
-            scaleToActualY(tmpY);
+            hx = scaleToActualX(hx);
+            hy = scaleToActualY(hy);
         }
+
         if (isHilight)
             g.setColor(playerInterface.getPlayerColor(pn, true));
         else
             g.setColor(playerInterface.getPlayerColor(pn));
 
-        g.fillPolygon(tmpX, tmpY, 5);
+        g.translate(hx, hy);
+        g.fillPolygon(roadX, roadY, 5);
         if (isHilight)
             g.setColor(playerInterface.getPlayerColor(pn, false));
         else
             g.setColor(Color.black);
-        g.drawPolygon(tmpX, tmpY, 5);
+        g.drawPolygon(roadX, roadY, 5);
+        g.translate(-hx, -hy);
     }
 
     /**
@@ -1160,9 +1354,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private final void drawSettlement(Graphics g, int nodeNum, int pn, boolean isHilight)
     {
-        int i;
-        int[] tmpX = new int[7];
-        int[] tmpY = new int[7];
         int hexNum, hx, hy;
 
         if (((nodeNum >> 4) % 2) == 0)
@@ -1170,29 +1361,17 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             hexNum = hexIDtoNum[nodeNum + 0x10]; // then it is a 'Y' node
             hx = hexX[hexNum];
             hy = hexY[hexNum] + 17;
-
-            for (i = 0; i < 7; i++)
-            {
-                tmpX[i] = settlementX[i] + hx;
-                tmpY[i] = settlementY[i] + hy;
-            }
         }
         else
         { // otherwise it is an 'A' node
             hexNum = hexIDtoNum[nodeNum - 0x01];
             hx = hexX[hexNum] + 27;
             hy = hexY[hexNum] + 2;
-
-            for (i = 0; i < 7; i++)
-            {
-                tmpX[i] = settlementX[i] + hx;
-                tmpY[i] = settlementY[i] + hy;
-            }
         }
         if (isScaled)
         {
-            scaleToActualX(tmpX);
-            scaleToActualY(tmpY);
+            hx = scaleToActualX(hx);
+            hy = scaleToActualY(hy);
         }
 
         // System.out.println("NODEID = "+Integer.toHexString(nodeNum)+" | HEXNUM = "+hexNum);
@@ -1200,12 +1379,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             g.setColor(playerInterface.getPlayerColor(pn, true));
         else
             g.setColor(playerInterface.getPlayerColor(pn));
-        g.fillPolygon(tmpX, tmpY, 6);
+        g.translate(hx, hy);
+        g.fillPolygon(scaledSettlementX, scaledSettlementY, 6);
         if (isHilight)
             g.setColor(playerInterface.getPlayerColor(pn, false));
         else
             g.setColor(Color.black);
-        g.drawPolygon(tmpX, tmpY, 7);
+        g.drawPolygon(scaledSettlementX, scaledSettlementY, 7);
+        g.translate(-hx, -hy);
     }
 
     /**
@@ -1213,9 +1394,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private final void drawCity(Graphics g, int nodeNum, int pn, boolean isHilight)
     {
-        int i;
-        int[] tmpX = new int[13];
-        int[] tmpY = new int[13];
         int hexNum, hx, hy;
 
         if (((nodeNum >> 4) % 2) == 0)
@@ -1223,51 +1401,38 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             hexNum = hexIDtoNum[nodeNum + 0x10]; // then it is a 'Y' node
             hx = hexX[hexNum];
             hy = hexY[hexNum] + 17;
-
-            for (i = 0; i < 13; i++)
-            {
-                tmpX[i] = cityX[i] + hx;
-                tmpY[i] = cityY[i] + hy;
-            }
         }
         else
         { // otherwise it is an 'A' node
             hexNum = hexIDtoNum[nodeNum - 0x01];
             hx = hexX[hexNum] + 27;
             hy = hexY[hexNum] + 2;
-
-            for (i = 0; i < 13; i++)
-            {
-                tmpX[i] = cityX[i] + hx;
-                tmpY[i] = cityY[i] + hy;
-            }
         }
         if (isScaled)
         {
-            scaleToActualX(tmpX);
-            scaleToActualY(tmpY);
+            hx = scaleToActualX(hx);
+            hy = scaleToActualY(hy);
         }
 
+        g.translate(hx, hy);
         if (isHilight)
         {
             g.setColor(playerInterface.getPlayerColor(pn, true));
-            g.drawPolygon(tmpX, tmpY, 8);
+            g.drawPolygon(scaledCityX, scaledCityY, 8);
             // Draw again, slightly offset, for "ghost", since we can't fill and
             // cover up the underlying settlement.
-            for (i = 0; i < 13; i++)
-            {
-                ++tmpX[i];
-                ++tmpY[i];
-            }
-            g.drawPolygon(tmpX, tmpY, 8);
+            g.translate(1,1);
+            g.drawPolygon(scaledCityX, scaledCityY, 8);
+            g.translate(-(hx+1), -(hy+1));
             return;
         }
         
         g.setColor(playerInterface.getPlayerColor(pn));
 
-        g.fillPolygon(tmpX, tmpY, 8);
+        g.fillPolygon(scaledCityX, scaledCityY, 8);
         g.setColor(Color.black);
-        g.drawPolygon(tmpX, tmpY, 8);
+        g.drawPolygon(scaledCityX, scaledCityY, 8);
+        g.translate(-hx, -hy);
     }
 
     /**
@@ -1324,42 +1489,21 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         /**
          * Arrow
          */
-        int[] tmpX = new int[arrowLX.length];
-        int[] tmpY = new int[arrowLX.length];
-        int i;
-        for (i = 0; i < tmpX.length; ++i)
-        {
-            tmpY[i] = arrowLY[i];
-            if (arrowLeft)
-                tmpX[i] = arrowLX[i];
-            else
-                tmpX[i] = (ARROW_SZ - 1) - arrowLX[i];
-        }
         if (isScaled)
         {
             arrowX = scaleToActualX(arrowX);
             arrowY = scaleToActualY(arrowY);
-            scaleToActualX(tmpX);
-            scaleToActualY(tmpY);
-
-            // Ensure arrow-tip sides are 45 degrees.
-            int p = Math.abs(tmpX[0] - tmpX[1]);
-            if (p != Math.abs(tmpY[0] - tmpY[1]))
-            {
-                tmpY[0] = tmpY[1] + p;
-            }
-            int L = tmpX.length - 1;
-            p = Math.abs(tmpX[L] - tmpX[L-1]);
-            if (p != Math.abs(tmpY[L] - tmpY[L-1]))
-            {
-                tmpY[L] = tmpY[L-1] - p;
-            }
         }
+        int[] scArrowX;
+        if (arrowLeft)
+            scArrowX = scaledArrowXL;
+        else
+            scArrowX = scaledArrowXR;
         g.translate(arrowX, arrowY);
-        g.setColor(ARROW_COLOR);
-        g.fillPolygon(tmpX, tmpY, tmpX.length);
+        g.setColor(ARROW_COLOR);        
+        g.fillPolygon(scArrowX, scaledArrowY, scArrowX.length);
         g.setColor(Color.BLACK);
-        g.drawPolygon(tmpX, tmpY, tmpX.length);
+        g.drawPolygon(scArrowX, scaledArrowY, scArrowX.length);
         g.translate(-arrowX, -arrowY);
 
         /**
@@ -1387,7 +1531,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         g.setPaintMode();
 
         g.setColor(getBackground());
-        g.fillRect(0, 0, scaledPanelx, scaledPanely);
+        g.fillRect(0, 0, scaledPanelX, scaledPanelY);
 
         scaledMissedImage = false;
         for (int i = 0; i < 37; i++)
@@ -1537,13 +1681,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * If not isScaled, do nothing.
      *
      * @param xa Int array to be scaled; each member is an x-coordinate.
+     * 
+     * @see #scaleCopyToActualX(int[])
      */
     public void scaleToActualX(int[] xa)
     {
         if (! isScaled)
             return;
         for (int i = xa.length - 1; i >= 0; --i)
-            xa[i] = (int) ((xa[i] * (long) scaledPanelx) / panelx);
+            xa[i] = (int) ((xa[i] * (long) scaledPanelX) / PANELX);
     }
 
     /**
@@ -1551,13 +1697,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * If not isScaled, do nothing.
      *
      * @param ya Int array to be scaled; each member is an y-coordinate.
+     *
+     * @see #scaleCopyToActualY(int[])
      */
     public void scaleToActualY(int[] ya)
     {
         if (! isScaled)
             return;
         for (int i = ya.length - 1; i >= 0; --i)
-            ya[i] = (int) ((ya[i] * (long) scaledPanely) / panely);
+            ya[i] = (int) ((ya[i] * (long) scaledPanelY) / PANELY);
     }
 
     /**
@@ -1571,7 +1719,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         if (! isScaled)
             return x;
         else
-            return (int) ((x * (long) scaledPanelx) / panelx);
+            return (int) ((x * (long) scaledPanelX) / PANELX);
     }
 
     /**
@@ -1585,7 +1733,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         if (! isScaled)
             return y;
         else
-            return (int) ((y * (long) scaledPanely) / panely);
+            return (int) ((y * (long) scaledPanelY) / PANELY);
     }
 
     /**
@@ -1598,7 +1746,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     {
         if (! isScaled)
             return x;
-        return (int) ((x * (long) panelx) / scaledPanelx);
+        return (int) ((x * (long) PANELX) / scaledPanelX);
     }
 
     /**
@@ -1611,7 +1759,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     {
         if (! isScaled)
             return y;
-        return (int) ((y * (long) panely) / scaledPanely);
+        return (int) ((y * (long) PANELY) / scaledPanelY);
     }
 
     public boolean isScaled()
@@ -2495,22 +2643,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         }
     }
 
-    /**
-     * @return panelx
-     */
-    public static int getPanelX()
-    {
-        return panelx;
-    }
-
-    /**
-     * @return panely
-     */
-    public static int getPanelY()
-    {
-        return panely;
-    }
-
 
     /**
      * With a recent board resize, one or more rescaled images still hasn't
@@ -2544,7 +2676,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             alreadyActive = true;
             try
             {
-                this.setName("delayedRepaint");
+                setName("delayedRepaint");
             }
             catch (Throwable th) {}
             try
@@ -2638,14 +2770,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             if (offsetX < 5)
                 boxY += 12;
 
-            if (SOCBoardPanel.panelx < ( boxX + boxW ))
+            if (SOCBoardPanel.PANELX < ( boxX + boxW ))
             {
                 // Try to float it to left of mouse pointer
                 boxX = mouseX - boxW - offsetX;
                 if (boxX < 0)
                 {
                     // Not enough room, just place flush against right-hand side
-                    boxX = SOCBoardPanel.panelx - boxW;
+                    boxX = SOCBoardPanel.PANELX - boxW;
                 }
             }
             

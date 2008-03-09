@@ -335,7 +335,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         boardPanel = new SOCBoardPanel(this);
         boardPanel.setBackground(new Color(112, 45, 10));
         boardPanel.setForeground(Color.black);
-        boardPanel.setSize(SOCBoardPanel.getPanelX(), SOCBoardPanel.getPanelY());
+        boardPanel.setSize(SOCBoardPanel.PANELX, SOCBoardPanel.PANELY);
         boardIsScaled = false;
         add(boardPanel);
 
@@ -367,7 +367,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         textInput.addFocusListener(textInputListener);
 
         FontMetrics fm = this.getFontMetrics(textInput.getFont());
-        textInput.setSize(SOCBoardPanel.getPanelX(), fm.getHeight() + 4);
+        textInput.setSize(SOCBoardPanel.PANELX, fm.getHeight() + 4);
         textInput.setBackground(Color.white);  // new Color(255, 230, 162));
         textInput.setForeground(Color.black);
         textInput.setEditable(false);
@@ -916,7 +916,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             game.getPlayer(i).forceFinalVP(finalScores[i]);
             hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);  // Also disables buttons, etc.
         }
-        setTitle(TITLEBAR_GAME_OVER + game.getName() + " [" + client.getNickname() + "]");
+        setTitle(TITLEBAR_GAME_OVER + game.getName() +
+                 (game.isLocal ? "" : " [" + client.getNickname() + "]"));
         repaint();
     }
 
@@ -1069,6 +1070,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         clientHandPlayerNum = -1;
         removeAll();  // old sub-components
         initInterfaceElements(false);  // new sub-components
+        // Clear from possible TITLEBAR_GAME_OVER
+        setTitle(TITLEBAR_GAME + game.getName() +
+                 (game.isLocal ? "" : " [" + client.getNickname() + "]"));
         validate();
         repaint();
         String requesterName = game.getPlayer(requesterNumber).getName();
@@ -1192,24 +1196,25 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         /**
          * Stretch-board Sizing:
-         * If board can be at least 20% past minimum width,
+         * If board can be at least 15% past minimum width,
          * based on minimum handpanel width, scale it larger.
          * Otherwise, go with normal widths (widen handpanels instead).
          */
         int bw = (dim.width - 16 - (2*SOCHandPanel.WIDTH_MIN));
-        int bh = (int) ((bw * (long) SOCBoardPanel.panely) / SOCBoardPanel.panelx);
-        int kh = buildingPanel.getSize().height;
-        int tfh = textInput.getSize().height;
+        int bh = (int) ((bw * (long) SOCBoardPanel.PANELY) / SOCBoardPanel.PANELX);
+        int kh = buildingPanel.getHeight();
+        int tfh = textInput.getHeight();
         if (bh > (dim.height - kh - 16 - (int)(5.5f * tfh)))
         {
             // Window is wide: board would be taller than fits in window.
             // Re-calc board max height, then board width.
             bh = dim.height - kh - 16 - (int)(5.5f * tfh);
-            bw = (int) ((bh * (long) SOCBoardPanel.panelx) / SOCBoardPanel.panely);
+            bw = (int) ((bh * (long) SOCBoardPanel.PANELX) / SOCBoardPanel.PANELY);
         }
         int hw = (dim.width - bw - 16) / 2;
         int tah = dim.height - bh - kh - tfh - 16;
-        boolean canScaleBoard = (bw >= (1.2f * SOCBoardPanel.panelx));
+
+        boolean canScaleBoard = (bw >= (1.15f * SOCBoardPanel.PANELX));
         if (canScaleBoard)
         {
             try
@@ -1223,8 +1228,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         }
         if (! canScaleBoard)
         {
-            bw = SOCBoardPanel.panelx;
-            bh = SOCBoardPanel.panely;
+            bw = SOCBoardPanel.PANELX;
+            bh = SOCBoardPanel.PANELY;
             hw = (dim.width - bw - 16) / 2;
             tah = dim.height - bh - kh - tfh - 16;
             try
@@ -1233,8 +1238,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             }
             catch (IllegalArgumentException ee)
             {
-                bw = boardPanel.getSize().width;
-                bh = boardPanel.getSize().height;
+                bw = boardPanel.getWidth();
+                bh = boardPanel.getHeight();
                 hw = (dim.width - bw - 16) / 2;
                 tah = dim.height - bh - kh - tfh - 16;
             }
