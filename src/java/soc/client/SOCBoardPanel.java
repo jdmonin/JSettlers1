@@ -61,12 +61,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private static String IMAGEDIR = "/soc/client/images";
 
     /**
-     * size of the whole panel, internal-pixels "scale"
-     * {@link #scaledPanelX} {@link #scaledPanelY};
+     * size of the whole panel, internal-pixels "scale";
      * also minimum acceptable size in screen pixels.
+     * For actual current size in screen pixels, see
+     * {@link #scaledPanelX} {@link #scaledPanelY};
      */
-    public static final int PANELX = 379;
-    public static final int PANELY = 340;
+    public static final int PANELX = 379, PANELY = 340;
     
     private static final int deltaY = 46;     //How many pixels to drop for each row of hexes
     private static final int deltaX = 54;     //How many pixels to move over for a new hex
@@ -137,9 +137,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
     /**
      * Arrow, left-pointing.
-     * First point is top of arrow-tip, last point is bottom of tip.
+     * First point is top of arrow-tip's bevel, last point is bottom of tip.
      * arrowXL[4] is rightmost X coordinate.
      * (These points are important for adjustment when scaling in {@link #rescaleCoordinateArrays()})
+     * @see #arrowY
      * @see #ARROW_SZ
      */
     private static final int[] arrowXL =
@@ -148,21 +149,22 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     };
     /**
      * Arrow, right-pointing.
-     * Calculated when needed by flipping arrowXL.
+     * Calculated when needed by flipping {@link #arrowXL} in {@link #rescaleCoordinateArrays()}.
      */
     private static int[] arrowXR = null;
     /**
      * Arrow, y-coordinates: same whether pointing left or right.
+     * First point is top of arrow-tip's bevel, last point is bottom of tip.
      */
     private static final int[] arrowY =
     {
         17,  0,  0,  6,  6, 30, 30, 36, 36, 19
     };
 
-    /** Arrow fits in a 37 x 37 square. @see #arrowLX */
+    /** Arrow fits in a 37 x 37 square. @see #arrowXL */
     private static final int ARROW_SZ = 37;
 
-    /** Arrow color: r=106,g=183,b=183 cyan */
+    /** Arrow color: cyan: r=106,g=183,b=183 */
     private static final Color ARROW_COLOR = new Color(106, 183, 183);
 
     public final static int NONE = 0;
@@ -197,26 +199,34 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     protected static int POPUP_MENU_IGNORE_MS = 150;
 
     /**
-     * hex size, internal-pixels
+     * hex size, in unscaled internal-pixels
      */
     private int HEXWIDTH = 55;
     private int HEXHEIGHT = 64;
 
     /**
      * actual size on-screen, not internal-pixels size
-     * {@link #PANELX} {@link #PANELY}
+     * ({@link #PANELX}, {@link #PANELY})
      */
-    protected boolean isScaled;
-    protected int scaledPanelX;
-    protected int scaledPanelY;
+    protected int scaledPanelX, scaledPanelY;
 
     /**
-     * Time of last resize, as returned by {@link System#currentTimeMillis()}
+     * The board is currently scaled larger than
+     * {@link #PANELX} x {@link #PANELY} pixels.
+     * Use {@link #scaleToActualX(int)}, {@link #scaleFromActualX(int)},
+     * etc to convert between internal and actual screen pixel coordinates.
+     */
+    protected boolean isScaled;
+
+    /**
+     * Time of last resize, as returned by {@link System#currentTimeMillis()}.
+     * Used with {@link #scaledMissedImage}.
      */
     protected long scaledAt;
 
     /**
-     * If board is scaled, could be waiting for an image to resize.
+     * Flag used while drawing a scaled board. If board size
+     * was recently changed, could be waiting for an image to resize.
      * If it still hasn't appeared after 7 seconds, we'll give
      * up and create a new one.  (This can happen due to AWT bugs.)
      * Set in {@link #drawHex(Graphics, int)}, checked in {@link #drawBoard(Graphics)}.
@@ -230,7 +240,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private int[] hexIDtoNum;
 
     /**
-     * Hex pix - shared original-resolution copy.
+     * Hex pix - shared unscaled original-resolution from GIF files.
      * @see #scaledHexes
      */
     private static Image[] hexes;
@@ -245,21 +255,21 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
     /**
      * Hex pix - Flag to check if rescaling failed, if isScaled.
-     * @see #hexes
+     * @see #scaledHexes
      * @see #drawHex(Graphics, int)
      */
     private boolean[] scaledHexFail;
     private boolean[] scaledPortFail;
 
     /**
-     * number pix
+     * number pix (for hexes)
      */
     private static Image[] numbers;
     private Image[] scaledNumbers;
     private boolean[] scaledNumberFail;
 
     /**
-     * dice pix (for arrow). @see #DICE_SZ
+     * dice number pix (for arrow). @see #DICE_SZ
      */
     private static Image[] dice;
 
@@ -805,7 +815,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * @return DOCUMENT ME!
      */
     public Dimension getPreferredSize()
-    {        
+    {
         return new Dimension(scaledPanelX, scaledPanelY);
     }
 
@@ -820,13 +830,13 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Set the board to a new size, rescale graphics if needed.
+     * Set the board to a new size, rescale graphics and repaint if needed.
      *
      * @param newW New width in pixels, no less than {@link #PANELX}
      * @param newH New height in pixels, no less than {@link #PANELY}
      * @throws IllegalArgumentException if newW or newH is too small but not 0.
      *   During initial layout, the layoutmanager may make calls to setSize(0,0);
-     *   such a call is passed to parent without scaling graphics.
+     *   such a call is passed to super without scaling graphics.
      */
     public void setSize(int newW, int newH)
         throws IllegalArgumentException
@@ -844,12 +854,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Set the board to a new size, rescale graphics if needed.
+     * Set the board to a new size, rescale graphics and repaint if needed.
      *
      * @param sz New size in pixels, no less than {@link #PANELX} wide by {@link #PANELY} tall
      * @throws IllegalArgumentException if sz is too small but not 0.
      *   During initial layout, the layoutmanager may make calls to setSize(0,0);
-     *   such a call is passed to parent without scaling graphics.
+     *   such a call is passed to super without scaling graphics.
      */
     public void setSize(Dimension sz)
         throws IllegalArgumentException
@@ -858,7 +868,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Set the board to a new location and size, rescale graphics if needed.
+     * Set the board to a new location and size, rescale graphics and repaint if needed.
      * Called from {@link SOCPlayerInterface#doLayout()}.
      *
      * @param x New location's x-coordinate
@@ -866,8 +876,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * @param w New width in pixels, no less than {@link #PANELX}
      * @param h New height in pixels, no less than {@link #PANELY}
      * @throws IllegalArgumentException if w or h is too small but not 0.
-     *   During initial layout, the layoutmanager may make calls to setBounds(0,0,,0,0);
-     *   such a call is passed to parent without scaling graphics.
+     *   During initial layout, the layoutmanager may make calls to setBounds(0,0,0,0);
+     *   such a call is passed to super without scaling graphics.
      */
     public void setBounds(int x, int y, int w, int h)
         throws IllegalArgumentException
@@ -887,7 +897,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * @param newH New height in pixels, no less than {@link #PANELY}
      * @throws IllegalArgumentException if newW or newH is too small but not 0.
      *   During initial layout, the layoutmanager may cause calls to rescaleBoard(0,0);
-     *   such a call is ignored without rescaling graphics.
+     *   such a call is ignored, no rescaling of graphics is done.
      */
     private void rescaleBoard(int newW, int newH)
         throws IllegalArgumentException
@@ -905,8 +915,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         isScaled = ((scaledPanelX != PANELX) || (scaledPanelY != PANELY));
         scaledAt = System.currentTimeMillis();
 
-        // Off-screen buffer is now the wrong size.
-        // paint() will create a new one.
+        /**
+         * Off-screen buffer is now the wrong size.
+         * paint() will create a new one.
+         */
         if (buffer != null)
         {
             buffer.flush();
@@ -920,7 +932,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         rescaleCoordinateArrays();
 
         /**
-         * Scale images
+         * Scale images, or point to static arrays.
          */
         if (! isScaled)
         {
@@ -982,9 +994,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 for (int i = 0; i < arrowXL.length; ++i)
                     axr[i] = (ARROW_SZ - 1) - arrowXL[i];
                 arrowXR = axr;
-                // Assigned to field only when complete,
-                // so another thread won't see a
-                // partially calculated arrowXR.
+
+                // Assigned to static field only when complete,
+                // so another thread won't see a partially
+                // calculated arrowXR.
             }
             scaledArrowXR = arrowXR;
         }
@@ -1030,16 +1043,16 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * Rescale to actual screen coordinates - Create a copy
      * of array, and scale the copy's elements as X coordinates.
      *
-     * @param xa Int array to be scaled; each member is an x-coordinate.
+     * @param xorig Int array to be scaled; each member is an x-coordinate.
      * @return Scaled copy of xorig
      *
      * @see #scaleToActualX(int[])
      */
-    public int[] scaleCopyToActualX(int[] xa)
+    public int[] scaleCopyToActualX(int[] xorig)
     {
-        int[] xs = new int[xa.length];
-        for (int i = xa.length - 1; i >= 0; --i)
-            xs[i] = scaleToActualX(xa[i]);
+        int[] xs = new int[xorig.length];
+        for (int i = xorig.length - 1; i >= 0; --i)
+            xs[i] = (int) ((xorig[i] * (long) scaledPanelX) / PANELX);
         return xs;
     }
 
@@ -1047,16 +1060,16 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * Rescale to actual screen coordinates - Create a copy
      * of array, and scale the copy's elements as Y coordinates.
      *
-     * @param ya Int array to be scaled; each member is a y-coordinate.
+     * @param yorig Int array to be scaled; each member is a y-coordinate.
      * @return Scaled copy of yorig
      *
      * @see #scaleToActualY(int[])
      */
-    public int[] scaleCopyToActualY(int[] ya)
+    public int[] scaleCopyToActualY(int[] yorig)
     {
-        int[] ys = new int[ya.length];
-        for (int i = ya.length - 1; i >= 0; --i)
-            ys[i] = scaleToActualY(ya[i]);
+        int[] ys = new int[yorig.length];
+        for (int i = yorig.length - 1; i >= 0; --i)
+            ys[i] = (int) ((yorig[i] * (long) scaledPanelY) / PANELY);
         return ys;
     }
 
@@ -1100,11 +1113,23 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         int[] hexLayout = board.getHexLayout();
         int[] numberLayout = board.getNumberLayout();
         int hexType = hexLayout[hexNum];
+
+        /**
+         * If previous scaling has failed, fallback image will be smaller
+         * compared to rest of the board graphics.  This is rare but
+         * must be visually handled.  Center the smaller graphic in
+         * the larger hex space, so it won't overlap other hexes.
+         */
+        boolean recenterPrevMiss = false;
+        int xm=0, ym=0;  // offset for re-centering miss
+
         /**
          * If board is scaled, could be waiting for an image to resize.
-         * If it still hasn't appeared after 7 seconds, we'll give
-         * up and create a new one.  (This can happen due to AWT bugs.)
-         * drawBoard will repaint with the new image.
+         * If it still hasn't appeared after 7 seconds, give up and
+         * create a new one.  (This can happen due to AWT bugs.)
+         * drawBoard will then repaint with the new image.
+         * If the new image also fails, a "fallback" will occur; a reference
+         * to the static original-resolution image will be used.
          */
         boolean missedDraw = false;
 
@@ -1118,14 +1143,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
         tmp = hexType & 15; // get only the last 4 bits;
 
-        /**
-         * If previous scaling has failed, hex will be smaller (fallback)
-         * compared to rest of the board graphics.  This is rare but
-         * must be visually handled.  Center the smaller graphic in
-         * the larger hex space, so it won't overlap other hexes.
-         */
-        boolean recenterPrevMiss = false;
-        int xm=0, ym=0;
+
         if (isScaled && (scaledHexes[tmp] == hexes[tmp]))
         {
             recenterPrevMiss = true;
@@ -1531,7 +1549,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         }
 
         /**
-         * Arrow
+         * Draw Arrow
          */
         if (isScaled)
         {
@@ -1551,7 +1569,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         g.translate(-arrowX, -arrowY);
 
         /**
-         * Dice
+         * Draw Dice result number
          */
         if ((diceResult >= 2) && (game.getGameState() != SOCGame.PLAY))
         {
@@ -1577,7 +1595,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         g.setColor(getBackground());
         g.fillRect(0, 0, scaledPanelX, scaledPanelY);
 
-        scaledMissedImage = false;
+        scaledMissedImage = false;    // drawHex will set this flag if missed
         for (int i = 0; i < 37; i++)
         {
             drawHex(g, i);
@@ -1721,7 +1739,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Convert x-array from internal to actual scaled coordinates.
+     * Scale x-array from internal to actual screen-pixel coordinates.
      * If not isScaled, do nothing.
      *
      * @param xa Int array to be scaled; each member is an x-coordinate.
@@ -1737,7 +1755,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Convert y-array from internal to actual scaled coordinates.
+     * Scale y-array from internal to actual screen-pixel coordinates.
      * If not isScaled, do nothing.
      *
      * @param ya Int array to be scaled; each member is an y-coordinate.
@@ -1753,7 +1771,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Convert x-coordinate from internal to actual scaled coordinates.
+     * Scale x-coordinate from internal to actual screen-pixel coordinates.
      * If not isScaled, return input.
      *
      * @param x x-coordinate to be scaled
@@ -1767,7 +1785,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * Convert y-coordinate from internal to actual scaled coordinates.
+     * Scale y-coordinate from internal to actual screen-pixel coordinates.
      * If not isScaled, return input.
      *
      * @param y y-coordinate to be scaled
@@ -1806,6 +1824,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         return (int) ((y * (long) PANELY) / scaledPanelY);
     }
 
+    /**
+     * Is the board is currently scaled larger than
+     * {@link #PANELX} x {@link #PANELY} pixels?
+     * If so, use {@link #scaleToActualX(int)}, {@link #scaleFromActualY(int)},
+     * etc to convert between internal and actual screen pixel coordinates.
+     *
+     * @return Is the board scaled larger than default size?
+     */
     public boolean isScaled()
     {
         return isScaled;
@@ -2430,8 +2456,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * Bring up the popup menu; called from mousePressed.
      *
-     * @param x x-coordinate of click, actual screen pixels (not unscaled board) 
-     * @param y y-coordinate of click, actual screen pixels (not unscaled board)
+     * @param x x-coordinate of click, actual screen pixels (not unscaled internal)
+     * @param y y-coordinate of click, actual screen pixels (not unscaled internal)
      */
     protected void doBoardMenuPopup (int x, int y)
     {
@@ -2709,6 +2735,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     protected static class DelayedRepaint extends Thread
     {
         /**
+         * Are we already waiting in another thread?
          * Assumes since boolean is a simple var, will have atomic access. 
          */
         private static boolean alreadyActive = false;
@@ -2743,8 +2770,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             }
         }
     }
-    
-    
+
+
+
     protected class BoardToolTip
     {
         private SOCBoardPanel bpanel;
@@ -2811,8 +2839,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         /**
          * Show tooltip at appropriate location when mouse
          * is at (x,y) relative to the board.
-         * @param x x-coordinate of mouse, actual screen pixels (not unscaled board) 
-         * @param y y-coordinate of mouse, actual screen pixels (not unscaled board)
+         * @param x x-coordinate of mouse, actual screen pixels (not unscaled internal)
+         * @param y y-coordinate of mouse, actual screen pixels (not unscaled internal)
          */
         public void positionToMouse(int x, int y)
         {
@@ -2903,8 +2931,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
          * Does not affect the "hilight" variable used by SOCBoardPanel during
          * initial placement, and during placement from clicking "Buy" buttons.
          * 
-         * @param x Cursor x, from upper-left of board: actual coordinates, not board-internal scaled coordinates
-         * @param y Cursor y, from upper-left of board: actual coordinates, not board-internal scaled coordinates
+         * @param x Cursor x, from upper-left of board: actual coordinates, not board-internal coordinates
+         * @param y Cursor y, from upper-left of board: actual coordinates, not board-internal coordinates
          */
         private void handleHover(int x, int y)
         {
@@ -2919,7 +2947,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             else
             {
                 xb = scaleFromActualX(x);
-                yb = scaleFromActualX(y);
+                yb = scaleFromActualY(y);
             }
 
             // Previous: hoverMode, hoverID, hoverText
@@ -3202,8 +3230,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         }
         
     }  // inner class BoardToolTip
-    
-    
+
+
 
     /** This class creates a popup menu as the interface to 
       the illustrious jplot package. (TODO verbiage -JM)

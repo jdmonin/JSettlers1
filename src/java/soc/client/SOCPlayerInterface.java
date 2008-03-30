@@ -65,6 +65,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
     /**
      * Is the boardpanel stretched beyond normal size in {@link #doLayout()}?
+     * @see SOCBoardPanel#isScaled()
      */
     protected boolean boardIsScaled;
 
@@ -1184,6 +1185,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         /**
          * Classic Sizing
+         * (board size is fixed, cannot scale)
+         *
         int bw = SOCBoardPanel.getPanelX();
         int bh = SOCBoardPanel.getPanelY();
         int hw = (dim.width - bw - 16) / 2;
@@ -1195,10 +1198,10 @@ public class SOCPlayerInterface extends Frame implements ActionListener
          */
 
         /**
-         * Stretch-board Sizing:
-         * If board can be at least 15% past minimum width,
-         * based on minimum handpanel width, scale it larger.
-         * Otherwise, go with normal widths (widen handpanels instead).
+         * "Stretch" Scaleable-board Sizing:
+         * If board can be at least 15% larger than minimum board width,
+         * without violating minimum handpanel width, scale it larger.
+         * Otherwise, use minimum board width (widen handpanels instead).
          */
         int bw = (dim.width - 16 - (2*SOCHandPanel.WIDTH_MIN));
         int bh = (int) ((bw * (long) SOCBoardPanel.PANELY) / SOCBoardPanel.PANELX);
@@ -1206,7 +1209,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         int tfh = textInput.getHeight();
         if (bh > (dim.height - kh - 16 - (int)(5.5f * tfh)))
         {
-            // Window is wide: board would be taller than fits in window.
+            // Window is wide: board would become taller than fits in window.
             // Re-calc board max height, then board width.
             bh = dim.height - kh - 16 - (int)(5.5f * tfh);
             bw = (int) ((bh * (long) SOCBoardPanel.PANELX) / SOCBoardPanel.PANELY);
@@ -1244,7 +1247,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 tah = dim.height - bh - kh - tfh - 16;
             }
         }
-        boardIsScaled = canScaleBoard;
+        boardIsScaled = canScaleBoard;  // set field, now that we know if it works
         int hh = (dim.height - 12) / 2;
         int kw = bw;
 
