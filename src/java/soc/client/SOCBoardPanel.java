@@ -2036,7 +2036,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         if (isScaled)
         {
             xb = scaleFromActualX(x);
-            yb = scaleFromActualX(y);
+            yb = scaleFromActualY(y);
         }
         else
         {
