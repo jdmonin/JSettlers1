@@ -1838,8 +1838,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 /**
                  * chenge the face (this is so that old faces don't 'stick')
                  */
-                ga.getPlayer(mes.getPlayerNumber()).setFaceId(1);
-                changeFace(ga, 1);
+                if (! ga.isBoardReset())
+                {
+                    ga.getPlayer(mes.getPlayerNumber()).setFaceId(1);
+                    changeFace(ga, 1);
+                }
             }
 
             /**

@@ -997,7 +997,14 @@ public class SOCHandPanel extends Panel implements ActionListener
     public void addPlayer(String name)
     {
         /* This is visible for both our hand and opponent hands */
-        faceImg.setDefaultFace();
+        if (! game.isBoardReset())
+        {
+            faceImg.setDefaultFace();
+        }
+        else
+        {
+            changeFace(player.getFaceId());
+        }
         faceImg.setVisible(true);
 
         pname.setText(name);

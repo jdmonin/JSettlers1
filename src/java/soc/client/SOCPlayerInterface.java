@@ -854,6 +854,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 }
             }
         }
+        
+        if (game.isBoardReset())
+        {
+            // Retain face after reset
+            hands[pn].changeFace(hands[pn].getPlayer().getFaceId());
+        }
     }
 
     /**
