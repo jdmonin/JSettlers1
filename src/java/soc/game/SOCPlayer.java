@@ -33,7 +33,8 @@ import java.util.Vector;
 
 
 /**
- * A class for holding and manipulating player data
+ * A class for holding and manipulating player data.
+ * The player exists within one SOCGame, not persistent between games like SOCClient.
  *
  * @author Robert S Thomas
  */
@@ -45,7 +46,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     private String name;
 
     /**
-     * the integer id for this player
+     * The integer id for this player (0 to n-1).
      */
     private int playerNumber;
 
@@ -119,11 +120,6 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
      */
     private int buildingVP;
 
-    /**
-     * the number of development card victory points
-     */
-    private int devCardVP;
-    
     /**
      * the final total score (pushed from server at end of game),
      * or 0 if no score has been forced.
@@ -248,7 +244,6 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
         devCards = new SOCDevCardSet(player.devCards);
         numKnights = player.numKnights;
         buildingVP = player.buildingVP;
-        devCardVP = player.devCardVP;
         finalTotalVP = 0;
         playedDevCard = player.playedDevCard;
         needToDiscard = player.needToDiscard;
@@ -333,7 +328,6 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
         devCards = new SOCDevCardSet();
         numKnights = 0;
         buildingVP = 0;
-        devCardVP = 0;
         playedDevCard = false;
         needToDiscard = false;
         boardResetAskedThisTurn = false;
