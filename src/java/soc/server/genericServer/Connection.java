@@ -130,6 +130,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         {
             while (connected)
             {
+                // readUTF max message size is 65535 chars, modified utf-8 format
                 sv.treat(in.readUTF(), this);
             }
         }
