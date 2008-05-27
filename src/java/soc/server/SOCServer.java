@@ -963,11 +963,11 @@ public class SOCServer extends Server
 
             if (v != null)
             {
-                Enumeration enum = v.elements();
+                Enumeration menum = v.elements();
 
-                while (enum.hasMoreElements())
+                while (menum.hasMoreElements())
                 {
-                    StringConnection c = (StringConnection) enum.nextElement();
+                    StringConnection c = (StringConnection) menum.nextElement();
 
                     if (c != null)
                     {
@@ -999,11 +999,11 @@ public class SOCServer extends Server
 
         if (v != null)
         {
-            Enumeration enum = v.elements();
+            Enumeration menum = v.elements();
 
-            while (enum.hasMoreElements())
+            while (menum.hasMoreElements())
             {
-                StringConnection c = (StringConnection) enum.nextElement();
+                StringConnection c = (StringConnection) menum.nextElement();
 
                 if (c != null)
                 {
@@ -1048,11 +1048,11 @@ public class SOCServer extends Server
             if (v != null)
             {
                 //D.ebugPrintln("M2G - "+mes);
-                Enumeration enum = v.elements();
+                Enumeration menum = v.elements();
 
-                while (enum.hasMoreElements())
+                while (menum.hasMoreElements())
                 {
-                    StringConnection c = (StringConnection) enum.nextElement();
+                    StringConnection c = (StringConnection) menum.nextElement();
 
                     if (c != null)
                     {
@@ -1086,11 +1086,11 @@ public class SOCServer extends Server
         if (v != null)
         {
             //D.ebugPrintln("M2G - "+mes);
-            Enumeration enum = v.elements();
+            Enumeration menum = v.elements();
 
-            while (enum.hasMoreElements())
+            while (menum.hasMoreElements())
             {
-                StringConnection c = (StringConnection) enum.nextElement();
+                StringConnection c = (StringConnection) menum.nextElement();
 
                 if (c != null)
                 {
@@ -1120,13 +1120,53 @@ public class SOCServer extends Server
             if (v != null)
             {
                 //D.ebugPrintln("M2GE - "+mes);
-                Enumeration enum = v.elements();
+                Enumeration menum = v.elements();
 
-                while (enum.hasMoreElements())
+                while (menum.hasMoreElements())
                 {
-                    StringConnection con = (StringConnection) enum.nextElement();
+                    StringConnection con = (StringConnection) menum.nextElement();
 
                     if ((con != null) && (!ex.contains(con)))
+                    {
+                        //currentGameEventRecord.addMessageOut(new SOCMessageRecord(mes, "SERVER", con.getData()));
+                        con.put(mes.toCmd());
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            D.ebugPrintln("Exception in messageToGameExcept - " + e);
+        }
+
+        gameList.releaseMonitorForGame(gn);
+    }
+
+    /**
+     * Send a message to all the connections in a game
+     * excluding one.
+     *
+     * @param gn  the name of the game
+     * @param ex  the exception
+     * @param mes the message
+     */
+    public void messageToGameExcept(String gn, StringConnection ex, SOCMessage mes)
+    {
+        gameList.takeMonitorForGame(gn);
+
+        try
+        {
+            Vector v = gameList.getMembers(gn);
+
+            if (v != null)
+            {
+                //D.ebugPrintln("M2GE - "+mes);
+                Enumeration menum = v.elements();
+
+                while (menum.hasMoreElements())
+                {
+                    StringConnection con = (StringConnection) menum.nextElement();
+                    if ((con != null) && (con != ex))
                     {
                         //currentGameEventRecord.addMessageOut(new SOCMessageRecord(mes, "SERVER", con.getData()));
                         con.put(mes.toCmd());
@@ -3294,9 +3334,7 @@ public class SOCServer extends Server
                         /**
                          * tell everyone else that the player discarded unknown resources
                          */
-                        Vector exceptions = new Vector(1);
-                        exceptions.addElement(c);
-                        messageToGameExcept(gn, exceptions, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()));
+                        messageToGameExcept(gn, c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()));
                         messageToGame(gn, new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.getData() + " discarded " + mes.getResources().getTotal() + " resources."));
                         sendGameState(ga);
                     }
@@ -3904,9 +3942,7 @@ public class SOCServer extends Server
                             messageToGame(ga.getName(), new SOCDevCardCount(ga.getName(), ga.getNumDevCards()));
                             messageToPlayer(c, new SOCDevCard(ga.getName(), player.getPlayerNumber(), SOCDevCard.DRAW, card));
 
-                            Vector ex = new Vector(1);
-                            ex.addElement(c);
-                            messageToGameExcept(ga.getName(), ex, new SOCDevCard(ga.getName(), player.getPlayerNumber(), SOCDevCard.DRAW, SOCDevCardConstants.UNKNOWN));
+                            messageToGameExcept(ga.getName(), c, new SOCDevCard(ga.getName(), player.getPlayerNumber(), SOCDevCard.DRAW, SOCDevCardConstants.UNKNOWN));
                             messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, (String) c.getData() + " bought a development card."));
 
                             if (ga.getNumDevCards() > 1)

@@ -3587,15 +3587,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             String name = cmd.substring(8);
             addToIgnoreList(name);
             fr.print("* Ignoring " + name);
-            fr.print("* Ignore list:");
-
-            Enumeration enum = ignoreList.elements();
-
-            while (enum.hasMoreElements())
-            {
-                String s = (String) enum.nextElement();
-                fr.print("* " + s);
-            }
+            printIgnoreList(fr);
 
             return true;
         }
@@ -3604,15 +3596,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             String name = cmd.substring(10);
             removeFromIgnoreList(name);
             fr.print("* Unignoring " + name);
-            fr.print("* Ignore list:");
-
-            Enumeration enum = ignoreList.elements();
-
-            while (enum.hasMoreElements())
-            {
-                String s = (String) enum.nextElement();
-                fr.print("* " + s);
-            }
+            printIgnoreList(fr);
 
             return true;
         }
@@ -3636,15 +3620,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             String name = cmd.substring(8);
             addToIgnoreList(name);
             pi.print("* Ignoring " + name);
-            pi.print("* Ignore list:");
-
-            Enumeration enum = ignoreList.elements();
-
-            while (enum.hasMoreElements())
-            {
-                String s = (String) enum.nextElement();
-                pi.print("* " + s);
-            }
+            printIgnoreList(pi);
 
             return true;
         }
@@ -3653,15 +3629,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             String name = cmd.substring(10);
             removeFromIgnoreList(name);
             pi.print("* Unignoring " + name);
-            pi.print("* Ignore list:");
-
-            Enumeration enum = ignoreList.elements();
-
-            while (enum.hasMoreElements())
-            {
-                String s = (String) enum.nextElement();
-                pi.print("* " + s);
-            }
+            printIgnoreList(pi);
 
             return true;
         }
@@ -3727,12 +3695,15 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         D.ebugPrintln("onIgnoreList |" + name + "|");
 
         boolean result = false;
-        Enumeration enum = ignoreList.elements();
+        Enumeration ienum = ignoreList.elements();
 
-        while (enum.hasMoreElements())
+        while (ienum.hasMoreElements())
         {
-            String s = (String) enum.nextElement();
-            D.ebugPrintln("comparing |" + s + "| to |" + name + "|");
+            String s = (String) ienum.nextElement();
+            if (D.ebugIsEnabled())
+            {
+                D.ebugPrintln("comparing |" + s + "| to |" + name + "|");
+            }
 
             if (s.equals(name))
             {
@@ -3770,6 +3741,34 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         name = name.trim();
         ignoreList.removeElement(name);
+    }
+
+    /** Print the current chat ignorelist in a channel. */
+    protected void printIgnoreList(ChannelFrame fr)
+    {
+        fr.print("* Ignore list:");
+
+        Enumeration ienum = ignoreList.elements();
+
+        while (ienum.hasMoreElements())
+        {
+            String s = (String) ienum.nextElement();
+            fr.print("* " + s);
+        }
+    }
+
+    /** Print the current chat ignorelist in a playerinterface. */
+    protected void printIgnoreList(SOCPlayerInterface pi)
+    {
+        pi.print("* Ignore list:");
+
+        Enumeration ienum = ignoreList.elements();
+
+        while (ienum.hasMoreElements())
+        {
+            String s = (String) ienum.nextElement();
+            pi.print("* " + s);
+        }        
     }
 
     /**
