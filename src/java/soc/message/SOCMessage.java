@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Documentation paragraphs and other portions of this file Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,25 +29,39 @@ import java.util.StringTokenizer;
 
 /**
  * Messages used for game data, events, and chatting on a channel.
- * 
+ *
  * No objects, only strings and integers, are to be sent over the network
- * between servers and clients! 
- * 
+ * between servers and clients!  Your game's code must guarantee that no string
+ * sent contains a separator character ({@link #sep_char} or {@link #sep2_char}). 
+ *<P>
  * Text announcements (SOCGameTextMsg) are often sent along with
  * data messages.
- * 
+ *<P>
  * The message data is sent over the network as type ID + data strings
  * built by each SOCMessage subclass's toCmd() method.  
- *
+ *<P>
  * On the remote end, it's reconstructed to a new instance of the
  * appropriate SOCMessage subclass, by the subclass' required method
  * static SOCMessageSubclass parseDataStr(String).
+ * parseDataStr is called from {@link #toMsg(String)} in this class.
+ *<P>
+ * The client receives messages in {@link soc.client.SOCPlayerClient#treat(SOCMessage, boolean)}.
+ * The server receives messages in {@link soc.server.SOCServer#processCommand(String, StringConnection)}.
+ *<P>
+ * To create a new message type:
+ *<UL>
+ * <LI> choose a message type ID (add to the end of the list in this class)
+ * <LI> add it to the switch in {@link #toMsg(String)}.
+ * <LI> Extend the SOCMessage class, including the required parseDataStr method.
+ *      (SOCDiceResult and SOCSetTurn are good example subclasses.)
+ * <LI> Add to the switch in either
+ *      SOCPlayerClient.treat or SOCServer.processCommand.
+ *</UL>
+ *<P>
+ * For most messages, at most one {@link #sep} token per message, which separates the messagetype number
+ * from the message data; multiple SEP2 are allowed after SEP.
+ * For multi-messages, multiple SEP are allowed; see {@link SOCMessageMulti}.
  *
- * To create a new message type, choose a message type ID (add to the end of
- * the list in this class) and add it to the switch in toMsg().
- * Extend the SOCMessage class, including the required parseDataStr method.
- * (SOCDiceResult and SOCSetTurn are good example subclasses.)
- * 
  * @author Robert S Thomas
  */
 public abstract class SOCMessage implements Serializable, Cloneable
@@ -133,10 +148,16 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public static final int SERVERPING = 9999;
 
     /**
-     * token seperators
+     * Token seperators. At most one SEP per message; multiple SEP2 are allowed after SEP.
+     * For multi-messages, multiple SEP are allowed; see {@link SOCMessageMulti}.
      */
-    protected static final String sep = "|";
-    protected static String sep2 = ",";
+    public static final String sep = "|";
+    /** secondary separator token SEP2, as string */
+    public static final String sep2 = ",";
+    /** main separator token {@link #sep}, as character */
+    public static final char sep_char = '|';
+    /** secondary separator token {@link #sep2}, as character */
+    public static final char sep2_char = ',';
 
     /**
      * An ID identifying the type of message
@@ -159,11 +180,33 @@ public abstract class SOCMessage implements Serializable, Cloneable
      * static SOCMessageSubclass parseDataStr(String)
      * must be able to turn this String
      * back into an instance of the message class.
+     *<P>
+     * For most message types, at most one {@link #sep} token is allowed,
+     * separating the type ID from the rest of the parameters.
+     * For multi-messages (@link SOCMessageMulti}, multiple {@link #sep} tokens
+     * are allowed.  Multi-messages are parsed with:
+     * static SOCMessageSubclass parseDataStr(String[])
      */
     public abstract String toCmd();
 
     /** Simple human-readable representation, used for debug purposes. */
     public abstract String toString();
+
+    /**
+     * Utility, place one string into a new single-element array.
+     * To assist with {@link SOCMessageMulti} parsing.
+     *
+     * @param s  String to place into array, or null
+     * @return New single-element array containing s, or null if s null.
+     */
+    public static String[] toSingleElemArray(String s)
+    {
+            if (s == null)
+                    return null;
+            String[] sarr = new String[1];
+            sarr[0] = s;
+            return sarr;
+    }
 
     /**
      * Convert a string into a SOCMessage
@@ -188,9 +231,40 @@ public abstract class SOCMessage implements Serializable, Cloneable
              */
             String data;
 
+            /**
+             * to handle {@link SOCMessageMulti} subclasses -
+             * multiple parameters with sub-fields.
+             * If only one param is seen, this will be null;
+             * use {@link #toSingleElemArray(String)} to build it.
+             *<code>
+             *     case POTENTIALSETTLEMENTS:
+             *         if (multiData == null)
+             *             multiData = toSingleElemArray(data);
+             *         return SOCPotentialSettlements.parseDataStr(multiData);
+             *</code>
+             */
+            String[] multiData = null; 
+
             try
             {
                 data = st.nextToken();
+                if (st.hasMoreTokens())
+                {
+                        // SOCMessageMulti
+
+                        int n = st.countTokens();  // remaining (will == number of parameters after "data")
+                        multiData = new String[n+1];
+                        multiData[0] = data;
+                        for (int i = 1; st.hasMoreTokens(); ++i)
+                        {
+                                try {
+                                        multiData[i] = st.nextToken();
+                                } catch (NoSuchElementException e)
+                                {
+                                        multiData[i] = null;
+                                }
+                        }
+                }
             }
             catch (NoSuchElementException e)
             {
@@ -434,6 +508,7 @@ public abstract class SOCMessage implements Serializable, Cloneable
                 return SOCResetBoardReject.parseDataStr(data);
 
             default:
+                System.err.println("Unhandled message type in SOCMessage.toMsg: " + msgId);
                 return null;
             }
         }
