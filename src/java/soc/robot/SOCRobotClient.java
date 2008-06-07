@@ -1138,9 +1138,10 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
                 {
                     gamesFinished++;
 
-                    if (ga.getPlayer(nickname).getTotalVP() >= 10)
+                    if (ga.getPlayer(nickname).getTotalVP() >= SOCGame.VP_WINNER)
                     {
                         gamesWon++;
+                        // TODO: hardcoded, assumes 10 to win (VP_WINNER)
                     }
                 }
 

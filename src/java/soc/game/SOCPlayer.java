@@ -832,7 +832,12 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     }
 
     /**
+     * This player's number of publicly known victory points.
+     * Public victory points exclude VP development cards, except at
+     * end of game, when they've been announced by server.
+     *  
      * @return the number of publicly known victory points
+     * @see #forceFinalVP(int)
      */
     public int getPublicVP()
     {

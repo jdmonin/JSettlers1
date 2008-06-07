@@ -102,6 +102,13 @@ public class SOCGame implements Serializable, Cloneable
     public static final int MINPLAYERS = 2;
 
     /**
+     * Number of victory points (10) needed to win.
+     * Set to constant for searching if in future, decide 
+     * to make a per-game choice.
+     */
+    public static final int VP_WINNER = 10;
+
+    /**
      * the set of resources a player needs to build a settlement
      */
     public static final SOCResourceSet EMPTY_RESOURCES = new SOCResourceSet();
@@ -581,14 +588,25 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * set the number of the current player
+     * Set the number of the current player, and check for winner.
+     * Called only at client - server instead calls endTurn()
+     * or advanceTurn().
+     * Check for gamestate {@link SOCGame#OVER} after calling
+     * setCurrentPlayerNumber.
+     * This is needed because a player can win only during their own turn;
+     * if they reach winning points (VP_WINNER or more) during another
+     * player's turn, they must wait.
      *
      * @param pn  the player number
+     * @see #endTurn()
+     * @see #checkForWinner()
      */
     public void setCurrentPlayerNumber(int pn)
     {
         //D.ebugPrintln("SETTING CURRENT PLAYER NUMBER TO "+pn);
         currentPlayerNumber = pn;
+        if (players[currentPlayerNumber].getTotalVP() >= VP_WINNER)
+            checkForWinner();
     }
 
     /**
@@ -1396,7 +1414,16 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * end the turn for the current player
+     * end the turn for the current player, and check for winner.
+     * Check for gamestate {@link #OVER} after calling endTurn.
+     * endTurn() is called only at server - client instead calls
+     * setCurrentPlayerNumber.
+     * The winner check is needed because a player can win only
+     * during their own turn; if they reach winning points (VP_WINNER
+     * or more) during another player's turn, they must wait.
+     *
+     * @see #setCurrentPlayerNumber(int)
+     * @see #checkForWinner()
      */
     public void endTurn()
     {
@@ -1406,6 +1433,8 @@ public class SOCGame implements Serializable, Cloneable
         players[currentPlayerNumber].setPlayedDevCard(false);
         players[currentPlayerNumber].getDevCards().newToOld();
         resetVoteClear();
+        if (players[currentPlayerNumber].getTotalVP() >= VP_WINNER)
+            checkForWinner();
     }
 
     /**
@@ -2784,23 +2813,27 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * check all the vp totals to see if the
+     * check current player's vp total to see if the
      * game is over.  Set game state to OVER,
      * set player with win.
+     *<P>
+     * Per rules FAQ, a player can win only during their own turn.
+     * If a player reaches winning points (VP_WINNER or more) but it's
+     * not their turn, there is not yet a winner. This could happen if,
+     * for example, the longest road is broken by a new settlement, and
+     * the next-longest road is not the current player's road.
      *
      * @see #getGameState()
      * @see #getPlayerWithWin()
      */
     public void checkForWinner()
     {
-        for (int i = 0; i < MAXPLAYERS; i++)
+        int pn = currentPlayerNumber;
+        if ((pn >= 0) && (pn < MAXPLAYERS)
+            && (players[pn].getTotalVP() >= VP_WINNER))
         {
-            if (players[i].getTotalVP() >= 10)
-            {
-                gameState = OVER;
-                playerWithWin = i;
-                break;
-            }
+            gameState = OVER;
+            playerWithWin = pn;
         }
     }
 

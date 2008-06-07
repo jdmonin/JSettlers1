@@ -315,7 +315,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(vpLab);
         vpSq = new ColorSquare(ColorSquare.GREY, 0);
         vpSq.setTooltipText("Total victory points for this opponent");
-        vpSq.setTooltipHighWarningLevel("Close to winning", 8);  // TODO assumes playing until 10 (hardcoded in SOCGame.checkForWinner)
+        vpSq.setTooltipHighWarningLevel("Close to winning", 8);  // TODO assumes playing until 10 (hardcoded in SOCGame.checkForWinner) - SOCGame.VP_WINNER
         add(vpSq);
 
         larmyLab = new Label("", Label.CENTER);
@@ -1481,7 +1481,10 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Display or update this player's trade offer, or hide if none.
+     * If a game reset request is in progress, don't show the offer, because
+     * they use the same display component ({@link #offer}).  In that case
+     * the trade offer will be refreshed after the reset is cancelled.
      */
     public void updateCurrentOffer()
     {
@@ -1508,7 +1511,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Show that this player has rejected another player's offer.
      */
     public void rejectOffer()
     {
