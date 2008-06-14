@@ -3390,13 +3390,17 @@ public class SOCServer extends Server
                         if (ga.canEndTurn(ga.getPlayer((String) c.getData()).getPlayerNumber()))
                         {
                             boolean hadBoardResetRequest = (-1 != ga.getResetVoteRequester());
-                            ga.endTurn();
+                            ga.endTurn();  // May set state to OVER, if new player has enough points
                             if (hadBoardResetRequest)
                             {
                                 // Cancel voting at end of turn
                                 messageToGame(gname, new SOCResetBoardReject(gname));
                             }
 
+                            /**
+                             * send new state number; if game is now OVER,
+                             * also send end-of-game messages.
+                             */
                             boolean wantsRollPrompt = sendGameState(ga, false);
 
                             /**
@@ -5099,9 +5103,11 @@ public class SOCServer extends Server
     /**
      * send the current state of the game with a message.
      * Note that the current (or new) player number is not sent here.
+     * If game is now OVER, send appropriate messages.
      * 
      * @see #sendTurn(SOCGame, boolean)
      * @see #sendGameState(SOCGame)
+     * @see #sendGameStateOVER(SOCGame)
      *
      * @param ga  the game
      * @param sendRollPrompt  If true, and if we send a text message to prompt
@@ -5114,9 +5120,17 @@ public class SOCServer extends Server
     {
         if (ga == null)
             return false;
-        
+
         boolean promptedRoll = false;
         String gname = ga.getName();
+        if (ga.getGameState() == SOCGame.OVER)
+        {
+            /**
+             * Before sending state "OVER", enforce current player number.
+             * This helps the client's copy of game recognize winning condition.
+             */
+            messageToGame(gname, new SOCSetTurn(gname, ga.getCurrentPlayerNumber()));
+        }
         messageToGame(gname, new SOCGameState(gname, ga.getGameState()));
 
         SOCPlayer player = null;
@@ -5254,17 +5268,23 @@ public class SOCServer extends Server
         
         // Find and announce the winner
         // (the real "found winner" code is in SOCGame.checkForWinner)
-        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
         {
-            SOCPlayer pl = ga.getPlayer(i);
+            SOCPlayer pl = ga.getPlayer(ga.getCurrentPlayerNumber());
 
-            if (pl.getTotalVP() >= 10)
+            if (pl.getTotalVP() < SOCGame.VP_WINNER)
             {
-                String msg;
-                msg = ">>> " + pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
-                messageToGameUrgent(gname, msg);
-                break;
+                // Should not happen: By rules FAQ, only current player can be winner.
+                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+                {
+                    pl = ga.getPlayer(i);        
+                    if (pl.getTotalVP() >= SOCGame.VP_WINNER)
+                    {
+                        break;
+                    }
+                }
             }
+            String msg = ">>> " + pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
+            messageToGameUrgent(gname, msg);
         }
         
         /// send a message with the revealed final scores
@@ -5350,7 +5370,9 @@ public class SOCServer extends Server
     }    
 
     /**
-     * report a trade that has taken place
+     * report a trade that has taken place, using {@link SOCPlayerElement}
+     * and {@link SOCGameTextMsg} messages.  Trades are also reported to robots
+     * by re-sending the accepting player's {@link SOCAcceptOffer} message.
      *
      * @param ga        the game
      * @param offering  the number of the player making the offer

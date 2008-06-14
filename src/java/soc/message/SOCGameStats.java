@@ -40,12 +40,13 @@ public class SOCGameStats extends SOCMessage
     private String game;
 
     /**
-     * The scores
+     * The scores; always indexed 0 to {@link soc.game.SOCGame#MAXPLAYERS},
+     *   regardless of number of players in the game.
      */
     private int[] scores;
 
     /**
-     * Where robots are sitting
+     * Where robots are sitting; indexed same as scores.
      */
     private boolean[] robots;
 
@@ -53,8 +54,10 @@ public class SOCGameStats extends SOCMessage
      * Create a GameStats message
      *
      * @param ga  the name of the game
-     * @param sc  the scores
-     * @param rb  where robots are sitting
+     * @param sc  the scores; always indexed 0 to
+     *   {@link soc.game.SOCGame#MAXPLAYERS},
+     *   regardless of number of players in the game
+     * @param rb  where robots are sitting; indexed same as scores
      */
     public SOCGameStats(String ga, int[] sc, boolean[] rb)
     {
