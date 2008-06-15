@@ -919,10 +919,13 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             return;
 
         for (int i = 0; i < finalScores.length; ++i)
-        {
             game.getPlayer(i).forceFinalVP(finalScores[i]);
-            hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);  // Also disables buttons, etc.
+        if (null == game.getPlayerWithWin())
+        {
+            game.checkForWinner();  // Assumes "current player" set to winner already, by SETTURN msg
         }
+        for (int i = 0; i < finalScores.length; ++i)
+            hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);  // Also disables buttons, etc.
         setTitle(TITLEBAR_GAME_OVER + game.getName() +
                  (game.isLocal ? "" : " [" + client.getNickname() + "]"));
         repaint();

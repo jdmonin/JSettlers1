@@ -604,9 +604,12 @@ public class SOCGame implements Serializable, Cloneable
     public void setCurrentPlayerNumber(int pn)
     {
         //D.ebugPrintln("SETTING CURRENT PLAYER NUMBER TO "+pn);
-        currentPlayerNumber = pn;
-        if (players[currentPlayerNumber].getTotalVP() >= VP_WINNER)
-            checkForWinner();
+        if ((pn >= -1) && (pn < players.length))
+        {
+            currentPlayerNumber = pn;
+            if ((pn >= 0) && (players[pn].getTotalVP() >= VP_WINNER))
+                checkForWinner();
+        }
     }
 
     /**

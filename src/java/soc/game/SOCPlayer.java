@@ -866,7 +866,8 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     }
 
     /**
-     * @return the actual number of victory points
+     * @return the actual number of victory points (including VP cards)
+     * @see #forceFinalVP(int)
      */
     public int getTotalVP()
     {
