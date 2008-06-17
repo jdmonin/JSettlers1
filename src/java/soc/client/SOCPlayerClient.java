@@ -99,6 +99,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /** connect-or-practice panel (if jar launch), in cardlayout */
     protected static final String CONNECT_OR_PRACTICE_PANEL = "connOrPractice";
 
+    /** Default tcp port number 8880 to listen, and to connect to remote server */
+    public static final int SOC_PORT_DEFAULT = 8880;
+
     protected static String STATSPREFEX = "  [";
     protected TextField nick;
     protected TextField pass;
@@ -112,7 +115,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Button pg;  // practice game (local)
     protected Label messageLabel;  // error message for messagepanel
     protected Label messageLabel_top;   // secondary message
-    protected Button pgm;  // practice game from messagepanel
+    protected Label localTCPPortLabel;   // shows port number, if running localTCPServer
+    protected Button pgm;  // practice game on messagepanel
     protected AppletContext ac;
 
     /** For debug, our last messages sent, over the net and locally (pipes) */
@@ -234,15 +238,20 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected int numPracticeGames = 0;  // Used for naming practice games
 
     /**
-     * Create a SOCPlayerClient connecting to localhost port 8880
+     * for client-hosted server
+     */
+    protected SOCServer localTCPServer = null;
+
+    /**
+     * Create a SOCPlayerClient connecting to localhost port {@link #SOC_PORT_DEFAULT}
      */
     public SOCPlayerClient()
     {
-        this(null, 8880, false);
+        this(null, SOC_PORT_DEFAULT, false);
     }
 
     /**
-     * Create a SOCPlayerClient either connecting to localhost port 8880,
+     * Create a SOCPlayerClient either connecting to localhost port {@link #SOC_PORT_DEFAULT},
      *   or initially showing 'Connect or Practice' panel.
      *
      * @param cp  If true, start by showing 'Connect or Practice' panel,
@@ -250,7 +259,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public SOCPlayerClient(boolean cp)
     {
-        this(null, 8880, cp);
+        this(null, SOC_PORT_DEFAULT, cp);
     }
 
     /**
@@ -418,10 +427,10 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         // Row 5
 
-        l = new Label();
+        localTCPPortLabel = new Label();
         c.gridwidth = 1;
-        gbl.setConstraints(l, c);
-        mainPane.add(l);
+        gbl.setConstraints(localTCPPortLabel, c);
+        mainPane.add(localTCPPortLabel);
 
         c.gridwidth = 1;
         gbl.setConstraints(jc, c);
@@ -547,7 +556,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void start()
     {
-        nick.requestFocus();
+        if (! hasConnectOrPractice)
+            nick.requestFocus();
     }
     
     /**
@@ -590,6 +600,23 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             System.err.println("Invalid port: " + param);
         }
 
+        connect();
+    }
+
+    /**
+     * Connect and give feedback by showing MESSAGE_PANEL.
+     * @param chost Hostname to connect to, or null for localhost
+     * @param cport Port number to connect to
+     * @param cuser User nickname
+     * @param cpass User optional password
+     */
+    public void connect(String chost, int cport, String cuser, String cpass)
+    {
+        host = chost;
+        port = cport;
+        nick.setText(cuser);
+        pass.setText(cpass);
+        cardLayout.show(this, MESSAGE_PANEL);
         connect();
     }
 
@@ -852,19 +879,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             {
                 // Practice game requested, no game named "Practice" already exists.
                 // Check for other active practice games. (Could be "Practice 2")
-
-                Enumeration gamesEnum = practiceServer.getGameNames();
-                while (gamesEnum.hasMoreElements())
-                {
-                    String tryGm = (String) gamesEnum.nextElement();
-                    int gs = practiceServer.getGameState(tryGm);
-                    if (gs < SOCGame.OVER)
-                    {
-                        pi = (SOCPlayerInterface) playerInterfaces.get(tryGm);
-                        if (pi != null)
-                            break;  // Active and we have a window with it
-                    }
-                }
+                pi = findAnyActiveGame(true);
             }
 
             if ((pi != null) && ((target == pg) || (target == pgm)))
@@ -974,6 +989,83 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
 
         return;
+    }
+
+    /**
+     * Look for active games that we're playing
+     *
+     * @param fromLocalServer  Enumerate games from {@link #practiceServer},
+     *     instead of {@link #playerInterfaces}?
+     * @return Any found game of ours which is active (state not OVER), or null if none.
+     * @see #anyHostedActiveGames()
+     */
+    protected SOCPlayerInterface findAnyActiveGame (boolean fromPracticeServer)
+    {
+        SOCPlayerInterface pi = null;
+        int gs;  // gamestate
+
+        Enumeration gameNames;
+        if (fromPracticeServer)
+            gameNames = practiceServer.getGameNames();
+        else
+            gameNames = playerInterfaces.keys();
+
+        while (gameNames.hasMoreElements())
+        {
+            String tryGm = (String) gameNames.nextElement();
+
+            if (fromPracticeServer)
+            {
+                gs = practiceServer.getGameState(tryGm);
+                if (gs < SOCGame.OVER)
+                {
+                    pi = (SOCPlayerInterface) playerInterfaces.get(tryGm);
+                    if (pi != null)
+                        break;  // Active and we have a window with it
+                }
+            } else {
+                pi = (SOCPlayerInterface) playerInterfaces.get(tryGm);
+                if (pi != null)
+                {
+                    // we have a window with it
+                    gs = pi.getGame().getGameState();
+                    if (gs < SOCGame.OVER)
+                    {
+                        break;      // Active
+                    } else {
+                        pi = null;  // Avoid false positive
+                    }
+                }
+            }
+        }
+
+        return pi;  // Active game, or null
+    }
+
+    /**
+     * Look for active games that we're hosting (state >= START1A, not yet OVER).
+     *
+     * @return If any hosted games of ours are active
+     * @see #findAnyActiveGame(boolean)
+     */
+    protected boolean anyHostedActiveGames ()
+    {
+        if (localTCPServer == null)
+            return false;
+
+        Enumeration gameNames = localTCPServer.getGameNames();
+
+        while (gameNames.hasMoreElements())
+        {
+            String tryGm = (String) gameNames.nextElement();
+            int gs = localTCPServer.getGameState(tryGm);
+            if ((gs < SOCGame.OVER) && (gs >= SOCGame.START1A))
+            {
+                return true;  // Active
+            }
+        }
+
+        return false;  // No active games found
     }
 
     /**
@@ -3949,7 +4041,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
             // We need some opponents.
             // Let the server randomize whether we get smart or fast ones.
-            setupLocalRobots(null, 0);
+            setupLocalRobots(0);
         }
         if (prCli == null)
         {
@@ -3975,15 +4067,86 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * Set up opponents for a locally running server (tcp or stringport).
+     * Setup for locally hosting a TCP server.
+     * If needed, a local server and robots are started, and client connects to it.
+     * If parent is a Frame, set titlebar to show "server" and port#.
+     * Show port number in {@link #localTCPPortLabel}. 
+     * If the {@link #localTCPServer} is already created, does nothing.
+     * If {@link #connected} already, does nothing.
+     *
+     * @param port Port number to host on; must be greater than zero.
+     * @throws IllegalArgumentException If port is 0 or negative
+     */
+    public void startLocalTCPServer(int tport)
+        throws IllegalArgumentException
+    {
+        if (localTCPServer != null)
+        {
+            return;  // Already set up
+        }
+        if (connected)
+        {
+            return;  // Already connected somewhere
+        }
+        if (tport < 1)
+        {
+            throw new IllegalArgumentException("Port must be positive: " + tport);
+        }
+
+        // May take a while to start server.
+        // At end of method, we'll clear this cursor.
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+        localTCPServer = new SOCServer(tport, 30, null, null);
+        localTCPServer.setPriority(5);  // same as in SOCServer.main
+        localTCPServer.start();
+
+        // We need some opponents.
+        // Let the server randomize whether we get smart or fast ones.
+        setupLocalRobots(tport);
+
+        // Set label
+        localTCPPortLabel.setText("Port: " + tport);
+        new AWTToolTip ("You are running a server on TCP port " + tport + ".", localTCPPortLabel);
+
+        // Set titlebar, if present
+        {
+            Container parent = this.getParent();
+            if ((parent != null) && (parent instanceof Frame))
+            {
+                try
+                {
+                    ((Frame) parent).setTitle("JSettlers server " + Version.version()
+                        + " - port " + tport);
+                } catch (Throwable t)
+                {}
+            }
+        }
+        
+        // Connect to it
+        host = "localhost";
+        port = tport;
+        cardLayout.show(this, MESSAGE_PANEL);
+        connect();
+
+        // Reset the cursor
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+    }
+
+
+
+    /**
+     * Set up some robot opponents for a locally running server (tcp or stringport).
      * This lets the server randomize whether we play against smart or fast ones.
+     * (Some will be SOCRobotDM.FAST_STRATEGY, some SMART_STRATEGY).
      * If the local server is stringport, it must be running as
      * {@link #PRACTICE_STRINGPORT}.
      *
-     * @param servhost tcp host name, or null for stringport
-     * @param port Port number for tcp (ignored for stringport)
+     * @param port Port number for tcp, or 0 for stringport
+     * @see #startPracticeGame()
+     * @see #startLocalTCPServer(int)
      */
-    public void setupLocalRobots(String servhost, int port)
+    public void setupLocalRobots(int port)
     {
         SOCRobotClient[] robo_fast = new SOCRobotClient[5];
         SOCRobotClient[] robo_smrt = new SOCRobotClient[2];
@@ -3994,10 +4157,10 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         for (int i = 0; i < 5; ++i)
         {
             String rname = "droid " + (i+1);
-            if (servhost == null)
+            if (port == 0)
                 robo_fast[i] = new SOCRobotClient (PRACTICE_STRINGPORT, rname, "pw");
             else
-                robo_fast[i] = new SOCRobotClient (servhost, port, rname, "pw");
+                robo_fast[i] = new SOCRobotClient ("localhost", port, rname, "pw");
             new Thread(new SOCPlayerLocalRobotRunner(robo_fast[i])).start();
             Thread.yield();
             try
@@ -4008,22 +4171,27 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             catch (InterruptedException ie) {}
         }
 
-        // Make a few smarter ones now.
         try
         {
             Thread.sleep(150);
-                // Wait for robots' accept and UPDATEROBOTPARAMS.
+                // Wait for these robots' accept and UPDATEROBOTPARAMS,
+                // before we change the default params.
         }
         catch (InterruptedException ie) {}
 
+        // Make a few smarter ones now.
+        // Switch params to SMARTER for future new robots.
+        // This works because server is in the same JVM as client.
+
         SOCServer.ROBOT_PARAMS_DEFAULT = SOCServer.ROBOT_PARAMS_SMARTER;   // SOCRobotDM.SMART_STRATEGY
+
         for (int i = 0; i < 2; ++i)
         {
             String rname = "robot " + (i+1+robo_fast.length);
-            if (servhost == null)
+            if (port == 0)
                 robo_smrt[i] = new SOCRobotClient (PRACTICE_STRINGPORT, rname, "pw");
             else
-                robo_smrt[i] = new SOCRobotClient (servhost, port, rname, "pw");
+                robo_smrt[i] = new SOCRobotClient ("localhost", port, rname, "pw");
             new Thread(new SOCPlayerLocalRobotRunner(robo_smrt[i])).start();
             Thread.yield();
             try
@@ -4173,12 +4341,28 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         public void windowClosing(WindowEvent evt)
         {
-            System.exit(0);
+            // User has clicked window Close button.
+            // Check for active games, before exiting.
+            SOCPlayerInterface piActive = null;
+
+            // Are we running a server?
+            if (localTCPServer != null)
+                piActive = findAnyActiveGame(true);
+
+            // Are we a client to any active games?
+            if (piActive == null)
+                piActive = findAnyActiveGame(false);
+
+            if (piActive != null)
+                SOCQuitAllConfirmDialog.createAndShow(piActive.getClient(), piActive);
+            else
+                System.exit(0);
         }
 
         public void windowOpened(WindowEvent evt)
         {
-            nick.requestFocus();
+            if (! hasConnectOrPractice)
+                nick.requestFocus();
         }
     }
 
