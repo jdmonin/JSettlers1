@@ -21,7 +21,6 @@
  **/
 package soc.client;
 
-import java.awt.BorderLayout;
 import java.awt.Button;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -37,14 +36,9 @@ import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketTimeoutException;
-
-import soc.util.Version;
 
 
 /**
@@ -53,7 +47,7 @@ import soc.util.Version;
  * @author Jeremy D Monin <jeremy@nand.net>
  */
 public class SOCConnectOrPracticePanel extends Panel
-    implements ActionListener // , WindowListener, KeyListener
+    implements ActionListener // , KeyListener
 {
     private SOCPlayerClient cl;
 
@@ -79,6 +73,9 @@ public class SOCConnectOrPracticePanel extends Panel
      * Determined by calling {@link #checkCanLaunchServer()}.
      */
     private boolean canLaunchServer;
+
+    private static final Color HEADER_LABEL_BG = new Color(220,255,220);
+    private static final Color HEADER_LABEL_FG = new Color( 50, 80, 50);
 
     /**
      * Creates a new SOCConnectOrPracticePanel.
@@ -180,11 +177,6 @@ public class SOCConnectOrPracticePanel extends Panel
         add(connserv);
         connserv.addActionListener(this);
 
-        panel_conn = initInterface_conn();  // panel_conn setup
-        panel_conn.setVisible(false);
-        gbl.setConstraints(panel_conn, gbc);
-        add (panel_conn);
-
         /**
          * Interface setup: Practice
          */
@@ -201,6 +193,15 @@ public class SOCConnectOrPracticePanel extends Panel
         if (! canLaunchServer)
             runserv.setEnabled(false);
         add(runserv);
+
+        /**
+         * Interface setup: sub-panels (not initially visible)
+         */
+        panel_conn = initInterface_conn();  // panel_conn setup
+        panel_conn.setVisible(false);
+        gbl.setConstraints(panel_conn, gbc);
+        add (panel_conn);
+
         if (canLaunchServer)
         {
             runserv.addActionListener(this);
@@ -222,19 +223,35 @@ public class SOCConnectOrPracticePanel extends Panel
         GridBagLayout gbl = new GridBagLayout();
         GridBagConstraints gbc = new GridBagConstraints();
         pconn.setLayout(gbl);
+        gbc.fill = GridBagConstraints.BOTH;
+
+        // heading row
+        L = new Label("Connect to Server");
+        L.setAlignment(Label.CENTER);
+        L.setBackground(HEADER_LABEL_BG);
+        L.setForeground(HEADER_LABEL_FG);
+        gbc.gridwidth = 4;
+        gbl.setConstraints(L, gbc);
+        pconn.add(L);
+        L = new Label(" ");  // Spacing for rest of form's rows
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        gbl.setConstraints(L, gbc);
+        pconn.add(L);
+
+        // blank row
+        L = new Label();
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        gbl.setConstraints(L, gbc);
+        pconn.add(L);
 
         L = new Label("Server");
         gbc.gridwidth = 1;
         gbl.setConstraints(L, gbc);
         pconn.add(L);
         conn_servhost = new TextField(20);
-        gbc.gridwidth = 2;
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbl.setConstraints(conn_servhost, gbc);
         pconn.add(conn_servhost);        
-        L = new Label(" ");  // Spacing for rest of form's rows
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
-        gbl.setConstraints(L, gbc);
-        pconn.add(L);
 
         L = new Label("Port");
         gbc.gridwidth = 1;
@@ -292,6 +309,27 @@ public class SOCConnectOrPracticePanel extends Panel
         GridBagLayout gbl = new GridBagLayout();
         GridBagConstraints gbc = new GridBagConstraints();
         prun.setLayout(gbl);
+        gbc.fill = GridBagConstraints.BOTH;
+
+        // heading row
+        L = new Label("Start a Server");
+        L.setAlignment(Label.CENTER);
+        L.setBackground(HEADER_LABEL_BG);
+        L.setForeground(HEADER_LABEL_FG);
+        gbc.gridwidth = 4;
+        gbl.setConstraints(L, gbc);
+        prun.add(L);
+        L = new Label(" ");  // Spacing for rest of form's rows
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        gbl.setConstraints(L, gbc);
+        prun.add(L);
+
+        // blank row
+        L = new Label();
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        gbl.setConstraints(L, gbc);
+        prun.add(L);
+
 
         L = new Label("Port");
         gbc.gridwidth = 1;
@@ -336,37 +374,52 @@ public class SOCConnectOrPracticePanel extends Panel
             return;
         }
         
-        if ((src == conn_connect)
-            || (panel_conn.isVisible() && (src == connserv)))
-        {
-            // After clicking connserv,
-            // actually connect to server
-            clickConnConnect();
-            return;
-        }
-
         if (src == connserv)
         {
             // Show fields to get details to connect to server later
             panel_conn.setVisible(true);
             if ((panel_run != null) && panel_run.isVisible())
+            {
                 panel_run.setVisible(false);
+                runserv.setVisible(true);
+            }
+            connserv.setVisible(false);
             validate();
+        }
+
+        if (src == conn_connect)
+        {
+            // After clicking connserv, actually connect to server
+            clickConnConnect();
+            return;
         }
 
         if (src == conn_cancel)
         {
             // Hide fields used to connect to server
             panel_conn.setVisible(false);
+            connserv.setVisible(true);
             validate();
             return;
         }
 
-        if ((src == run_startserv)
-            || (panel_run.isVisible() && (src == runserv)))
+        if (src == runserv)
         {
-            // After clicking runserv,
-            // actually start a server
+            // Show fields to get details to start a TCP server
+            panel_run.setVisible(true);
+            if ((panel_conn != null) && panel_conn.isVisible())
+            {
+                panel_conn.setVisible(false);
+                connserv.setVisible(true);
+            }
+            runserv.setVisible(false);
+            validate();
+            return;
+        }
+        
+        if (src == run_startserv)
+        {
+            // After clicking runserv, actually start a server
             int cport = 0;
             try {
                 cport = Integer.parseInt(conn_servport.getText());
@@ -380,20 +433,11 @@ public class SOCConnectOrPracticePanel extends Panel
             return;
         }
 
-        if (src == runserv)
-        {
-            // Show fields to get details to start a TCP server
-            panel_run.setVisible(true);
-            if ((panel_conn != null) && panel_conn.isVisible())
-                panel_conn.setVisible(false);
-            validate();
-            return;
-        }
-        
         if (src == run_cancel)
         {
             // Hide fields used to start a server
             panel_run.setVisible(false);
+            runserv.setVisible(true);
             validate();
             return;
         }
