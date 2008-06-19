@@ -24,7 +24,10 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message says which player has longest road
+ * This message says which player has longest road.
+ * Sent from server during joinGame.
+ * During normal gameplay, "longest road" indicator at client is updated
+ * by examining game state, not by messages from server.
  *
  * @author Robert S. Thomas
  */

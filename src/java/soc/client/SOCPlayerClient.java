@@ -2634,6 +2634,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
+            SOCPlayer longestRoadPlayer = ga.getPlayerWithLongestRoad();
 
             switch (mes.getPieceType())
             {
@@ -2695,6 +2696,20 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.VICTORYPOINTS);
             pi.getBoardPanel().repaint();
             pi.getBuildingPanel().updateButtonStatus();
+
+            if (longestRoadPlayer != null)
+            {
+                // Check for and announce change in longest road
+
+                SOCPlayer newLongestRoadPlayer = ga.getPlayerWithLongestRoad();
+                String msg;
+                if (newLongestRoadPlayer != null)
+                    msg = "Longest road was taken by " + newLongestRoadPlayer.getName()
+                        + " from " + longestRoadPlayer.getName() + ".";
+                else
+                    msg = "Longest road was lost by " + longestRoadPlayer.getName() + ".";
+                pi.print(msg);
+            }
         }
     }
 
