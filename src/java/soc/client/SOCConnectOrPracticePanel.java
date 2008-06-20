@@ -42,7 +42,9 @@ import java.net.SocketTimeoutException;
 
 
 /**
- * This is the dialog to confirm when someone clicks the Quit Game button.
+ * This is the dialog for standalone client startup (JAR or otherwise)
+ * if no command-line arguments.  Give choice of connect to server, start local server,
+ * or create practice game.  Prompt for parameters for connect or start-server.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
@@ -258,7 +260,12 @@ public class SOCConnectOrPracticePanel extends Panel
         gbl.setConstraints(L, gbc);
         pconn.add(L);
         conn_servport = new TextField(20);
-        conn_servport.setText(Integer.toString(cl.port));
+        {
+            String svp = Integer.toString(cl.port);
+            conn_servport.setText(svp);
+            conn_servport.setSelectionStart(0);
+            conn_servport.setSelectionEnd(svp.length());
+        }
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbl.setConstraints(conn_servport, gbc);
         pconn.add(conn_servport);
@@ -336,7 +343,12 @@ public class SOCConnectOrPracticePanel extends Panel
         gbl.setConstraints(L, gbc);
         prun.add(L);
         run_servport = new TextField(15);
-        run_servport.setText(Integer.toString(cl.port));
+        {
+            String svp = Integer.toString(cl.port);
+            run_servport.setText(svp);
+            run_servport.setSelectionStart(0);
+            run_servport.setSelectionEnd(svp.length());
+        }
         gbc.gridwidth = 2;
         gbl.setConstraints(run_servport, gbc);
         prun.add(run_servport);
@@ -384,7 +396,9 @@ public class SOCConnectOrPracticePanel extends Panel
                 runserv.setVisible(true);
             }
             connserv.setVisible(false);
+            conn_servhost.requestFocus();
             validate();
+            return;
         }
 
         if (src == conn_connect)
@@ -413,6 +427,16 @@ public class SOCConnectOrPracticePanel extends Panel
                 connserv.setVisible(true);
             }
             runserv.setVisible(false);
+            run_servport.requestFocus();
+            {
+                // Convenience: type-to-replace port value
+                String svpText = run_servport.getText();
+                if ((svpText != null) && (svpText.trim().length() > 0))
+                {
+                    run_servport.setSelectionStart(0);
+                    run_servport.setSelectionEnd(svpText.length());
+                }
+            }
             validate();
             return;
         }

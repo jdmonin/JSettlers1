@@ -31,7 +31,6 @@ import soc.game.SOCPlayingPiece;
 import soc.game.SOCResourceConstants;
 import soc.game.SOCResourceSet;
 import soc.game.SOCTradeOffer;
-import soc.message.SOCGameTextMsg;
 
 import java.awt.Button;
 import java.awt.Color;
@@ -633,7 +632,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                 try
                 {
                     int z = Color.BLACK.getRed();
-                    int dz = 15 / z;
+                    int dz = 15 / z;  // Trigger divide-by-zero, to force an exception
+                    System.out.print(dz);
                 }
                 catch (Throwable th)
                 {
@@ -900,7 +900,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
 
         if (game.getPlayer(client.getNickname()) == null &&
-            game.getGameState() == game.NEW)
+            game.getGameState() == SOCGame.NEW)
         {
             if (sitButIsLock)
             {
@@ -1035,7 +1035,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             vpSq.setTooltipText("Your victory point total");
 
             // show 'Victory Points' and hide "Start Button" if game in progress
-            if (game.getGameState() == game.NEW)
+            if (game.getGameState() == SOCGame.NEW)
             {
                 startBut.setVisible(true);
             }
@@ -1105,7 +1105,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
             // Remove all of the sit and take over buttons.
             // If game still forming, can lock seats (for fewer players/robots).
-            boolean gameForming = (game.getGameState() == game.NEW);
+            boolean gameForming = (game.getGameState() == SOCGame.NEW);
             int pnum = player.getPlayerNumber();
             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
@@ -1970,8 +1970,8 @@ public class SOCHandPanel extends Panel implements ActionListener
                 int sheepW = fm.stringWidth("Sheep:_");           //Bug in stringWidth does not give correct size for ' '
                 int pcW = fm.stringWidth(CARD.replace(' ','_'));  //Bug in stringWidth
                 int giveW = fm.stringWidth(GIVE.replace(' ','_'));
-                int clearW = fm.stringWidth(CLEAR.replace(' ','_'));
-                int bankW = fm.stringWidth(BANK.replace(' ','_'));
+                // int clearW = fm.stringWidth(CLEAR.replace(' ','_'));
+                // int bankW = fm.stringWidth(BANK.replace(' ','_'));
                 int cardsH = 5 * (lineH + space);
                 int tradeH = sqpDim.height + space + (2 * (lineH + space));
                 int sectionSpace = (dim.height - (inset + faceW + cardsH + tradeH + lineH + inset)) / 3;

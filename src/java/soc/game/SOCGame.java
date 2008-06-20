@@ -406,7 +406,8 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * @return the expiration time
+     * @return the expiration time in milliseconds,
+     *            same epoch as {@link java.util.Date#getTime()}
      */
     public long getExpiration()
     {
@@ -416,7 +417,8 @@ public class SOCGame implements Serializable, Cloneable
     /**
      * set the expiration time
      *
-     * @param ex  the expiration time in milliseconds
+     * @param ex  the expiration time in milliseconds,
+     *            same epoch as {@link java.util.Date#getTime()}
      */
     public void setExpiration(long ex)
     {

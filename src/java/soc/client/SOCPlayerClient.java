@@ -63,8 +63,6 @@ import java.awt.Panel;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -238,7 +236,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected int numPracticeGames = 0;  // Used for naming practice games
 
     /**
-     * for client-hosted server
+     * Client-hosted TCP server. If client is running this server, it's also connected
+     * as a client, instead of being client of a remote server.
+     * {@link #practiceServer} may still be activated at the user's request.
      */
     protected SOCServer localTCPServer = null;
 
@@ -1700,7 +1700,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * handle the "list of channels" message
+     * handle the "list of channels" message; this message indicates that
+     * we're newly connected to the server.
      * @param mes  the message
      * @param isLocal is the server actually local (practice game)?
      */
@@ -1714,6 +1715,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             cardLayout.show(this, MAIN_PANEL);
             validate();
 
+            nick.requestFocus();
             status.setText("Login by entering nickname and then joining a channel or game.");
         }
 
@@ -1959,20 +1961,21 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         /**
          * tell the game that a player is sitting
          */
-        SOCGame ga = (SOCGame) games.get(mes.getGame());
+        final SOCGame ga = (SOCGame) games.get(mes.getGame());
 
         if (ga != null)
         {
+            final int mesPN = mes.getPlayerNumber();
             ga.takeMonitor();
 
             try
             {
-                ga.addPlayer(mes.getNickname(), mes.getPlayerNumber());
+                ga.addPlayer(mes.getNickname(), mesPN);
 
                 /**
                  * set the robot flag
                  */
-                ga.getPlayer(mes.getPlayerNumber()).setRobotFlag(mes.isRobot());
+                ga.getPlayer(mesPN).setRobotFlag(mes.isRobot());
             }
             catch (Exception e)
             {
@@ -1986,8 +1989,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             /**
              * tell the GUI that a player is sitting
              */
-            SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-            pi.addPlayer(mes.getNickname(), mes.getPlayerNumber());
+            final SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
+            pi.addPlayer(mes.getNickname(), mesPN);
 
             /**
              * let the board panel & building panel find our player object if we sat down
@@ -2002,7 +2005,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                  */
                 if (! ga.isBoardReset())
                 {
-                    ga.getPlayer(mes.getPlayerNumber()).setFaceId(1);
+                    ga.getPlayer(mesPN).setFaceId(1);
                     changeFace(ga, 1);
                 }
             }
@@ -2010,7 +2013,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             /**
              * update the hand panel
              */
-            SOCHandPanel hp = pi.getPlayerHandPanel(mes.getPlayerNumber());
+            final SOCHandPanel hp = pi.getPlayerHandPanel(mesPN);
             hp.updateValue(SOCHandPanel.ROADS);
             hp.updateValue(SOCHandPanel.SETTLEMENTS);
             hp.updateValue(SOCHandPanel.CITIES);
@@ -2077,7 +2080,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         if (ga != null)
         {
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-            if (ga.getGameState() == ga.NEW && mes.getState() != ga.NEW)
+            if (ga.getGameState() == SOCGame.NEW && mes.getState() != SOCGame.NEW)
             {
                 pi.startGame();
             }
@@ -2196,12 +2199,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     protected void handlePLAYERELEMENT(SOCPlayerElement mes)
     {
-        SOCGame ga = (SOCGame) games.get(mes.getGame());
+        final SOCGame ga = (SOCGame) games.get(mes.getGame());
 
         if (ga != null)
         {
-            SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
-            SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
+            final int pn = mes.getPlayerNumber();
+            final SOCPlayer pl = ga.getPlayer(pn);
+            final SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
 
             switch (mes.getElementType())
             {
@@ -2225,7 +2229,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                     break;
                 }
 
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.ROADS);
+                pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.ROADS);
 
                 break;
 
@@ -2249,7 +2253,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                     break;
                 }
 
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.SETTLEMENTS);
+                pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.SETTLEMENTS);
 
                 break;
 
@@ -2273,37 +2277,40 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                     break;
                 }
 
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.CITIES);
+                pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.CITIES);
 
                 break;
 
             case SOCPlayerElement.NUMKNIGHTS:
 
-                switch (mes.getAction())
                 {
-                case SOCPlayerElement.SET:
-                    pl.setNumKnights(mes.getValue());
+                    final SOCPlayer oldLargestArmyPlayer = ga.getPlayerWithLargestArmy();
 
-                    break;
+                    switch (mes.getAction())
+                    {
+                    case SOCPlayerElement.SET:
+                        pl.setNumKnights(mes.getValue());
+    
+                        break;
+    
+                    case SOCPlayerElement.GAIN:
+                        pl.setNumKnights(pl.getNumKnights() + mes.getValue());
+    
+                        break;
+    
+                    case SOCPlayerElement.LOSE:
+                        pl.setNumKnights(pl.getNumKnights() - mes.getValue());
+    
+                        break;
+                    }
+    
+                    ga.updateLargestArmy();
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMKNIGHTS);
 
-                case SOCPlayerElement.GAIN:
-                    pl.setNumKnights(pl.getNumKnights() + mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-                    pl.setNumKnights(pl.getNumKnights() - mes.getValue());
-
-                    break;
-                }
-
-                ga.updateLargestArmy();
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMKNIGHTS);
-
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                {
-                    pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.LARGESTARMY);
-                    pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.VICTORYPOINTS);
+                    // Check for change in largest-army player; update handpanels'
+                    // LARGESTARMY and VICTORYPOINTS counters if so, and
+                    // announce with text message.
+                    pi.updateLongestLargest(false, oldLargestArmyPlayer, ga.getPlayerWithLargestArmy());
                 }
 
                 break;
@@ -2340,11 +2347,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 //if (true) {
                 if (nickname.equals(pl.getName()))
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.CLAY);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.CLAY);
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMRESOURCES);
                 }
 
                 break;
@@ -2381,11 +2388,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 //if (true) {
                 if (nickname.equals(pl.getName()))
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.ORE);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.ORE);
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMRESOURCES);
                 }
 
                 break;
@@ -2422,11 +2429,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 //if (true) {
                 if (nickname.equals(pl.getName()))
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.SHEEP);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.SHEEP);
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMRESOURCES);
                 }
 
                 break;
@@ -2463,11 +2470,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 //if (true) {
                 if (nickname.equals(pl.getName()))
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.WHEAT);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.WHEAT);
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMRESOURCES);
                 }
 
                 break;
@@ -2504,11 +2511,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 //if (true) {
                 if (nickname.equals(pl.getName()))
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.WOOD);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.WOOD);
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                    pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMRESOURCES);
                 }
 
                 break;
@@ -2557,7 +2564,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                     break;
                 }
 
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                pi.getPlayerHandPanel(pn).updateValue(SOCHandPanel.NUMRESOURCES);
 
                 break;
             }
@@ -2632,9 +2639,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (ga != null)
         {
-            SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
-            SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
-            SOCPlayer longestRoadPlayer = ga.getPlayerWithLongestRoad();
+            final int mesPn = mes.getPlayerNumber();
+            final SOCPlayer pl = ga.getPlayer(mesPn);
+            final SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
+            final SOCHandPanel mesHp = pi.getPlayerHandPanel(mesPn);
+            final SOCPlayer oldLongestRoadPlayer = ga.getPlayerWithLongestRoad();
+
 
             switch (mes.getPieceType())
             {
@@ -2642,13 +2652,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
                 SOCRoad rd = new SOCRoad(pl, mes.getCoordinates());
                 ga.putPiece(rd);
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.ROADS);
-
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                {
-                    pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.LONGESTROAD);
-                    pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.VICTORYPOINTS);
-                }
+                mesHp.updateValue(SOCHandPanel.ROADS);
 
                 break;
 
@@ -2656,29 +2660,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
                 SOCSettlement se = new SOCSettlement(pl, mes.getCoordinates());
                 ga.putPiece(se);
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.SETTLEMENTS);
-
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-                {
-                    pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.LONGESTROAD);
-                    pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.VICTORYPOINTS);
-                }
+                mesHp.updateValue(SOCHandPanel.SETTLEMENTS);
 
                 /**
                  * if this is the second initial settlement, then update the resource display
                  */
                 if (nickname.equals(pl.getName()))
                 {
-                    SOCHandPanel php = pi.getPlayerHandPanel(mes.getPlayerNumber());
-                    php.updateValue(SOCHandPanel.CLAY);
-                    php.updateValue(SOCHandPanel.ORE);
-                    php.updateValue(SOCHandPanel.SHEEP);
-                    php.updateValue(SOCHandPanel.WHEAT);
-                    php.updateValue(SOCHandPanel.WOOD);
+                    mesHp.updateValue(SOCHandPanel.CLAY);
+                    mesHp.updateValue(SOCHandPanel.ORE);
+                    mesHp.updateValue(SOCHandPanel.SHEEP);
+                    mesHp.updateValue(SOCHandPanel.WHEAT);
+                    mesHp.updateValue(SOCHandPanel.WOOD);
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMRESOURCES);
+                    mesHp.updateValue(SOCHandPanel.NUMRESOURCES);
                 }
 
                 break;
@@ -2687,28 +2684,23 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
                 SOCCity ci = new SOCCity(pl, mes.getCoordinates());
                 ga.putPiece(ci);
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.SETTLEMENTS);
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.CITIES);
+                mesHp.updateValue(SOCHandPanel.SETTLEMENTS);
+                mesHp.updateValue(SOCHandPanel.CITIES);
 
                 break;
             }
 
-            pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.VICTORYPOINTS);
+            mesHp.updateValue(SOCHandPanel.VICTORYPOINTS);
             pi.getBoardPanel().repaint();
             pi.getBuildingPanel().updateButtonStatus();
 
-            if (longestRoadPlayer != null)
+            /**
+             * Check for and announce change in longest road; update all players' victory points.
+             */
+            SOCPlayer newLongestRoadPlayer = ga.getPlayerWithLongestRoad();
+            if (newLongestRoadPlayer != oldLongestRoadPlayer)
             {
-                // Check for and announce change in longest road
-
-                SOCPlayer newLongestRoadPlayer = ga.getPlayerWithLongestRoad();
-                String msg;
-                if (newLongestRoadPlayer != null)
-                    msg = "Longest road was taken by " + newLongestRoadPlayer.getName()
-                        + " from " + longestRoadPlayer.getName() + ".";
-                else
-                    msg = "Longest road was lost by " + longestRoadPlayer.getName() + ".";
-                pi.print(msg);
+                pi.updateLongestLargest(true, oldLongestRoadPlayer, newLongestRoadPlayer);
             }
         }
     }
@@ -3033,22 +3025,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (ga != null)
         {
+            SOCPlayer oldLongestRoadPlayer = ga.getPlayerWithLongestRoad();
+            SOCPlayer newLongestRoadPlayer;
             if (mes.getPlayerNumber() == -1)
             {
-                ga.setPlayerWithLongestRoad((SOCPlayer) null);
+                newLongestRoadPlayer = null;
             }
             else
             {
-                ga.setPlayerWithLongestRoad(ga.getPlayer(mes.getPlayerNumber()));
+                newLongestRoadPlayer = ga.getPlayer(mes.getPlayerNumber());
             }
+            ga.setPlayerWithLongestRoad(newLongestRoadPlayer);
 
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
 
-            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-            {
-                pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.LONGESTROAD);
-                pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.VICTORYPOINTS);
-            }
+            // Update player victory points; check for and announce change in longest road
+            pi.updateLongestLargest(true, oldLongestRoadPlayer, newLongestRoadPlayer);
         }
     }
 
@@ -3062,22 +3054,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (ga != null)
         {
+            SOCPlayer oldLargestArmyPlayer = ga.getPlayerWithLargestArmy();
+            SOCPlayer newLargestArmyPlayer;
             if (mes.getPlayerNumber() == -1)
             {
-                ga.setPlayerWithLargestArmy((SOCPlayer) null);
+                newLargestArmyPlayer = null;
             }
             else
             {
-                ga.setPlayerWithLargestArmy(ga.getPlayer(mes.getPlayerNumber()));
+                newLargestArmyPlayer = ga.getPlayer(mes.getPlayerNumber());
             }
+            ga.setPlayerWithLargestArmy(newLargestArmyPlayer);
 
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
 
-            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
-            {
-                pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.LARGESTARMY);
-                pi.getPlayerHandPanel(i).updateValue(SOCHandPanel.VICTORYPOINTS);
-            }
+            // Update player victory points; check for and announce change in largest army
+            pi.updateLongestLargest(false, oldLargestArmyPlayer, newLargestArmyPlayer);
         }
     }
 
@@ -4231,12 +4223,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void destroy()
     {
-        boolean canLocal = (ex_L == null);  // Can we start a local game? 
-
-        SOCLeaveAll leaveAllMes = new SOCLeaveAll();
-        putNet(leaveAllMes.toCmd());
-        if ((prCli != null) && ! canLocal)
-            putLocal(leaveAllMes.toCmd());
+        boolean canLocal;  // Can we still start a local game?
+        canLocal = putLeaveAll();
 
         String err;
         if (canLocal)
@@ -4283,6 +4271,33 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         validate();
         if (canLocal)
             pgm.requestFocus();
+    }
+
+    /**
+     * For shutdown - Tell the server we're leaving all games.
+     * If we've started a local practice server, also tell that server.
+     * If we've started a TCP server, tell all players on that server, and shut it down.
+     *<P><em>
+     * Since no other state variables are set, call this only right before
+     * discarding this object or calling System.exit.
+     *</em>
+     * @return Can we still start local games? (No local exception yet in {@link #ex_L})
+     */
+    public boolean putLeaveAll()
+    {
+        boolean canLocal = (ex_L == null);  // Can we still start a local game? 
+
+        SOCLeaveAll leaveAllMes = new SOCLeaveAll();
+        putNet(leaveAllMes.toCmd());
+        if ((prCli != null) && ! canLocal)
+            putLocal(leaveAllMes.toCmd());
+        if ((localTCPServer != null) && (localTCPServer.isUp()))
+        {
+            localTCPServer.stopServer();
+            localTCPServer = null;
+        }
+
+        return canLocal;
     }
 
     /**
@@ -4349,35 +4364,71 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
     private WindowAdapter createWindowAdapter()
     {
-        return new MyWindowAdapter();
+        return new MyWindowAdapter(this);
     }
-    
-    private class MyWindowAdapter extends WindowAdapter
+
+    /** React to windowOpened, windowClosing events for SOCPlayerClient's Frame. */
+    private static class MyWindowAdapter extends WindowAdapter
     {
+        private final SOCPlayerClient cli;
+
+        public MyWindowAdapter(SOCPlayerClient c)
+        {
+            cli = c;
+        }
+
+        /**
+         * User has clicked window Close button.
+         * Check for active games, before exiting.
+         * If we are playing in a game, or running a local server hosting active games,
+         * ask the user to confirm if possible.
+         */
         public void windowClosing(WindowEvent evt)
         {
-            // User has clicked window Close button.
-            // Check for active games, before exiting.
             SOCPlayerInterface piActive = null;
-
-            // Are we running a server?
-            if (localTCPServer != null)
-                piActive = findAnyActiveGame(true);
 
             // Are we a client to any active games?
             if (piActive == null)
-                piActive = findAnyActiveGame(false);
+                piActive = cli.findAnyActiveGame(false);
 
             if (piActive != null)
                 SOCQuitAllConfirmDialog.createAndShow(piActive.getClient(), piActive);
             else
-                System.exit(0);
+            {
+                boolean canAskHostingGames = false;
+                boolean isHostingActiveGames = false;
+
+                // Are we running a server?
+                if (cli.localTCPServer != null)
+                    isHostingActiveGames = cli.anyHostedActiveGames();
+
+                if (isHostingActiveGames)
+                {
+                    // If we have GUI, ask whether to shut down these games
+                    Container c = cli.getParent();
+                    if ((c != null) && (c instanceof Frame))
+                    {
+                        canAskHostingGames = true;
+                        SOCQuitAllConfirmDialog.createAndShow(cli, (Frame) c);                        
+                    }
+                }
+                
+                if (! canAskHostingGames)
+                {
+                    // Just quit.
+                    cli.putLeaveAll();
+                    System.exit(0);
+                }
+            }
         }
 
+        /**
+         * Set focus to Nickname field
+         */
         public void windowOpened(WindowEvent evt)
         {
-            if (! hasConnectOrPractice)
-                nick.requestFocus();
+            if (! cli.hasConnectOrPractice)
+                cli.nick.requestFocus();
         }
     }
 

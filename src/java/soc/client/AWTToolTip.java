@@ -75,8 +75,17 @@ public class AWTToolTip
 
   private boolean autoPopup = false;
 
-  public static int OFFSET_X = 10;  // TODO docu
-  public static int OFFSET_Y = 10;  // TODO docu
+  /**
+   * X-offset (from mouse location) of tooltip upper-left corner
+   * @see #showAtMouse(int, int)
+   */
+  public static int OFFSET_X = 10;
+
+  /**
+   * Y-offset (from mouse location) of tooltip upper-left corner
+   * @see #showAtMouse(int, int)
+   */
+  public static int OFFSET_Y = 10;
 
   /** JM add: want shown? If true, must dynamically add us to parentComp. */
   private boolean wantsShown;
@@ -229,36 +238,6 @@ public class AWTToolTip
     g.drawRect(0, 0, boxW-1, boxH-1);
     g.setFont(tfont);
     g.drawString(tip, 2, boxH -3);
-  }
-
-  /**
-   * Creates a Panel containing the value.
-   */
-  protected Panel createValuePanel( String value )
-  {
-    Panel p = new Panel();
-    GridBagLayout gbl = new GridBagLayout();
-    GridBagConstraints gbc = new GridBagConstraints();
-    p.setLayout( gbl );
-    gbc.gridwidth = gbc.REMAINDER;
-    gbc.anchor = gbc.NORTHWEST;
-    String excerpt = "";
-    for( int i = 0; i < value.length(); i++ ) {
-      if( value.charAt(i) != '\n' )
-	excerpt += value.charAt(i);
-      else {
-	Label l = new Label( excerpt );
-	l.setForeground( fgcol );
-	gbl.setConstraints( l, gbc );
-	p.add( l );
-	excerpt = "";
-      }
-    }
-    Label l = new Label( excerpt );
-    l.setForeground( fgcol );
-    gbl.setConstraints( l, gbc );
-    p.add( l );
-    return p;
   }
 
   /** Hide and remove from a main parent, until addToParent is called (typically from mouseEntered).
@@ -473,6 +452,10 @@ public class AWTToolTip
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ *
+ * Revision 1.11  2008/06/22 02:06:00  jm
+ * - remove unused method createValuePanel
+ * - javadocs
  *
  * Revision 1.10  2008/01/12 17:48:00  jm
  * - removeFromParent don't re-set layout if mainParentLayout is null

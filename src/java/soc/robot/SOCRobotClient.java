@@ -1328,7 +1328,8 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
 
             if (ga != null)
             {
-                SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
+                // SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
+                // JDM TODO - Was this in stock client?
             }
         }
     }

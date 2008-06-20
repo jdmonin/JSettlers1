@@ -460,6 +460,63 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
+     * The game's longest road or largest army may have changed.
+     * Update each player's handpanel (victory points and longest-road/
+     * largest-army indicator).  If it changed, print an announcement in
+     * the message window.
+     *<P>
+     * Call this only after updating the SOCGame objects.
+     *
+     * @param isRoadNotArmy Longest-road, not largest-army, has just changed
+     * @param oldp  Previous player with longest/largest, or null if none 
+     * @param newp  New player with longest/largest, or null if none
+     */
+    public void updateLongestLargest
+        (boolean isRoadNotArmy, SOCPlayer oldp, SOCPlayer newp)
+    {
+        // Update handpanels
+        final int updateType;
+        if (isRoadNotArmy)
+            updateType = SOCHandPanel.LONGESTROAD;
+        else
+            updateType = SOCHandPanel.LARGESTARMY;
+
+        for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+        {
+            hands[i].updateValue(updateType);
+            hands[i].updateValue(SOCHandPanel.VICTORYPOINTS);
+        }
+
+        // Check for and announce change in largest army, or longest road
+        if ((newp != oldp)
+            && ((null != oldp) || (null != newp)))
+        {
+            StringBuffer msgbuf;
+            if (isRoadNotArmy)
+                msgbuf = new StringBuffer("Longest road was ");
+            else
+                msgbuf = new StringBuffer("Largest army was ");
+
+            if (newp != null)
+            {
+                msgbuf.append("taken by ");
+                msgbuf.append(newp.getName());
+                if (oldp != null)
+                {
+                    msgbuf.append(" from ");
+                    msgbuf.append(oldp.getName());
+                }
+            } else {
+                msgbuf.append("lost by ");
+                msgbuf.append(oldp.getName());
+            }        
+
+            msgbuf.append('.');
+            print(msgbuf.toString());            
+        }
+    }
+
+    /**
      * @return the building panel
      */
     public SOCBuildingPanel getBuildingPanel()

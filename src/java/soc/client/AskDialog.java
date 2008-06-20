@@ -27,7 +27,7 @@ import java.awt.Color;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.FontMetrics;
+import java.awt.Frame;
 import java.awt.Label;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
@@ -51,25 +51,28 @@ import java.awt.event.WindowListener;
 public abstract class AskDialog extends Dialog implements ActionListener, WindowListener, KeyListener
 {
     /** Player client; passed to constructor, not null */
-    protected SOCPlayerClient pcli;
+    protected final SOCPlayerClient pcli;
 
-    /** Player interface; passed to constructor, not null */
+    /**
+     * Player interface; passed to constructor; may be null if the
+     * question is related to the entire client, and not to a specific game
+     */
     protected SOCPlayerInterface pi;
 
     /** Prompt message, or null */
-    protected Label msg;
+    protected final Label msg;
 
     /** Button for first choice.
      *
      * @see #button1Chosen()
      */
-    protected Button choice1But;
+    protected final Button choice1But;
 
     /** Button for second choice.
      *
      * @see #button2Chosen()
      */
-    protected Button choice2But;
+    protected final Button choice2But;
 
     /** Optional button for third choice, or null.
      *
@@ -78,7 +81,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     protected Button choice3But;
 
     /** Default button (0 for none, or button 1, 2, or 3) */
-    protected int choiceDefault;
+    protected final int choiceDefault;
 
     /** Desired size (visible size inside of insets) **/
     protected int wantW, wantH;
@@ -87,7 +90,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     protected int padW, padH;
 
     /**
-     * Creates a new AskDialog with two buttons.
+     * Creates a new AskDialog with two buttons, about a specific game.
      *
      * @param cli      Player client interface
      * @param gamePI   Current game's player interface
@@ -106,7 +109,36 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         boolean default1, boolean default2)
         throws IllegalArgumentException
     {
-        this (cli, gamePI, titlebar, prompt,
+        this(cli, (Frame) gamePI,
+            titlebar, prompt, choice1, choice2,
+            default1, default2);
+        if (gamePI != null)
+            pi = gamePI;
+        else
+            throw new IllegalArgumentException("gamePI cannot be null");
+    }
+
+    /**
+     * Creates a new AskDialog with two buttons, not about a specific game.
+     *
+     * @param cli      Player client interface
+     * @param parentFr SOCPlayerClient or other parent frame
+     * @param titlebar Title bar text
+     * @param prompt   Prompting text shown above buttons, or null
+     * @param choice1  First choice button text
+     * @param choice2  Second choice button text
+     * @param default1 First choice is default
+     * @param default2 Second choice is default
+     *
+     * @throws IllegalArgumentException If both default1 and default2 are true,
+     *    or if any of these is null: cli, gamePI, prompt, choice1, choice2.
+     */
+    public AskDialog(SOCPlayerClient cli, Frame parentFr,
+        String titlebar, String prompt, String choice1, String choice2,
+        boolean default1, boolean default2)
+        throws IllegalArgumentException
+    {
+        this (cli, parentFr, titlebar, prompt,
               choice1, choice2, null,
               (default1 ? 1 : (default2 ? 2 : 0))
               );
@@ -115,7 +147,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
     }
 
     /**
-     * Creates a new AskDialog with three buttons.
+     * Creates a new AskDialog with three buttons, about a specific game.
      * Also can create with two.
      *
      * @param cli      Player client interface
@@ -136,12 +168,43 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
         int defaultChoice)
         throws IllegalArgumentException
     {
-        super(gamePI, titlebar, true);
+        this(cli, (Frame) gamePI,
+             titlebar, prompt, choice1, choice2, choice3,
+             defaultChoice);
+        if (gamePI != null)
+            pi = gamePI;
+        else
+            throw new IllegalArgumentException("gamePI cannot be null");
+    }
+
+    /**
+     * Creates a new AskDialog with three buttons, not about a specific game.
+     * Also can create with two.
+     *
+     * @param cli      Player client interface
+     * @param parentFr SOCPlayerClient or other parent frame
+     * @param titlebar Title bar text
+     * @param prompt   Prompting text shown above buttons, or null
+     * @param choice1  First choice button text
+     * @param choice2  Second choice button text
+     * @param choice3  Third choice button text, or null if 2 buttons
+     * @param defaultChoice  Default button (1, 2, 3, or 0 for none)
+     *
+     * @throws IllegalArgumentException If defaultChoice out of range 0..3,
+     *    or if any of these is null: cli, parentFr, prompt, choice1, choice2,
+     *    or if choice3 is null and defaultChoice is 3.
+     */
+    public AskDialog(SOCPlayerClient cli, Frame parentFr,
+        String titlebar, String prompt, String choice1, String choice2, String choice3,
+        int defaultChoice)
+        throws IllegalArgumentException
+    {
+        super(parentFr, titlebar, true);
 
         if (cli == null)
             throw new IllegalArgumentException("cli cannot be null");
-        if (gamePI == null)
-            throw new IllegalArgumentException("gamePI cannot be null");
+        if (parentFr == null)
+            throw new IllegalArgumentException("parentFr cannot be null");
     	if (choice1 == null)
             throw new IllegalArgumentException("choice1 cannot be null");
     	if (choice2 == null)
@@ -152,7 +215,7 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
             throw new IllegalArgumentException("defaultChoice cannot be 3 when choice3 null");
 
         pcli = cli;
-        pi = gamePI;
+        pi = null;
         setBackground(new Color(255, 230, 162));
         setForeground(Color.black);
         setFont(new Font("Dialog", Font.PLAIN, 12));
@@ -305,8 +368,22 @@ public abstract class AskDialog extends Dialog implements ActionListener, Window
                 dispose();
                 button3Chosen();  // <--- Callback for button 3 ---
             }
-        } catch (Throwable th) {
-            pi.chatPrintStackTrace(th);
+        } catch (Throwable thr) {
+            if (pi != null)
+            {
+                pi.chatPrintStackTrace(thr);
+            } else {
+                System.err.println("-- Exception in AskDialog.actionPerformed: " + thr.toString() + " --");
+                thr.printStackTrace();
+                while (thr.getCause() != null)
+                {
+                    thr = thr.getCause();
+                    System.err.println(" --> Cause: " + thr + " --");
+                    thr.printStackTrace();
+                }
+                System.err.println("-- Error stack trace end --");
+                System.err.println();
+            }
         }
     }
 

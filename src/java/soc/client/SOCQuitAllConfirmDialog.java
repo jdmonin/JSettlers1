@@ -21,44 +21,36 @@
  **/
 package soc.client;
 
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.Color;
-import java.awt.Dialog;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import soc.game.SOCGame;
+import java.awt.Frame;
 
 
 /**
  * This is the dialog to confirm when someone closes the client.
- * The quit action is System.exit(0).
+ * The quit action is to call client.putLeaveAll() and System.exit(0).
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  */
 class SOCQuitAllConfirmDialog extends AskDialog
 {
+    protected boolean hostedServerActive;
+
     /**
      * Creates and shows a new SOCQuitAllConfirmDialog.
      * "Continue" is default.
      *
      * @param cli      Player client interface
-     * @param gamePI   An active game's player interface
-     * @throws IllegalArgumentException If cli or gamePI is null
+     * @param gamePIOrSelf   An active game's player interface, or the client's Frame
+     *                 if we're hosting a local server but not actively playing
+     * @throws IllegalArgumentException If cli or gameOrSelf is null
      */
-    public static void createAndShow(SOCPlayerClient cli, SOCPlayerInterface gamePI)
+    public static void createAndShow(SOCPlayerClient cli, Frame gamePIOrSelf)
         throws IllegalArgumentException
     {
-        if ((cli == null) || (gamePI == null))
+        if ((cli == null) || (gamePIOrSelf == null))
             throw new IllegalArgumentException("no nulls");
-        boolean hasAny = cli.anyHostedActiveGames();
 
-        SOCQuitAllConfirmDialog qcd = new SOCQuitAllConfirmDialog(cli, gamePI);
+        boolean hasAny = cli.anyHostedActiveGames();
+        SOCQuitAllConfirmDialog qcd = new SOCQuitAllConfirmDialog(cli, gamePIOrSelf, hasAny);
         qcd.show();      
     }
     
@@ -67,28 +59,34 @@ class SOCQuitAllConfirmDialog extends AskDialog
      * Creates a new SOCQuitAllConfirmDialog.
      *
      * @param cli      Player client interface
-     * @param gamePI   Current game's player interface
+     * @param gamePIOrSelf   An active game's player interface, or the client's Frame
+     *                 if we're hosting a local server but not actively playing
+     * @param hostedServerActive Is client hosting a local server with games active?
+     *                 Call {@link SOCPlayerClient#anyHostedActiveGames()} to determine.
      */
-    protected SOCQuitAllConfirmDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI)
+    protected SOCQuitAllConfirmDialog(SOCPlayerClient cli, Frame gamePIOrSelf, boolean hostedServerActive)
     {
-        super(cli, gamePI, "Really quit all games?",
+        super(cli, gamePIOrSelf,
+            (hostedServerActive ? "Shut down game server?" : "Really quit all games?"),
             "One or more games are still active.",
-            "Quit all games",
-            "Continue playing",
-            null,
-            2);
+            (hostedServerActive ? "Shut down server anyway" : "Quit all games"),
+            (hostedServerActive ? "Continue serving" : "Continue playing"),
+            false, true);
+        this.hostedServerActive = hostedServerActive;
     }
 
     /**
-     * React to the Quit button. Call System.exit(0) as SOCPlayerClient does.
+     * React to the Quit button. Just as SOCPlayerClient does,
+     * call client.putLeaveAll() and System.exit(0).
      */
     public void button1Chosen()
     {
+        pcli.putLeaveAll();
         System.exit(0);
     }
 
     /**
-     * React to the Continue button. (Nothing to do)
+     * React to the Continue button. (Nothing to do, continue playing)
      */
     public void button2Chosen()
     {
@@ -96,15 +94,7 @@ class SOCQuitAllConfirmDialog extends AskDialog
     }
 
     /**
-     * Button 3 is not part of this AskDialog.
-     */
-    public void button3Chosen()
-    {
-        // This button is not used.
-    }
-
-    /**
-     * React to the dialog window closed by user. (Nothing to do)
+     * React to the dialog window closed by user. (Nothing to do, continue playing)
      */
     public void windowCloseChosen()
     {

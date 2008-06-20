@@ -100,7 +100,7 @@ public class Version {
     int major = Integer.parseInt (v.substring (0,1));
     int minor = Integer.parseInt (v.substring (2,3));
     int edit = Integer.parseInt (v.substring (4,5));;
-    String build = v.substring (6);
+    // String build = v.substring (6);
 
     if (versionInfo.getProperty(JRE_MIN_VERSION) == null)
       minJREVersion();  

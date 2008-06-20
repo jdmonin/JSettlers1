@@ -22,7 +22,8 @@ package soc.message;
 
 
 /**
- * This is a text message that shows in a status box on the client
+ * This is a text message that shows in a status box on the client.
+ * Used for "welcome" message at initial connect (follows JOINAUTH).
  *
  * @author Robert S. Thomas
  */
@@ -34,7 +35,7 @@ public class SOCStatusMessage extends SOCMessage
     private String status;
 
     /**
-     * Create a StatsMessage message.
+     * Create a StatusMessage message.
      *
      * @param st  the status
      */
@@ -63,7 +64,7 @@ public class SOCStatusMessage extends SOCMessage
     }
 
     /**
-     * STARTGAME sep status
+     * STATUSMESSAGE sep status
      *
      * @param st  the status
      * @return the command string

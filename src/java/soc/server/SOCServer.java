@@ -1255,11 +1255,12 @@ public class SOCServer extends Server
                 /**
                  * prevent someone from connecting twice from
                  * the same machine
+                 * (Commented out: This is a bad idea due to proxies, NAT, etc.)
                  */
                 boolean hostMatch = false;
+                /*
                 Enumeration allConnections = this.getConnections();
 
-                /*
                    while(allConnections.hasMoreElements()) {
                    StringConnection tempCon = (StringConnection)allConnections.nextElement();
                    if (!(c.host().equals("pippen")) && (tempCon.host().equals(c.host()))) {
@@ -1607,26 +1608,8 @@ public class SOCServer extends Server
                         }
                         else if (gameTextMsgMes.getText().startsWith("*STOP*"))
                         {
-                            broadcast(SOCBCastTextMsg.toCmd(">>> ********** " + (String) c.getData() + " KILLED THE SERVER!!! ********** <<<"));
-
-                            /// give time for messages to drain (such as urgent text messages)
-                            try
-                            {
-                                Thread.sleep(500);
-                            }
-                            catch (InterruptedException ie)
-                            {
-                                Thread.yield();
-                            }
-
-                            /// now continue with shutdown
-                            try
-                            {
-                                SOCDBHelper.cleanup();
-                            }
-                            catch (SQLException x) { }
-
-                            stopServer();
+                            String stopMsg = ">>> ********** " + (String) c.getData() + " KILLED THE SERVER!!! ********** <<<";
+                            stopServer(stopMsg);
                             System.exit(0);
                         }
                         else if (gameTextMsgMes.getText().startsWith("*BCAST* "))
@@ -1999,6 +1982,53 @@ public class SOCServer extends Server
     }
 
     /**
+     * The server is being cleanly stopped.
+     * Shut down with a final message "The game server is shutting down".
+     */
+    public synchronized void stopServer()
+    {
+        stopServer(">>> The game server is shutting down. <<<");
+    }
+
+    /**
+     * The server is being cleanly stopped.  Send a final message, disconnect all
+     * the connections, disconnect from database if connected.
+     * Currently called only by the debug command "*STOP*",
+     * and by SOCPlayerClient's locally hosted TCP server.
+     *
+     * @param stopMsg Final text message to send to all connected clients, or null.
+     *         Will be sent as a {@link SOCBcastTextMsg}.
+     *         As always, if message starts with ">>" it will be considered urgent.
+     */
+    public synchronized void stopServer(String stopMsg)
+    {
+        if (stopMsg != null)
+        {
+            broadcast(SOCBCastTextMsg.toCmd(stopMsg));
+        }
+
+        /// give time for messages to drain (such as urgent text messages
+        /// about stopping the server)
+        try
+        {
+            Thread.sleep(500);
+        }
+        catch (InterruptedException ie)
+        {
+            Thread.yield();
+        }
+
+        /// now continue with shutdown
+        try
+        {
+            SOCDBHelper.cleanup();
+        }
+        catch (SQLException x) { }
+        
+        super.stopServer();
+    }
+
+    /**
      * authenticate the user
      * see if the user is in the db, if so then check the password
      * if they're not in the db, but they supplied a password
@@ -2044,7 +2074,7 @@ public class SOCServer extends Server
         //
         // Update the last login time
         //
-        Date currentTime = new Date();
+        //Date currentTime = new Date();
 
         //SOCDBHelper.updateLastlogin(userName, currentTime.getTime());
         //
@@ -4699,12 +4729,15 @@ public class SOCServer extends Server
         ///
         /// send who has largest army
         ///
-        SOCPlayer laPlayer = gameData.getPlayerWithLargestArmy();
-        int laPlayerNum = -1;
-
+        final SOCPlayer laPlayer = gameData.getPlayerWithLargestArmy();
+        final int laPlayerNum;
         if (laPlayer != null)
         {
             laPlayerNum = laPlayer.getPlayerNumber();
+        }
+        else
+        {
+            laPlayerNum = -1;
         }
 
         c.put(SOCLargestArmy.toCmd(gameName, laPlayerNum));
