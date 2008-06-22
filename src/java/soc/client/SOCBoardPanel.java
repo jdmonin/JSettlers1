@@ -20,8 +20,6 @@
  **/
 package soc.client;
 
-import soc.client.SOCHandPanel.ResourceTradeMenuItem;
-import soc.client.SOCHandPanel.ResourceTradePopupMenu;
 import soc.game.SOCBoard;
 import soc.game.SOCCity;
 import soc.game.SOCGame;
@@ -201,8 +199,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * hex size, in unscaled internal-pixels
      */
-    private int HEXWIDTH = 55;
-    private int HEXHEIGHT = 64;
+    private final int HEXWIDTH = 55;
+    private final int HEXHEIGHT = 64;
 
     /**
      * actual size on-screen, not internal-pixels size
@@ -1618,10 +1616,6 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             drawRobber(g, board.getRobberHex(), (gameState != SOCGame.PLACING_ROBBER));
         }
 
-        int pn;
-        int idx;
-        int max;
-
         if (gameState != SOCGame.NEW)
         {
             drawArrow(g, game.getCurrentPlayerNumber(), game.getCurrentDice());
@@ -2915,14 +2909,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     drawCity(g, hoverCityID, playerNumber, true);
                 }
             }
-            if (hoverText == null)
+            String ht = hoverText;  // cache against last-minute change in another thread
+            if (ht == null)
                 return;
             
             g.setColor(Color.WHITE);
             g.fillRect(boxX, boxY, boxW - 1, boxH - 1);
             g.setColor(Color.BLACK);
             g.drawRect(boxX, boxY, boxW - 1, boxH - 1);
-            g.drawString(hoverText, boxX + TEXT_INSET, boxY + boxH - TEXT_INSET);
+            g.drawString(ht, boxX + TEXT_INSET, boxY + boxH - TEXT_INSET);
         }
 
         /**

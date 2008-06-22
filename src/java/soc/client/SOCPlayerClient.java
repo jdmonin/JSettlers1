@@ -113,7 +113,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Button pg;  // practice game (local)
     protected Label messageLabel;  // error message for messagepanel
     protected Label messageLabel_top;   // secondary message
-    protected Label localTCPPortLabel;   // shows port number, if running localTCPServer
+    protected Label localTCPPortLabel;   // shows port number in mainpanel, if running localTCPServer
     protected Button pgm;  // practice game on messagepanel
     protected AppletContext ac;
 
@@ -296,7 +296,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     protected void initVisualElements()
     {
-        setFont(new Font("Monaco", Font.PLAIN, 12));
+        setFont(new Font("SansSerif", Font.PLAIN, 12));
         
         nick = new TextField(20);
         pass = new TextField(20);
@@ -2283,6 +2283,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
             case SOCPlayerElement.NUMKNIGHTS:
 
+                // PLAYERELEMENT(NUMKNIGHTS) is sent after a Soldier card is played.
                 {
                     final SOCPlayer oldLargestArmyPlayer = ga.getPlayerWithLargestArmy();
 

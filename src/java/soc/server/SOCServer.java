@@ -4051,10 +4051,10 @@ public class SOCServer extends Server
                             if (ga.canPlayKnight(player.getPlayerNumber()))
                             {
                                 ga.playKnight();
+                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Soldier card."));
                                 messageToGame(ga.getName(), new SOCDevCard(ga.getName(), player.getPlayerNumber(), SOCDevCard.PLAY, SOCDevCardConstants.KNIGHT));
                                 messageToGame(ga.getName(), new SOCSetPlayedDevCard(ga.getName(), player.getPlayerNumber(), true));
                                 messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.NUMKNIGHTS, 1));
-                                messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, player.getName() + " played a Soldier card."));
                                 broadcastGameStats(ga);
                                 sendGameState(ga);
                             }
@@ -5403,299 +5403,155 @@ public class SOCServer extends Server
     }    
 
     /**
-     * report a trade that has taken place, using {@link SOCPlayerElement}
+     * report a trade that has taken place between players, using {@link SOCPlayerElement}
      * and {@link SOCGameTextMsg} messages.  Trades are also reported to robots
      * by re-sending the accepting player's {@link SOCAcceptOffer} message.
      *
      * @param ga        the game
      * @param offering  the number of the player making the offer
      * @param accepting the number of the player accepting the offer
+     *
+     * @see #reportBankTrade(SOCGame, SOCResourceSet, SOCResourceSet)
      */
     protected void reportTrade(SOCGame ga, int offering, int accepting)
     {
         if (ga != null)
         {
-            SOCTradeOffer offer = ga.getPlayer(offering).getCurrentOffer();
-            String message = ga.getPlayer(offering).getName() + " traded ";
-            SOCResourceSet rsrcs;
-            int cl;
-            int or;
-            int sh;
-            int wh;
-            int wo;
+            final String gaName = ga.getName();
+            final SOCTradeOffer offer = ga.getPlayer(offering).getCurrentOffer();
 
-            rsrcs = offer.getGiveSet();
-            cl = rsrcs.getAmount(SOCResourceConstants.CLAY);
-            or = rsrcs.getAmount(SOCResourceConstants.ORE);
-            sh = rsrcs.getAmount(SOCResourceConstants.SHEEP);
-            wh = rsrcs.getAmount(SOCResourceConstants.WHEAT);
-            wo = rsrcs.getAmount(SOCResourceConstants.WOOD);
-
-            if (cl > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, cl));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.LOSE, SOCPlayerElement.CLAY, cl));
-                message += (cl + " clay");
-
-                if ((or + sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (or > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.GAIN, SOCPlayerElement.ORE, or));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.LOSE, SOCPlayerElement.ORE, or));
-                message += (or + " ore");
-
-                if ((sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (sh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, sh));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.LOSE, SOCPlayerElement.SHEEP, sh));
-                message += (sh + " sheep");
-
-                if ((wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, wh));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.LOSE, SOCPlayerElement.WHEAT, wh));
-                message += (wh + " wheat");
-
-                if (wo > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wo > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, wo));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.LOSE, SOCPlayerElement.WOOD, wo));
-                message += (wo + " wood");
-            }
-
-            message += " for ";
-            rsrcs = offer.getGetSet();
-            cl = rsrcs.getAmount(SOCResourceConstants.CLAY);
-            or = rsrcs.getAmount(SOCResourceConstants.ORE);
-            sh = rsrcs.getAmount(SOCResourceConstants.SHEEP);
-            wh = rsrcs.getAmount(SOCResourceConstants.WHEAT);
-            wo = rsrcs.getAmount(SOCResourceConstants.WOOD);
-
-            if (cl > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.LOSE, SOCPlayerElement.CLAY, cl));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, cl));
-                message += (cl + " clay");
-
-                if ((or + sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (or > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.LOSE, SOCPlayerElement.ORE, or));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.GAIN, SOCPlayerElement.ORE, or));
-                message += (or + " ore");
-
-                if ((sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (sh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.LOSE, SOCPlayerElement.SHEEP, sh));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, sh));
-                message += (sh + " sheep");
-
-                if ((wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.LOSE, SOCPlayerElement.WHEAT, wh));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, wh));
-                message += (wh + " wheat");
-
-                if (wo > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wo > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), accepting, SOCPlayerElement.LOSE, SOCPlayerElement.WOOD, wo));
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), offering, SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, wo));
-                message += (wo + " wood");
-            }
-
-            message += (" from " + ga.getPlayer(accepting).getName() + ".");
-            messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, message));
+            StringBuffer message = new StringBuffer(ga.getPlayer(offering).getName());
+            message.append(" traded ");
+            reportTradeHalf(gaName, offer.getGiveSet(), true, offering, accepting, message);
+            message.append(" for ");
+            reportTradeHalf(gaName, offer.getGetSet(), false, offering, accepting, message);
+            message.append(" from ");
+            message.append(ga.getPlayer(accepting).getName());
+            message.append('.');
+            messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, message.toString()));
         }
     }
 
     /**
-     * report that the current player traded with the bank
+     * report that the current player traded with the bank or a port,
+     * using {@link SOCPlayerElement} and {@link SOCGameTextMsg} messages.
      *
      * @param ga        the game
      * @param give      the number of the player making the offer
      * @param get       the number of the player accepting the offer
+     *
+     * @see #reportTrade(SOCGame, int, int)
      */
     protected void reportBankTrade(SOCGame ga, SOCResourceSet give, SOCResourceSet get)
     {
         if (ga != null)
         {
-            String message = ga.getPlayer(ga.getCurrentPlayerNumber()).getName() + " traded ";
-            int cl;
-            int or;
-            int sh;
-            int wh;
-            int wo;
-
-            cl = give.getAmount(SOCResourceConstants.CLAY);
-            or = give.getAmount(SOCResourceConstants.ORE);
-            sh = give.getAmount(SOCResourceConstants.SHEEP);
-            wh = give.getAmount(SOCResourceConstants.WHEAT);
-            wo = give.getAmount(SOCResourceConstants.WOOD);
-
-            if (cl > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.CLAY, cl));
-                message += (cl + " clay");
-
-                if ((or + sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (or > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.ORE, or));
-                message += (or + " ore");
-
-                if ((sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (sh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.SHEEP, sh));
-                message += (sh + " sheep");
-
-                if ((wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WHEAT, wh));
-                message += (wh + " wheat");
-
-                if (wo > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wo > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WOOD, wo));
-                message += (wo + " wood");
-            }
-
-            message += " for ";
-
-            cl = get.getAmount(SOCResourceConstants.CLAY);
-            or = get.getAmount(SOCResourceConstants.ORE);
-            sh = get.getAmount(SOCResourceConstants.SHEEP);
-            wh = get.getAmount(SOCResourceConstants.WHEAT);
-            wo = get.getAmount(SOCResourceConstants.WOOD);
-
-            if (cl > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, cl));
-                message += (cl + " clay");
-
-                if ((or + sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (or > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.ORE, or));
-                message += (or + " ore");
-
-                if ((sh + wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (sh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, sh));
-                message += (sh + " sheep");
-
-                if ((wh + wo) > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wh > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, wh));
-                message += (wh + " wheat");
-
-                if (wo > 0)
-                {
-                    message += ",";
-                }
-            }
-
-            if (wo > 0)
-            {
-                messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), ga.getCurrentPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, wo));
-                message += (wo + " wood");
-            }
+            final String gaName = ga.getName();
+            final int    cpn    = ga.getCurrentPlayerNumber();
+            StringBuffer message = new StringBuffer (ga.getPlayer(cpn).getName());
+            message.append(" traded ");
+            reportTradeHalf(gaName, give, true, cpn, -1, message);
+            message.append(" for ");
+            reportTradeHalf(gaName, get, false, cpn, -1, message);
 
             if ((give.getTotal() / get.getTotal()) == 4)
             {
-                message += " from the bank.";
+                message.append(" from the bank.");  // 4:1 trade
             }
             else
             {
-                message += " from a port.";
+                message.append(" from a port.");    // 3:1 or 2:1 trade
             }
 
-            messageToGame(ga.getName(), new SOCGameTextMsg(ga.getName(), SERVERNAME, message));
+            messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, message.toString()));
+        }
+    }
+
+    /**
+     * Report the "give" or "get" half of a resource trade, via
+     * messageToGame(PLAYERELEMENT) messages,
+     * and build the string used to report the trade as text.
+     *
+     * @param gaName  Game name
+     * @param rset    Resources set ("give" or "get" side of trade)
+     * @param isGive  If true, "give" ({@link SOCPlayerElement#LOSE}), otherwise "get" ({@link SOCPlayerElement#GAIN})
+     * @param pnA     Player number "giving" if isGive==true, otherwise "getting".
+     * @param pnB     Player number on other side of trade, or -1 if bank.    
+     * @param message Append resource numbers/types to this stringbuffer,
+     *                format like "3 clay,3 wood"
+     *
+     * @see #reportTrade(SOCGame, int, int)
+     * @see #reportBankTrade(SOCGame, SOCResourceSet, SOCResourceSet)
+     */
+    private void reportTradeHalf
+        (String gaName, SOCResourceSet rset, boolean isGive, int pnA, int pnB, StringBuffer message)
+    {
+        final int losegain  = isGive ? SOCPlayerElement.LOSE : SOCPlayerElement.GAIN;  // for pnA
+        final int gainlose  = isGive ? SOCPlayerElement.GAIN : SOCPlayerElement.LOSE;  // for pnB
+
+        final int cl = rset.getAmount(SOCResourceConstants.CLAY);
+        final int or = rset.getAmount(SOCResourceConstants.ORE);
+        final int sh = rset.getAmount(SOCResourceConstants.SHEEP);
+        final int wh = rset.getAmount(SOCResourceConstants.WHEAT);
+        final int wo = rset.getAmount(SOCResourceConstants.WOOD);
+        
+        boolean needComma = false;  // Has a resource already been appended to message?
+
+        if (cl > 0)
+        {
+            messageToGame(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.CLAY, cl));
+            if (pnB != -1)
+                messageToGame(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.CLAY, cl));
+            message.append(cl);
+            message.append(" clay");
+            needComma = true;
+        }
+
+        if (or > 0)
+        {
+            messageToGame(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.ORE, or));
+            if (pnB != -1)
+                messageToGame(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.ORE, or));
+            if (needComma)
+                message.append(',');
+            message.append(or);
+            message.append(" ore");
+            needComma = true;
+        }
+
+        if (sh > 0)
+        {
+            messageToGame(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.SHEEP, sh));
+            if (pnB != -1)
+                messageToGame(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.SHEEP, sh));
+            if (needComma)
+                message.append(',');
+            message.append(sh);
+            message.append(" sheep");
+            needComma = true;
+        }
+
+        if (wh > 0)
+        {
+            messageToGame(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.WHEAT, wh));
+            if (pnB != -1)
+                messageToGame(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.WHEAT, wh));
+            if (needComma)
+                message.append(',');
+            message.append(wh);
+            message.append(" wheat");
+            needComma = true;
+        }
+
+        if (wo > 0)
+        {
+            messageToGame(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.WOOD, wo));
+            if (pnB != -1)
+                messageToGame(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.WOOD, wo));
+            if (needComma)
+                message.append(',');
+            message.append(wo);
+            message.append(" wood");
         }
     }
 

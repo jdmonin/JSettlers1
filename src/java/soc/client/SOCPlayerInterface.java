@@ -344,7 +344,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
          * initialize the text input and display and add them to the interface
          */
         textDisplay = new SnippingTextArea("", 40, 80, TextArea.SCROLLBARS_VERTICAL_ONLY, 80);
-        textDisplay.setFont(new Font("Monoco", Font.PLAIN, 10));
+        textDisplay.setFont(new Font("SansSerif", Font.PLAIN, 10));
         textDisplay.setBackground(new Color(255, 230, 162));
         textDisplay.setForeground(Color.black);
         textDisplay.setEditable(false);
@@ -352,14 +352,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         textDisplayRollExpected = 0;
 
         chatDisplay = new SnippingTextArea("", 40, 80, TextArea.SCROLLBARS_VERTICAL_ONLY, 100);
-        chatDisplay.setFont(new Font("Monoco", Font.PLAIN, 10));
+        chatDisplay.setFont(new Font("SansSerif", Font.PLAIN, 10));
         chatDisplay.setBackground(new Color(255, 230, 162));
         chatDisplay.setForeground(Color.black);
         chatDisplay.setEditable(false);
         add(chatDisplay);
 
         textInput = new TextField();
-        textInput.setFont(new Font("Monoco", Font.PLAIN, 10));
+        textInput.setFont(new Font("SansSerif", Font.PLAIN, 10));
         textInputListener = new SOCPITextfieldListener(this); 
         textInputHasSent = false;
         textInputGreyCountdown = textInputGreyCountFrom;

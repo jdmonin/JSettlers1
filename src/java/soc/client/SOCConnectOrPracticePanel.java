@@ -21,6 +21,7 @@
  **/
 package soc.client;
 
+import java.awt.BorderLayout;
 import java.awt.Button;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -39,6 +40,8 @@ import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketTimeoutException;
+
+import soc.util.Version;
 
 
 /**
@@ -86,6 +89,8 @@ public class SOCConnectOrPracticePanel extends Panel
      */
     public SOCConnectOrPracticePanel(SOCPlayerClient cli)
     {
+        super(new BorderLayout());
+
         cl = cli;
         canLaunchServer = checkCanLaunchServer();
 
@@ -156,19 +161,24 @@ public class SOCConnectOrPracticePanel extends Panel
         return false;
     }
 
+    /**
+     * Interface setup for constructor.
+     * Most elements are part of a sub-panel occupying most of this Panel, and using FlowLayout.
+     * The exception is a Label at bottom with the version and build number.
+     */
     private void initInterfaceElements()
     {
         GridBagLayout gbl = new GridBagLayout();
         GridBagConstraints gbc = new GridBagConstraints();
-        setLayout(gbl);
+        Panel bp = new Panel(gbl);  // Actual button panel
 
         gbc.fill = GridBagConstraints.BOTH;
         gbc.gridwidth = GridBagConstraints.REMAINDER;
 
-        Label L = new Label("Please choose an option.");
+        Label L = new Label("Welcome to JSettlers!  Please choose an option.");
         L.setAlignment(Label.CENTER);
         gbl.setConstraints(L, gbc);
-        add(L);
+        bp.add(L);
 
         /**
          * Interface setup: Connect to a Server
@@ -176,7 +186,7 @@ public class SOCConnectOrPracticePanel extends Panel
 
         connserv = new Button("Connect to a Server...");
         gbl.setConstraints(connserv, gbc);
-        add(connserv);
+        bp.add(connserv);
         connserv.addActionListener(this);
 
         /**
@@ -184,7 +194,7 @@ public class SOCConnectOrPracticePanel extends Panel
          */
         prac = new Button("Practice");
         gbl.setConstraints(prac, gbc);
-        add(prac);
+        bp.add(prac);
         prac.addActionListener(this);
 
         /**
@@ -194,7 +204,7 @@ public class SOCConnectOrPracticePanel extends Panel
         gbl.setConstraints(runserv, gbc);
         if (! canLaunchServer)
             runserv.setEnabled(false);
-        add(runserv);
+        bp.add(runserv);
 
         /**
          * Interface setup: sub-panels (not initially visible)
@@ -202,7 +212,7 @@ public class SOCConnectOrPracticePanel extends Panel
         panel_conn = initInterface_conn();  // panel_conn setup
         panel_conn.setVisible(false);
         gbl.setConstraints(panel_conn, gbc);
-        add (panel_conn);
+        bp.add (panel_conn);
 
         if (canLaunchServer)
         {
@@ -210,10 +220,17 @@ public class SOCConnectOrPracticePanel extends Panel
             panel_run = initInterface_run();  // panel_run setup
             panel_run.setVisible(false);
             gbl.setConstraints(panel_run, gbc);
-            add (panel_run);
+            bp.add (panel_run);
         } else {
             panel_run = null;
         }
+
+        // Final assembly setup
+        add(bp, BorderLayout.CENTER);
+        Label verl = new Label("JSettlers " + Version.version() + " build " + Version.buildnum());       
+        verl.setAlignment(Label.CENTER);
+        verl.setForeground(new Color(252, 251, 243)); // off-white
+        add(verl, BorderLayout.SOUTH);
     }
 
     /** panel_conn setup */
