@@ -3408,6 +3408,7 @@ public class SOCServer extends Server
                 {
                     if (ga.getGameState() == SOCGame.OVER)
                     {
+                        // Should not happen; is here just in case.
                         SOCPlayer pl = ga.getPlayer((String) c.getData());
                         String msg = ga.gameOverMessageToPlayer(pl);
                             // msg = "The game is over; you are the winner!";
@@ -5290,15 +5291,17 @@ public class SOCServer extends Server
         return promptedRoll; 
     }
     
-    /** If game is OVER, send messages reporting winner, final score,
+    /**
+     *  If game is OVER, send messages reporting winner, final score,
      *  and each player's victory-point cards.
-     *  
+     *  Also give stats on game length, and on each player's connect time.
+     *
      * @param ga This game is over; state should be OVER
      */
     protected void sendGameStateOVER(SOCGame ga)
     {
-        String gname = ga.getName();
-        
+        final String gname = ga.getName();
+
         // Find and announce the winner
         // (the real "found winner" code is in SOCGame.checkForWinner)
         {
@@ -5399,8 +5402,39 @@ public class SOCServer extends Server
 
             }  // if devcards
         }  // for each player
-        
-    }    
+
+        ///
+        /// send game-length and connect-length messages
+        ///
+        {
+            Date now = new Date();
+            Date gstart = ga.getStartTime();
+            String gLengthMsg;
+            if (gstart != null)
+            {
+                long gameMinutes = ((now.getTime() - gstart.getTime())+30000L) / 60000L;
+                gLengthMsg = "This game took " + gameMinutes + " minutes."; 
+                messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, gLengthMsg));
+            } else {
+                gLengthMsg = null;
+            }
+
+            // TODO - needs way to get each player's info.
+            /*
+            // Tell each player the game's length, and how
+            // long they've been connected.
+            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+            {
+                SOCPlayer pl = ga.getPlayer(i);
+                if (pl.isRobot() || ga.isSeatVacant(i))
+                    continue;  // Don't bother to send timing stats to robots, or empty seats
+
+                long connTime =  pl.getName()
+                long connMinutes = ((now.getTime() - connTime ))+30000L) / 60000L;
+            }  // for each player
+            */
+        }  // send game timing stats
+    }
 
     /**
      * report a trade that has taken place between players, using {@link SOCPlayerElement}

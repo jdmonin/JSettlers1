@@ -29,6 +29,7 @@ import java.io.Serializable;
 
 import java.net.Socket;
 
+import java.util.Date;
 import java.util.Vector;
 
 
@@ -56,6 +57,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     public Thread reader;
     protected String hst;
     protected Exception error = null;
+    protected Date connectTime = new Date();
     protected boolean connected = false;
     public Vector outQueue = new Vector();
 
@@ -85,6 +87,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     }
 
     /** start reading from the net; called only by the server.
+     * If successful, also sets connectTime to now.
      * 
      * @return true if thread start was successful, false if an error occurred.
      */
@@ -97,6 +100,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             out = new DataOutputStream(s.getOutputStream());
             connected = true;
             reader = this;
+            connectTime = new Date();
 
             Putter putter = new Putter(this);
             putter.start();
@@ -265,6 +269,14 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     public Exception getError()
     {
         return error;
+    }
+
+    /**
+     * @return Time of connection to server, or of object creation if that time's not available
+     */
+    public Date getConnectTime()
+    {
+        return connectTime;
     }
 
     /** close the socket, stop the reader */

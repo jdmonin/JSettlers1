@@ -21,6 +21,7 @@
 package soc.server.genericServer;
 
 import java.io.EOFException;
+import java.util.Date;
 
 /**
  * StringConnection allows clients and servers to communicate,
@@ -53,7 +54,7 @@ public interface StringConnection
     public abstract boolean isConnected();
 
     /** start ability to read from the net; called only by the server.
-     * (In a non-local version, another thread may be started by this method.)
+     * (In a network-based subclass, another thread may be started by this method.)
      * 
      * @return true if able to connect, false if an error occurred.
      */    
@@ -81,5 +82,12 @@ public interface StringConnection
      * @return Any error encountered, or null
      */
     public abstract Exception getError();
+
+    /**
+     * @return Time of connection to server, or of object creation if that time's not available
+     *
+     * @see #connect()
+     */
+    public abstract Date getConnectTime();
 
 }

@@ -23,6 +23,7 @@ package soc.server.genericServer;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.Date;
 import java.util.Vector;
 
 import soc.disableDebug.D;
@@ -49,6 +50,7 @@ public class LocalStringConnection
 
     protected Server ourServer;  // Optional. Notifies at EOF (calls removeConnection).
     protected Exception error;
+    protected Date connectTime;
 
     /**
      * the abritrary app-specific data associated with this connection
@@ -75,6 +77,7 @@ public class LocalStringConnection
         data = null;
         ourServer = null;
         error = null;
+        connectTime = new Date();
     }
 
     /**
@@ -108,6 +111,7 @@ public class LocalStringConnection
         peer.ourPeer = this;
         this.ourPeer = peer;
         error = null;
+        connectTime = new Date();
     }
 
     /**
@@ -230,6 +234,7 @@ public class LocalStringConnection
 
         LocalStringConnection p = null;
         LocalStringServerSocket.connectTo(serverSocketName, this);
+        connectTime = new Date();
 
         // ** connectTo will Thread.wait until accepted by server.
 
@@ -366,6 +371,14 @@ public class LocalStringConnection
     public Exception getError()
     {
         return error;
+    }
+
+    /**
+     * @return Time of connection to server, or of object creation if that time's not available
+     */
+    public Date getConnectTime()
+    {
+        return connectTime;
     }
 
     /**
