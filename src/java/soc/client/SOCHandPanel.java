@@ -205,6 +205,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Button rollBut;
     /** "Done" with turn during play; also "Restart" for board reset at end of game */
     protected Button doneBut;
+    /** True when {@link #doneBut}'s label is Restart ({@link #DONE_RESTART}) */
+    protected boolean doneButIsRestart; 
     protected Button quitBut;
     protected SOCPlayerInterface playerInterface;
     protected SOCPlayerClient client;
@@ -492,6 +494,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         doneBut = new Button(DONE);
         doneBut.addActionListener(this);
         doneBut.setEnabled(interactive);
+        doneButIsRestart = false;
         add(doneBut);
 
         quitBut = new Button(QUIT);
@@ -1096,10 +1099,12 @@ public class SOCHandPanel extends Panel implements ActionListener
                 playerSend[i].setVisible(true);
             }
             rollBut.setVisible(true);
-            if (game.getGameState() != SOCGame.OVER)
-                doneBut.setLabel(DONE);
-            else
+            doneButIsRestart = ((game.getGameState() <= SOCGame.START2B)
+                 || (game.getGameState() == SOCGame.OVER));
+            if (doneButIsRestart)
                 doneBut.setLabel(DONE_RESTART);
+            else
+                doneBut.setLabel(DONE);
             doneBut.setVisible(true);
             quitBut.setVisible(true);
 
@@ -1186,9 +1191,12 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * Calls updateTakeOverButton, and checks if current player (for hilight).
-     *
-     * @see #updateTakeOverButton()
+     * Handpanel interface updates at start of each turn (not just our turn).
+     * Calls {@link #updateTakeOverButton()}, and checks if current player (for hilight).
+     * Called from client when server sends {@link SOCMessage#TURN}.
+     * Called also at start of game by {@link SOCPlayerInterface#updateAtGameState()},
+     * because the server sends no TURN between the last road (gamestate START2B)
+     * and the first player's turn (state PLAY).
      */
     public void updateAtTurn()
     {
@@ -1212,8 +1220,14 @@ public class SOCHandPanel extends Panel implements ActionListener
             boolean normalTurnStarting = (gs == SOCGame.PLAY || gs == SOCGame.PLAY1);
             clearOffer(normalTurnStarting);  // Zero the square panel numbers, etc. (TODO) better descr.
                 // at any player's turn, not just when playerIsCurrent.
+            if (doneButIsRestart && normalTurnStarting)
+            {
+                doneBut.setLabel(DONE);
+                doneButIsRestart = false;
+            }
             normalTurnStarting = normalTurnStarting && playerIsCurrent;
-            doneBut.setEnabled(normalTurnStarting);
+            doneBut.setEnabled(normalTurnStarting || (gs <= SOCGame.START2B));  // "Done" at Normal turn,
+                // or "Restart" during game-start (label DONE_RESTART)
             playCardBut.setEnabled(normalTurnStarting && (cardList.getItemCount() > 0));
             bankBut.disable();  // enabled by updateAtPlay1()
         }
@@ -1735,6 +1749,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                         playCardBut.setEnabled(false);
                     doneBut.setLabel(DONE_RESTART);
                     doneBut.setEnabled(true);  // In case it's another player's turn
+                    doneButIsRestart = true;
                 }
             }
             break;

@@ -2084,46 +2084,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             {
                 pi.startGame();
             }
-            
+
             ga.setGameState(mes.getState());
-
-            pi.getBoardPanel().updateMode();
-            pi.getBuildingPanel().updateButtonStatus();
-            pi.getBoardPanel().repaint();
-            
-            // Check for placement states (board panel popup)
-            {
-                int sta = mes.getState();
-                
-                if ((sta == SOCGame.PLACING_ROAD) || (sta == SOCGame.PLACING_SETTLEMENT)
-                    || (sta == SOCGame.PLACING_CITY))
-                {
-                    if (pi.getBoardPanel().popupExpectingBuildRequest())
-                        pi.getBoardPanel().popupFireBuildingRequest();
-                }
-            }
-
-            SOCPlayer ourPlayerData = ga.getPlayer(nickname);
-
-            if (ourPlayerData != null)
-            {
-                if (ourPlayerData.getPlayerNumber() == ga.getCurrentPlayerNumber())
-                {
-                    int st = mes.getState();
-                    if (st == SOCGame.WAITING_FOR_DISCOVERY)
-                    {
-                        pi.showDiscoveryDialog();
-                    }
-                    else if (st == SOCGame.WAITING_FOR_MONOPOLY)
-                    {
-                        pi.showMonopolyDialog();
-                    }
-                    else if (st == SOCGame.PLAY1)
-                    {
-                        pi.updateAtPlay1();
-                    }
-                }
-            }
+            pi.updateAtGameState();
         }
     }
 

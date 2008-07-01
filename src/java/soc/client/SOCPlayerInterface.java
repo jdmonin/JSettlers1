@@ -24,6 +24,7 @@ import soc.debug.D;  // JM
 
 import soc.game.SOCGame;
 import soc.game.SOCPlayer;
+import soc.message.SOCGameState;
 
 import java.awt.Color;
 import java.awt.Cursor;
@@ -180,6 +181,15 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     protected SOCGame game;
 
     /**
+     * Flag to ensure interface is updated, when the first actual
+     * turn begins (state changes from {@link SOCGame#START2B}
+     * to {@link SOCGame#PLAY}).
+     * Initially set in {@link #startGame()}.
+     * Checked/cleared in {@link #updateAtGameState()};
+     */
+    protected boolean gameIsStarting;
+
+    /**
      * this other player has requested a board reset; voting is under way.
      * Null if no board reset vote is under way.
      *
@@ -252,6 +262,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         client = cl;
         game = ga;
+        gameIsStarting = false;
         clientHand = null;
         clientHandPlayerNum = -1;
 
@@ -950,7 +961,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * Game play is starting. Remove the start buttons and robot-lockout buttons.
+     * Game play is starting (leaving state {@link SOCGame#NEW}).
+     * Remove the start buttons and robot-lockout buttons.
+     * Next move is for players to make their starting placements.
      */
     public void startGame()
     {
@@ -962,6 +975,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             // If we're joining a game in progress, keep it (as "sit here").
             hands[i].removeSitLockoutBut();
         }
+        gameIsStarting = true;
     }
 
     /**
@@ -1105,6 +1119,64 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     {
         if (clientHand != null)
             clientHand.updateAtPlay1();
+    }
+
+    /**
+     * Update interface after game state has changed.
+     * Please call after {@link SOCGame#setGameState(int)}.
+     * If the game is now starting, please call in this order:
+     *<code>
+     *   playerInterface.{@link #startGame()};
+     *   game.setGameState(newState);
+     *   playerInterface.updateAtGameState();
+     *</code>
+     */
+    public void updateAtGameState()
+    {
+        int gs = game.getGameState();
+
+        getBoardPanel().updateMode();
+        getBuildingPanel().updateButtonStatus();
+        getBoardPanel().repaint();
+
+        // Check for placement states (board panel popup)
+        if ((gs == SOCGame.PLACING_ROAD) || (gs == SOCGame.PLACING_SETTLEMENT)
+            || (gs == SOCGame.PLACING_CITY))
+        {
+            if (getBoardPanel().popupExpectingBuildRequest())
+                getBoardPanel().popupFireBuildingRequest();
+        }
+
+        // Update our interface at start of first turn;
+        // The server won't send a TURN message after the
+        // final road is placed (state START2 -> PLAY).
+        if (gameIsStarting && (gs >= SOCGame.PLAY))
+        {
+            gameIsStarting = false;
+            if (clientHand != null)
+                clientHand.updateAtTurn();
+        }
+
+        // React if we are current player
+        if (clientHand != null)
+        {            
+            SOCPlayer ourPlayerData = clientHand.getPlayer();
+            if (ourPlayerData.getPlayerNumber() == game.getCurrentPlayerNumber())
+            {
+                if (gs == SOCGame.WAITING_FOR_DISCOVERY)
+                {
+                    showDiscoveryDialog();
+                }
+                else if (gs == SOCGame.WAITING_FOR_MONOPOLY)
+                {
+                    showMonopolyDialog();
+                }
+                else if (gs == SOCGame.PLAY1)
+                {
+                    updateAtPlay1();
+                }
+            }
+        }
     }
 
     /**
