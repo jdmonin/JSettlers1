@@ -28,13 +28,14 @@ import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Label;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
@@ -91,9 +92,6 @@ public abstract class AskDialog extends Dialog
 
     /** Padding beyond desired size; not known until windowOpened() **/
     protected int padW, padH;
-
-    /** Have we requested focus yet? */
-    protected boolean didReqFocus;
 
     /**
      * Creates a new AskDialog with two buttons, about a specific game.
@@ -231,10 +229,16 @@ public abstract class AskDialog extends Dialog
         if (choice3 != null)
             choice3But = new Button(choice3);
         choiceDefault = defaultChoice;
-        setLayout (new BorderLayout());
+
+        GridBagLayout gbl = new GridBagLayout();
+        GridBagConstraints gbc = new GridBagConstraints();
+        setLayout(gbl);
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
 
         msg = new Label(prompt, Label.CENTER);
-        add(msg, BorderLayout.NORTH);
+        gbl.setConstraints(msg, gbc);
+        add(msg);
 
         wantW = 6 + getFontMetrics(msg.getFont()).stringWidth(prompt);
         if (wantW < 280)
@@ -247,22 +251,30 @@ public abstract class AskDialog extends Dialog
         setSize(wantW + 6, wantH + 20);
         setLocation(150, 100);
 
+        // gbc.gridwidth = 1; // GridBagConstraints.REMAINDER;
         Panel pBtns = new Panel();
         pBtns.setLayout(new FlowLayout(FlowLayout.CENTER));
 
         pBtns.add(choice1But);
         choice1But.addActionListener(this);
 
+        //if (choice3But == null)
+        //    gbc.gridwidth = GridBagConstraints.REMAINDER;
+        //gbl.setConstraints(choice2But, gbc);
         pBtns.add(choice2But);
         choice2But.addActionListener(this);
 
         if (choice3But != null)
         {
+            //gbc.gridwidth = GridBagConstraints.REMAINDER;
+            //gbl.setConstraints(choice3But, gbc);
             pBtns.add(choice3But);
             choice3But.addActionListener(this);            
         }
 
-        add(pBtns, BorderLayout.CENTER);
+        // gbc.gridwidth = GridBagConstraints.REMAINDER;
+        gbl.setConstraints(pBtns, gbc);
+        add(pBtns);
 
         // Now that we've added buttons to the dialog layout,
         // we can get their font and adjust style of default button.
@@ -282,7 +294,7 @@ public abstract class AskDialog extends Dialog
         }
 
         addWindowListener(this);  // To handle close-button
-        addMouseListener(this);   // for mouseEntered size-check
+        addMouseListener(this);   // To handle mouseEntered, for size override
         addKeyListener(this);     // To handle Enter, Esc keys.
         choice1But.addKeyListener(this);  // (win32: Keyboard focus will be on these buttons)
         choice2But.addKeyListener(this);
@@ -300,12 +312,10 @@ public abstract class AskDialog extends Dialog
         padH = getInsets().top + getInsets().bottom;
         if ((padW > 0) || (padH > 0))
         {
-            setSize(wantW + padW, wantH + padH);
+            setSize (wantW + padW, wantH + padH);
             validate();
         }
 
-        if (didReqFocus)
-            return;
         switch (choiceDefault)
         {
         case 1:
@@ -318,7 +328,6 @@ public abstract class AskDialog extends Dialog
             choice3But.requestFocus();
             break;
         }
-        didReqFocus = true;
     }
 
     /**
@@ -493,23 +502,5 @@ public abstract class AskDialog extends Dialog
 
     /** Stub required by KeyListener */
     public void keyTyped(KeyEvent arg0) { }
-
-    /** Check vs. minimum size */
-    public void mouseEntered(MouseEvent e)
-    {
-        checkSizeAndFocus();  // vs. minimum size
-    }
-
-    /** Stub required by MouseListener */
-    public void mouseExited(MouseEvent e) {}
-
-    /** Stub required by MouseListener */
-    public void mouseClicked(MouseEvent e) {}
-
-    /** Stub required by MouseListener */
-    public void mousePressed(MouseEvent e) {}
-
-    /** Stub required by MouseListener */
-    public void mouseReleased(MouseEvent e) {}
 
 }
