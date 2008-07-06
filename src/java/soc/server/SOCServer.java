@@ -1558,6 +1558,7 @@ public class SOCServer extends Server
                     //
                     if (c.getData().equals("debug"))
                     {
+                        final String msgText = gameTextMsgMes.getText();
                         if (gameTextMsgMes.getText().startsWith("rsrcs:"))
                         {
                             giveResources(gameTextMsgMes.getText(), ga);
@@ -1566,114 +1567,9 @@ public class SOCServer extends Server
                         {
                             giveDevCard(gameTextMsgMes.getText(), ga);
                         }
-                        else if (gameTextMsgMes.getText().startsWith("*KILLGAME*"))
+                        else if (gameTextMsgMes.getText().charAt(0) == '*')
                         {
-                            messageToGameUrgent(gameTextMsgMes.getGame(), ">>> ********** " + (String) c.getData() + " KILLED THE GAME!!! ********** <<<");
-                            gameList.takeMonitor();
-
-                            try
-                            {
-                                destroyGame(gameTextMsgMes.getGame());
-                            }
-                            catch (Exception e)
-                            {
-                                D.ebugPrintln("Exception in KILLGAME - " + e);
-                            }
-
-                            gameList.releaseMonitor();
-                            broadcast(SOCDeleteGame.toCmd(gameTextMsgMes.getGame()));
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*STATS*"))
-                        {
-                            long diff = System.currentTimeMillis() - startTime;
-                            long hours = diff / (60 * 60 * 1000);
-                            long minutes = (diff - (hours * 60 * 60 * 1000)) / (60 * 1000);
-                            long seconds = (diff - (hours * 60 * 60 * 1000) - (minutes * 60 * 1000)) / 1000;
-                            Runtime rt = Runtime.getRuntime();
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Uptime: " + hours + ":" + minutes + ":" + seconds));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Total connections: " + numberOfConnections));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Current connections: " + connectionCount()));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Total Users: " + numberOfUsers));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Games started: " + numberOfGamesStarted));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Games finished: " + numberOfGamesFinished));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Total Memory: " + rt.totalMemory()));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Free Memory: " + rt.freeMemory()));
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*GC*"))
-                        {
-                            Runtime rt = Runtime.getRuntime();
-                            rt.gc();
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> GARBAGE COLLECTING DONE"));
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Free Memory: " + rt.freeMemory()));
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*STOP*"))
-                        {
-                            String stopMsg = ">>> ********** " + (String) c.getData() + " KILLED THE SERVER!!! ********** <<<";
-                            stopServer(stopMsg);
-                            System.exit(0);
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*BCAST* "))
-                        {
-                            ///
-                            /// broadcast to all chat channels and games
-                            ///
-                            broadcast(SOCBCastTextMsg.toCmd(gameTextMsgMes.getText().substring(8)));
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*BOTLIST*"))
-                        {
-                            Enumeration robotsEnum = robots.elements();
-
-                            while (robotsEnum.hasMoreElements())
-                            {
-                                StringConnection robotConn = (StringConnection) robotsEnum.nextElement();
-                                messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> Robot: " + robotConn.getData()));
-                                robotConn.put(SOCAdminPing.toCmd((gameTextMsgMes.getGame())));
-                            }
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*RESETBOT* "))
-                        {
-                            String botName = gameTextMsgMes.getText().substring(11).trim();
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> botName = '" + botName + "'"));
-
-                            Enumeration robotsEnum = robots.elements();
-
-                            while (robotsEnum.hasMoreElements())
-                            {
-                                StringConnection robotConn = (StringConnection) robotsEnum.nextElement();
-                                D.ebugPrintln("&&& '" + botName + "' == '" + robotConn.getData() + "' is " + (botName.equals((String) robotConn.getData())));
-
-                                if (botName.equals((String) robotConn.getData()))
-                                {
-                                    messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> SENDING RESET COMMAND TO " + botName));
-
-                                    SOCAdminReset resetCmd = new SOCAdminReset();
-                                    robotConn.put(resetCmd.toCmd());
-
-                                    break;
-                                }
-                            }
-                        }
-                        else if (gameTextMsgMes.getText().startsWith("*KILLBOT* "))
-                        {
-                            String botName = gameTextMsgMes.getText().substring(10).trim();
-                            messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> botName = '" + botName + "'"));
-
-                            Enumeration robotsEnum = robots.elements();
-
-                            while (robotsEnum.hasMoreElements())
-                            {
-                                StringConnection robotConn = (StringConnection) robotsEnum.nextElement();
-                                D.ebugPrintln("&&& '" + botName + "' == '" + robotConn.getData() + "' is " + (botName.equals((String) robotConn.getData())));
-
-                                if (botName.equals((String) robotConn.getData()))
-                                {
-                                    messageToGame(gameTextMsgMes.getGame(), new SOCGameTextMsg(gameTextMsgMes.getGame(), SERVERNAME, "> DISCONNECTING " + botName));
-                                    removeConnection(robotConn);
-                                    removeConnectionCleanup(robotConn);
-
-                                    break;
-                                }
-                            }
+                            processDebugCommand(c, ga.getName(), msgText);
                         }
                         else
                         {
@@ -1982,6 +1878,122 @@ public class SOCServer extends Server
     }
 
     /**
+     * Process a debug command, sent by the "debug" client/player.
+     */
+    public void processDebugCommand(StringConnection debugCli, String ga, String dcmd)
+    {
+        if (dcmd.startsWith("*KILLGAME*"))
+        {
+            messageToGameUrgent(ga, ">>> ********** " + (String) debugCli.getData() + " KILLED THE GAME!!! ********** <<<");
+            gameList.takeMonitor();
+
+            try
+            {
+                destroyGame(ga);
+            }
+            catch (Exception e)
+            {
+                D.ebugPrintln("Exception in KILLGAME - " + e);
+            }
+
+            gameList.releaseMonitor();
+            broadcast(SOCDeleteGame.toCmd(ga));
+        }
+        else if (dcmd.startsWith("*STATS*"))
+        {
+            long diff = System.currentTimeMillis() - startTime;
+            long hours = diff / (60 * 60 * 1000);
+            long minutes = (diff - (hours * 60 * 60 * 1000)) / (60 * 1000);
+            long seconds = (diff - (hours * 60 * 60 * 1000) - (minutes * 60 * 1000)) / 1000;
+            Runtime rt = Runtime.getRuntime();
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Uptime: " + hours + ":" + minutes + ":" + seconds));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Total connections: " + numberOfConnections));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Current connections: " + connectionCount()));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Total Users: " + numberOfUsers));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Games started: " + numberOfGamesStarted));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Games finished: " + numberOfGamesFinished));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Total Memory: " + rt.totalMemory()));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Free Memory: " + rt.freeMemory()));
+        }
+        else if (dcmd.startsWith("*GC*"))
+        {
+            Runtime rt = Runtime.getRuntime();
+            rt.gc();
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> GARBAGE COLLECTING DONE"));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Free Memory: " + rt.freeMemory()));
+        }
+        else if (dcmd.startsWith("*STOP*"))
+        {
+            String stopMsg = ">>> ********** " + (String) debugCli.getData() + " KILLED THE SERVER!!! ********** <<<";
+            stopServer(stopMsg);
+            System.exit(0);
+        }
+        else if (dcmd.startsWith("*BCAST* "))
+        {
+            ///
+            /// broadcast to all chat channels and games
+            ///
+            broadcast(SOCBCastTextMsg.toCmd(dcmd.substring(8)));
+        }
+        else if (dcmd.startsWith("*BOTLIST*"))
+        {
+            Enumeration robotsEnum = robots.elements();
+
+            while (robotsEnum.hasMoreElements())
+            {
+                StringConnection robotConn = (StringConnection) robotsEnum.nextElement();
+                messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Robot: " + robotConn.getData()));
+                robotConn.put(SOCAdminPing.toCmd((ga)));
+            }
+        }
+        else if (dcmd.startsWith("*RESETBOT* "))
+        {
+            String botName = dcmd.substring(11).trim();
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> botName = '" + botName + "'"));
+
+            Enumeration robotsEnum = robots.elements();
+
+            while (robotsEnum.hasMoreElements())
+            {
+                StringConnection robotConn = (StringConnection) robotsEnum.nextElement();
+                D.ebugPrintln("&&& '" + botName + "' == '" + robotConn.getData() + "' is " + (botName.equals((String) robotConn.getData())));
+
+                if (botName.equals((String) robotConn.getData()))
+                {
+                    messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> SENDING RESET COMMAND TO " + botName));
+
+                    SOCAdminReset resetCmd = new SOCAdminReset();
+                    robotConn.put(resetCmd.toCmd());
+
+                    break;
+                }
+            }
+        }
+        else if (dcmd.startsWith("*KILLBOT* "))
+        {
+            String botName = dcmd.substring(10).trim();
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> botName = '" + botName + "'"));
+
+            Enumeration robotsEnum = robots.elements();
+
+            while (robotsEnum.hasMoreElements())
+            {
+                StringConnection robotConn = (StringConnection) robotsEnum.nextElement();
+                D.ebugPrintln("&&& '" + botName + "' == '" + robotConn.getData() + "' is " + (botName.equals((String) robotConn.getData())));
+
+                if (botName.equals((String) robotConn.getData()))
+                {
+                    messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> DISCONNECTING " + botName));
+                    removeConnection(robotConn);
+                    removeConnectionCleanup(robotConn);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
      * The server is being cleanly stopped.
      * Shut down with a final message "The game server is shutting down".
      */
@@ -2278,7 +2290,8 @@ public class SOCServer extends Server
     }
 
     /**
-     * Handle the "join a game" message
+     * Handle the "join a game" message.
+     * Will join the game, or return a STATUSMESSAGE if nickname is not OK.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -3063,7 +3076,7 @@ public class SOCServer extends Server
     {
         if (c != null)
         {
-            String gn = mes.getGame();
+            final String gn = mes.getGame();
             SOCGame ga = gameList.getGameData(gn);
 
             if (ga != null)
@@ -3112,72 +3125,9 @@ public class SOCServer extends Server
 
                                         gainsText.append(ga.getPlayer(i).getName());
                                         gainsText.append(" gets ");
-                                        int cl;
-                                        int or;
-                                        int sh;
-                                        int wh;
-                                        int wo;
-                                        cl = rsrcs.getAmount(SOCResourceConstants.CLAY);
-                                        or = rsrcs.getAmount(SOCResourceConstants.ORE);
-                                        sh = rsrcs.getAmount(SOCResourceConstants.SHEEP);
-                                        wh = rsrcs.getAmount(SOCResourceConstants.WHEAT);
-                                        wo = rsrcs.getAmount(SOCResourceConstants.WOOD);
-    
-                                        if (cl > 0)
-                                        {
-                                            messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, cl));
-                                            gainsText.append(cl);
-                                            gainsText.append(" clay");
-    
-                                            if ((or + sh + wh + wo) > 0)
-                                            {
-                                                gainsText.append(", ");
-                                            }
-                                        }
-    
-                                        if (or > 0)
-                                        {
-                                            messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.ORE, or));
-                                            gainsText.append(or);
-                                            gainsText.append(" ore");
-    
-                                            if ((sh + wh + wo) > 0)
-                                            {
-                                                gainsText.append(", ");
-                                            }
-                                        }
-    
-                                        if (sh > 0)
-                                        {
-                                            messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, sh));
-                                            gainsText.append(sh);
-                                            gainsText.append(" sheep");
-    
-                                            if ((wh + wo) > 0)
-                                            {
-                                                gainsText.append(", ");
-                                            }
-                                        }
-    
-                                        if (wh > 0)
-                                        {
-                                            messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, wh));
-                                            gainsText.append(wh);
-                                            gainsText.append(" wheat");
-    
-                                            if (wo > 0)
-                                            {
-                                                gainsText.append(", ");
-                                            }
-                                        }
-    
-                                        if (wo > 0)
-                                        {
-                                            messageToGame(ga.getName(), new SOCPlayerElement(ga.getName(), i, SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, wo));
-                                            gainsText.append(wo);
-                                            gainsText.append(" wood");
-                                        }
-    
+                                        // Send SOCPlayerElement messages,
+                                        // build resource-text in gainsText.
+                                        reportRolledResources(gn, rsrcs, i, gainsText);
                                         gainsText.append(".");
                                     }
 
@@ -4424,6 +4374,11 @@ public class SOCServer extends Server
      * The requesting player doesn't vote, but server still
      * sends the vote-request-message, to tell that client their
      * request was accepted and voting has begun.
+     *<P>
+     * If only one player remains (all other humans have left at end),
+     * ask them to start a new game instead. This is a rare occurrence
+     * and we shouldn't bring in new robots and all,
+     * since we already have an interface to set up a game.
      *
      * @see #resetBoardAndNotify(String, String)
      *
@@ -4444,8 +4399,10 @@ public class SOCServer extends Server
             return;  // Not playing in that game (Security)
         }
         
-        // Is voting already active from another player?
-        // Or, has this player already asked for voting this turn?
+        /**
+         * Is voting already active from another player?
+         * Or, has this player already asked for voting this turn?
+         */
         if (ga.getResetVoteActive() || reqPlayer.hasAskedBoardReset())
         {
             // Ignore this second request. Can't send REJECT because
@@ -4453,8 +4410,10 @@ public class SOCServer extends Server
             return;
         }
         
-        // Is there more than one human player?
-        // Grab connection information for humans and robots.
+        /**
+         * Is there more than one human player?
+         * Grab connection information for humans and robots.
+         */
         StringConnection[] humanConns = new StringConnection[SOCGame.MAXPLAYERS];
         StringConnection[] robotConns = new StringConnection[SOCGame.MAXPLAYERS];
         int numHuman = SOCGameBoardReset.sortPlayerConnections(ga, null, gameList.getMembers(gaName), humanConns, robotConns);
@@ -4462,8 +4421,17 @@ public class SOCServer extends Server
         int reqPN = reqPlayer.getPlayerNumber();
         if (numHuman < 2)
         {
-            // Go ahead and reset.
-            resetBoardAndNotify(gaName, reqPN); 
+            // Are there robots? Go ahead and reset if so.
+            int numRobot = 0;
+            for (int i = robotConns.length-1; i>=0; --i)
+                if (robotConns[i] != null)
+                    ++numRobot;
+            if (numRobot > 0)
+            {
+                resetBoardAndNotify(gaName, reqPN);
+            } else {
+                messageToGameUrgent(gaName, "Everyone has left this game. Please start a new game with players or bots.");
+            }
         }
         else
         {
@@ -5411,9 +5379,15 @@ public class SOCServer extends Server
             Date gstart = ga.getStartTime();
             String gLengthMsg;
             if (gstart != null)
-            {
-                long gameMinutes = ((now.getTime() - gstart.getTime())+30000L) / 60000L;
-                gLengthMsg = "This game took " + gameMinutes + " minutes."; 
+            {                
+                long gameSeconds = ((now.getTime() - gstart.getTime())+500L) / 1000L;
+                long gameMinutes = gameSeconds/60L;
+                gameSeconds = gameSeconds % 60L;
+                if (gameSeconds == 0)
+                    gLengthMsg = "This game took " + gameMinutes + " minutes.";
+                else
+                    gLengthMsg = "This game took " + gameMinutes + " minutes "
+                        + gameSeconds + " seconds.";
                 messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, gLengthMsg));
             } else {
                 gLengthMsg = null;
@@ -5502,9 +5476,29 @@ public class SOCServer extends Server
     }
 
     /**
+     * Report the player's resources gained from a roll, via
+     * messageToGame(PLAYERELEMENT) messages,
+     * and build the resource-amount string used to report the trade as text.
+     *
+     * @param gaName  Game name
+     * @param rset    Resources set ("give" or "get" side of trade)
+     * @param pnA     Player number getting resources
+     * @param message Append resource numbers/types to this stringbuffer,
+     *                format like "3 clay,3 wood"
+     *
+     * @see #reportTradeHalf(String, SOCResourceSet, boolean, int, int, StringBuffer)
+     */
+    private void reportRolledResources
+        (String gaName, SOCResourceSet rset, int pn, StringBuffer message)
+    {
+        reportTradeHalf(gaName, rset, false, pn, -1, message);
+    }
+
+    /**
      * Report the "give" or "get" half of a resource trade, via
      * messageToGame(PLAYERELEMENT) messages,
-     * and build the string used to report the trade as text.
+     * and build the resource-amount string used to report the trade as text.
+     * Also used to report the resources gained from a roll.
      *
      * @param gaName  Game name
      * @param rset    Resources set ("give" or "get" side of trade)
@@ -5516,6 +5510,7 @@ public class SOCServer extends Server
      *
      * @see #reportTrade(SOCGame, int, int)
      * @see #reportBankTrade(SOCGame, SOCResourceSet, SOCResourceSet)
+     * @see #reportRolledResources(String, SOCResourceSet, int, StringBuffer)
      */
     private void reportTradeHalf
         (String gaName, SOCResourceSet rset, boolean isGive, int pnA, int pnB, StringBuffer message)
