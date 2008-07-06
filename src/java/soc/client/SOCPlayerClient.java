@@ -158,6 +158,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected boolean hasConnectOrPractice;
 
     /**
+     * If applicable, is set up in {@link #initVisualElements()}.
+     * @see #hasConnectOrPractice
+     */
+    protected SOCConnectOrPracticePanel connectOrPracticePane;
+
+    /**
      * For local practice games (pipes, not TCP), the name of the pipe.
      * 
      * @see soc.util.LocalStringConnection
@@ -516,8 +522,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (hasConnectOrPractice)
         {
-            SOCConnectOrPracticePanel cpPane = new SOCConnectOrPracticePanel(this);
-            add (cpPane, CONNECT_OR_PRACTICE_PANEL);  // shown first
+            connectOrPracticePane = new SOCConnectOrPracticePanel(this);
+            add (connectOrPracticePane, CONNECT_OR_PRACTICE_PANEL);  // shown first
         }
         add(messagePane, MESSAGE_PANEL); // shown first unless cpPane
         add(mainPane, MAIN_PANEL);
@@ -1625,12 +1631,16 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * handle the "status message" message
+     * handle the "status message" message.
+     * Used for server events, also used if player tries to join a game
+     * but their nickname is not OK.
      * @param mes  the message
      */
     protected void handleSTATUSMESSAGE(SOCStatusMessage mes)
     {
         status.setText(mes.getStatus());
+        // If was trying to join a game, reset cursor from WAIT_CURSOR.
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
     }
 
     /**
@@ -2959,6 +2969,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected void handleREJECTCONNECTION(SOCRejectConnection mes)
     {
         disconnect();
+
+        // In case was WAIT_CURSOR while connecting
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
         
         if (ex_L == null)
         {
@@ -4100,6 +4113,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         cardLayout.show(this, MESSAGE_PANEL);
         connect();
 
+        // Ensure we can't "connect" to another, too
+        if (connectOrPracticePane != null)
+        {
+            connectOrPracticePane.startedLocalServer();
+        }
+
         // Reset the cursor
         setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
     }
@@ -4217,6 +4236,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         }
         
         disconnect();
+
+        // In case was WAIT_CURSOR while connecting
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
 
         if (canLocal)
         {

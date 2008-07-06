@@ -742,7 +742,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 pleaseMsg = "Reset Board?";
             boardResetRequester.resetBoardSetMessage(pleaseMsg);
 
-            String requester =  game.getPlayer(pnRequester).getName();
+            String requester = game.getPlayer(pnRequester).getName();
             boardResetVoteDia = new ResetBoardVoteDialog(client, this, requester, gaOver);
             boardResetVoteDia.showInNewThread();
                // Separate thread so ours is not tied up; this allows server
@@ -751,7 +751,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         }
     }
 
-    /** Callback from ResetBoardVoteDialog to clean up our reference when button is clicked */
+    /** Callback from ResetBoardVoteDialog, to clear our reference when
+     *  button is clicked and dialog is going away.
+     */
     private void resetBoardClearDia()
     {
         boardResetVoteDia = null;
@@ -1196,6 +1198,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         if (clientHandPlayerNum != rejoinPlayerNumber)
             return;
 
+        // Feedback: "busy" mouse cursor while clearing and re-laying out the components
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
         // Clear out old state (similar to constructor)
         int oldGameState = game.getResetOldGameState();
         game = newGame;
@@ -1222,6 +1227,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             resetMsg = "** New game started by " + requesterName + ".\n";
         textDisplay.append(resetMsg);
         chatDisplay.append(resetMsg);
+        setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
 
         // Further messages from server will fill in the rest.
     }

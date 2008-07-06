@@ -36,6 +36,7 @@ import java.awt.Panel;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -52,7 +53,7 @@ import soc.util.Version;
  * @author Jeremy D Monin <jeremy@nand.net>
  */
 public class SOCConnectOrPracticePanel extends Panel
-    implements ActionListener // , KeyListener
+    implements ActionListener, KeyListener
 {
     private SOCPlayerClient cl;
 
@@ -97,7 +98,8 @@ public class SOCConnectOrPracticePanel extends Panel
         // same Frame setup as in SOCPlayerClient.main
         setBackground(new Color(Integer.parseInt("61AF71",16)));
         setForeground(Color.black);
-        
+
+        addKeyListener(this);
         initInterfaceElements();
     }
 
@@ -312,11 +314,13 @@ public class SOCConnectOrPracticePanel extends Panel
         pconn.add(L);
         conn_connect = new Button("Connect...");
         conn_connect.addActionListener(this);
+        conn_connect.addKeyListener(this);  // for win32 keyboard-focus
         gbl.setConstraints(conn_connect, gbc);
         pconn.add(conn_connect);
 
         conn_cancel = new Button("Cancel");
         conn_cancel.addActionListener(this);
+        conn_cancel.addKeyListener(this);
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbl.setConstraints(conn_cancel, gbc);
         pconn.add(conn_cancel);
@@ -380,17 +384,33 @@ public class SOCConnectOrPracticePanel extends Panel
         prun.add(L);
         run_startserv = new Button(" Start ");
         run_startserv.addActionListener(this);
+        run_startserv.addKeyListener(this);  // for win32 keyboard-focus
         gbl.setConstraints(run_startserv, gbc);
         prun.add(run_startserv);
 
         run_cancel = new Button("Cancel");
         run_cancel.addActionListener(this);
+        run_cancel.addKeyListener(this);
         gbl.setConstraints(run_cancel, gbc);
         prun.add(run_cancel);
         
         return prun;
     }
 
+    /**
+     * A local server has been started; disable other options ("Connect", etc) but
+     * not Practice.  Called from client, once the server is started in
+     * {@link SOCPlayerClient#startLocalTCPServer(int)}.
+     */
+    public void startedLocalServer()
+    {
+        connserv.setEnabled(false);
+        conn_connect.setEnabled(false);
+        run_startserv.setEnabled(false);
+        run_cancel.setEnabled(false);
+    }
+
+    /** React to button clicks */
     public void actionPerformed(ActionEvent ae)
     {
         try {
@@ -428,9 +448,7 @@ public class SOCConnectOrPracticePanel extends Panel
         if (src == conn_cancel)
         {
             // Hide fields used to connect to server
-            panel_conn.setVisible(false);
-            connserv.setVisible(true);
-            validate();
+            clickConnCancel();
             return;
         }
 
@@ -461,25 +479,14 @@ public class SOCConnectOrPracticePanel extends Panel
         if (src == run_startserv)
         {
             // After clicking runserv, actually start a server
-            int cport = 0;
-            try {
-                cport = Integer.parseInt(conn_servport.getText());
-            }
-            catch (NumberFormatException e)
-            {
-                // TODO show error?
-                return;
-            }
-            cl.startLocalTCPServer(cport);
+            clickRunStartserv();
             return;
         }
 
         if (src == run_cancel)
         {
             // Hide fields used to start a server
-            panel_run.setVisible(false);
-            runserv.setVisible(true);
-            validate();
+            clickRunCancel();
             return;
         }
 
@@ -520,4 +527,88 @@ public class SOCConnectOrPracticePanel extends Panel
         // Copy fields, show MAIN_PANEL, and connect in client
         cl.connect(cserv, cport, conn_user.getText(), conn_pass.getText());
     }
+
+    /** Hide fields used to connect to server */
+    private void clickConnCancel()
+    {
+        panel_conn.setVisible(false);
+        connserv.setVisible(true);
+        validate();
+    }
+
+    /** Actually start a server, on port from {@link #conn_servport} */
+    private void clickRunStartserv()
+    {
+        // After clicking runserv, actually start a server
+        int cport = 0;
+        try {
+            cport = Integer.parseInt(conn_servport.getText());
+        }
+        catch (NumberFormatException e)
+        {
+            // TODO show error?
+            return;
+        }
+        cl.startLocalTCPServer(cport);        
+    }
+
+    /** Hide fields used to start a server */
+    private void clickRunCancel()
+    {
+        panel_run.setVisible(false);
+        runserv.setVisible(true);
+        validate();
+    }
+
+    /** Handle Enter or Esc key */
+    public void keyPressed(KeyEvent e)
+    {
+        if (e.isConsumed())
+            return;
+
+        try {
+
+        boolean panelConnShowing = (panel_conn != null) && (panel_conn.isVisible());
+        boolean panelRunShowing  = (panel_run != null)  && (panel_run.isVisible());
+
+        switch (e.getKeyCode())
+        {
+        case KeyEvent.VK_ENTER:
+            if (panelConnShowing)
+                clickConnConnect();
+            else if (panelRunShowing)
+                clickRunStartserv();
+            break;
+
+        case KeyEvent.VK_CANCEL:
+        case KeyEvent.VK_ESCAPE:
+            if (panelConnShowing)
+                clickConnCancel();
+            else if (panelRunShowing)
+                clickRunCancel();
+            break;
+        }  // switch(e)
+
+        }  // try
+        catch(Throwable thr)
+        {
+            System.err.println("-- Error caught in AWT event thread: " + thr + " --");
+            thr.printStackTrace();
+            while (thr.getCause() != null)
+            {
+                thr = thr.getCause();
+                System.err.println(" --> Cause: " + thr + " --");
+                thr.printStackTrace();
+            }
+            System.err.println("-- Error stack trace end --");
+            System.err.println();
+        }
+    }
+
+    /** Stub required by KeyListener */
+    public void keyReleased(KeyEvent arg0) { }
+
+    /** Stub required by KeyListener */
+    public void keyTyped(KeyEvent arg0) { }
+
 }
