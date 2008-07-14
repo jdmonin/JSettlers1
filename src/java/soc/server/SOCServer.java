@@ -82,6 +82,14 @@ public class SOCServer extends Server
     public static int GAME_EXPIRE_WARN_MINUTES = 10;
 
     /**
+     * For local practice games (pipes, not TCP), the name of the pipe.
+     * Used to distinguish practice vs "real" games.
+     * 
+     * @see soc.util.LocalStringConnection
+     */
+    public static String PRACTICE_STRINGPORT = "SOCPRACTICE"; 
+
+    /**
      * So we can get random numbers.
      */
     private Random rand = new Random();
@@ -2135,6 +2143,7 @@ public class SOCServer extends Server
             if (c.getData() == null)
             {
                 c.setData(mes.getNickname());
+                nameConnection(c);
                 numberOfUsers++;
             }
 
@@ -2286,6 +2295,7 @@ public class SOCServer extends Server
             //
             c.setData(mes.getNickname());
             robots.addElement(c);
+            nameConnection(c);
         }
     }
 
@@ -2322,6 +2332,7 @@ public class SOCServer extends Server
                 if (c.getData() == null)
                 {
                     c.setData(mes.getNickname());
+                    nameConnection(c);
                     numberOfUsers++;
                 }
             }
@@ -5371,9 +5382,9 @@ public class SOCServer extends Server
             }  // if devcards
         }  // for each player
 
-        ///
-        /// send game-length and connect-length messages
-        ///
+        /**
+         * send game-length and connect-length messages
+         */
         {
             Date now = new Date();
             Date gstart = ga.getStartTime();
@@ -5389,24 +5400,42 @@ public class SOCServer extends Server
                     gLengthMsg = "This game took " + gameMinutes + " minutes "
                         + gameSeconds + " seconds.";
                 messageToGame(gname, new SOCGameTextMsg(gname, SERVERNAME, gLengthMsg));
+
+                // Ignore possible "1 minutes"; that game is too short to worry about.
             } else {
                 gLengthMsg = null;
             }
 
-            // TODO - needs way to get each player's info.
-            /*
-            // Tell each player the game's length, and how
-            // long they've been connected.
+            /**
+             * Tell each player how long they've been connected.
+             */
+            String connMsg;
+            if ((strSocketName != null) && (strSocketName.equals(PRACTICE_STRINGPORT)))
+                connMsg = "You have been practicing ";
+            else
+                connMsg = "You have been connected ";
+
             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
                 SOCPlayer pl = ga.getPlayer(i);
                 if (pl.isRobot() || ga.isSeatVacant(i))
-                    continue;  // Don't bother to send timing stats to robots, or empty seats
+                    continue;  // Don't bother to send timing stats to robots, or to empty seats
 
-                long connTime =  pl.getName()
-                long connMinutes = ((now.getTime() - connTime ))+30000L) / 60000L;
+                StringConnection plConn = (StringConnection) conns.get(pl.getName()); 
+                if (plConn != null)
+                {
+                    long connTime = plConn.getConnectTime().getTime();
+                    long connMinutes = (((now.getTime() - connTime)) + 30000L) / 60000L;                    
+                    StringBuffer cLengthMsg = new StringBuffer(connMsg);
+                    cLengthMsg.append(connMinutes);
+                    if (connMinutes == 1)
+                        cLengthMsg.append(" minute.");
+                    else
+                        cLengthMsg.append(" minutes.");
+                    messageToPlayer(plConn, new SOCGameTextMsg(ga.getName(), SERVERNAME, cLengthMsg.toString()));
+                }
             }  // for each player
-            */
+
         }  // send game timing stats
     }
 

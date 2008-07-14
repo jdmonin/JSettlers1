@@ -31,6 +31,7 @@ import java.net.SocketException;
 
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.Hashtable;
 import java.util.Vector;
 
 
@@ -55,8 +56,11 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     protected int numberOfConnections;
 
-    /** the connections */
-    protected Vector conns = new Vector();
+    /** the named connections */
+    protected Hashtable conns = new Hashtable();
+    /** the newly connected, unnamed connections */
+    protected Vector unnamedConns = new Vector();
+    /** in process of connecting */
     public Vector inQueue = new Vector();
 
     /** start listening to the given port */
@@ -90,6 +94,16 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         numberOfConnections = 0;
         ss = new LocalStringServerSocket(stringSocketName);
         setName("server-localstring-" + stringSocketName);  // Thread name for debugging
+    }
+
+    /**
+     * Given a key data, return the connected client.
+     * @param connKey Object key data, as in {@link StringConnection#getData()}
+     * @return The connection with this key, or null if none
+     */
+    protected StringConnection getConnection(Object connKey)
+    {
+        return (StringConnection) conns.get(connKey);
     }
 
     protected Enumeration getConnections()
@@ -212,16 +226,24 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             ((StringConnection) e.nextElement()).disconnect();
         }
 
-        conns.removeAllElements();
+        conns.clear();
     }
 
     /** remove a connection from the system */
     public synchronized void removeConnection(StringConnection c)
     {
-        //conns.removeElement(c);
-        if (!conns.removeElement(c))
+        Object cKey = c.getData();
+        if (cKey != null)
         {
-            return;
+            if (null == conns.remove(cKey))
+            {
+                // Was not a member
+                return;
+            }
+        }
+        else
+        {
+            unnamedConns.removeElement(c);
         }
 
         c.disconnect();
@@ -232,15 +254,52 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /** do cleanup after a remove connection */
     protected void removeConnectionCleanup(StringConnection c) {}
 
-    /** add a connection to the system */
+    /**
+     * Add a connection to the system.
+     * c.connect() is called.
+     * If ... (TODO) named vs unnamed
+     *
+     * @param c Connecting client; its key data ({@link StringConnection#getData()}) must not be null.
+     * @see #nameConnection(StringConnection)
+     * @see #removeConnection(StringConnection)
+     */
     public synchronized void addConnection(StringConnection c)
     {
+        Object cKey = c.getData();  // May be null
+
         if (c.connect())
         {
             numberOfConnections++;
             newConnection(c);
-            conns.addElement(c);
+            if (cKey != null)
+                conns.put(cKey, c);
+            else
+                unnamedConns.add(c);
             D.ebugPrintln(c.host() + " came (" + connectionCount() + ")  " + (new Date()).toString());
+        }
+    }
+
+    /**
+     * Name a current connection to the system.
+     *
+     * @param c Connected client; its key data ({@link StringConnection#getData()}) must not be null.
+     * @throws IllegalArgumentException If c isn't already connected, or If c.getData() returns null
+     * @see #addConnection(StringConnection)
+     */
+    public synchronized void nameConnection(StringConnection c)
+        throws IllegalArgumentException
+    {
+        Object cKey = c.getData();
+        if (cKey == null)
+            throw new IllegalArgumentException("null c.getData");
+
+        if (unnamedConns.removeElement(c))
+        {
+            conns.put(cKey, c);            
+        }
+        else
+        {
+            throw new IllegalArgumentException("was not connected and unnamed");
         }
     }
 

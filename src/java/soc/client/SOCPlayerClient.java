@@ -164,13 +164,6 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected SOCConnectOrPracticePanel connectOrPracticePane;
 
     /**
-     * For local practice games (pipes, not TCP), the name of the pipe.
-     * 
-     * @see soc.util.LocalStringConnection
-     */
-    public static String PRACTICE_STRINGPORT = "SOCPRACTICE"; 
-
-    /**
      * For local practice games, default player name.
      */
     public static String DEFAULT_PLAYER_NAME = "Player";
@@ -4019,7 +4012,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (practiceServer == null)
         {
-            practiceServer = new SOCServer(PRACTICE_STRINGPORT, 30, null, null);
+            practiceServer = new SOCServer(SOCServer.PRACTICE_STRINGPORT, 30, null, null);
             practiceServer.setPriority(5);  // same as in SOCServer.main
             practiceServer.start();
 
@@ -4031,7 +4024,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             try
             {
-                prCli = LocalStringServerSocket.connectTo(PRACTICE_STRINGPORT);
+                prCli = LocalStringServerSocket.connectTo(SOCServer.PRACTICE_STRINGPORT);
                 new SOCPlayerLocalStringReader((LocalStringConnection)prCli);
                 // Reader will start its own thread
             }
@@ -4148,7 +4141,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             String rname = "droid " + (i+1);
             if (port == 0)
-                robo_fast[i] = new SOCRobotClient (PRACTICE_STRINGPORT, rname, "pw");
+                robo_fast[i] = new SOCRobotClient (SOCServer.PRACTICE_STRINGPORT, rname, "pw");
             else
                 robo_fast[i] = new SOCRobotClient ("localhost", port, rname, "pw");
             new Thread(new SOCPlayerLocalRobotRunner(robo_fast[i])).start();
@@ -4179,7 +4172,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         {
             String rname = "robot " + (i+1+robo_fast.length);
             if (port == 0)
-                robo_smrt[i] = new SOCRobotClient (PRACTICE_STRINGPORT, rname, "pw");
+                robo_smrt[i] = new SOCRobotClient (SOCServer.PRACTICE_STRINGPORT, rname, "pw");
             else
                 robo_smrt[i] = new SOCRobotClient ("localhost", port, rname, "pw");
             new Thread(new SOCPlayerLocalRobotRunner(robo_smrt[i])).start();

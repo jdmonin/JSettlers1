@@ -232,7 +232,6 @@ public class LocalStringConnection
         if (accepted)
             throw new IllegalStateException("Already accepted by a server");
 
-        LocalStringConnection p = null;
         LocalStringServerSocket.connectTo(serverSocketName, this);
         connectTime = new Date();
 
