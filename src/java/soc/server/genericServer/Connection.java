@@ -73,9 +73,9 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         
         /* Thread name for debugging */
         if (hst != null)
-            setName ("connection-" + hst);
+            setName ("connection-" + hst + "-" + Integer.toString(so.getPort()));
         else
-            setName ("connection-(null)");
+            setName ("connection-(null)-" + Integer.toString(hashCode()));
     }
 
     /**
@@ -329,9 +329,9 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             /* thread name for debug */
             String cn = c.host();
             if (cn != null)
-                setName("putter-" + cn);
+                setName("putter-" + cn + "-" + Integer.toString(c.s.getPort()));
             else
-                setName("putter-(null)");
+                setName("putter-(null)-" + Integer.toString(c.hashCode()));
         }
 
         public void run()
