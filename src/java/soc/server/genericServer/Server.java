@@ -58,7 +58,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /** the named connections */
     protected Hashtable conns = new Hashtable();
-    /** the newly connected, unnamed connections */
+    /** the newly connected, unnamed connections.
+     *  Adding/removing/naming connections synchronizes on this Vector. */
     protected Vector unnamedConns = new Vector();
     /** in process of connecting */
     public Vector inQueue = new Vector();
@@ -204,10 +205,35 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /** placeholder for doing things when server gets down */
     protected void serverDown() {}
 
-    /** placeholder for doing things when a new connection comes */
-    protected void newConnection(StringConnection c) {}
+    /** placeholder for doing things when a new connection comes, part 1 -
+     *  decide whether to accept.
+     *  If the connection is accepted, it's added to a list ({@link #unnamedConns} or {@link #conns}).
+     *  Unless you override this method, always returns true.
+     *   Note that {@link #addConnection(StringConnection)} won't close the channel or
+     *   take other action to disconnect a rejected client.
+     *  SYNCHRONIZATION NOTE: During the call to newConnection1, the monitor lock of
+     *  {@link #unnamedConns} is held.  Thus, defer as much as possible until
+     *  {@link #newConnection2(StringConnection)} (after the connection is accepted).
+     *
+     * @param c incoming connection to evaluate and act on
+     * @return true to accept and continue, false if you have rejected this connection
+     *
+     * @see #addConnection(StringConnection)
+     * @see #newConnection2(StringConnection)
+     * @see #nameConnection(StringConnection)
+     */
+    protected boolean newConnection1(StringConnection c) { return true; }
 
-    /** placeholder for doing things when a connection is closed */
+    /** placeholder for doing things when a new connection comes, part 2 -
+     *  has been accepted and added to a connection list.
+     *  Unlike {@link #newConnection1(StringConnection)},
+     *  no connection-list locks are held when this method is called.
+     */
+    protected void newConnection2(StringConnection c) {}
+
+    /** placeholder for doing things when a connection is closed.
+     *  called after connection is removed from conns collection.
+     */
     protected void leaveConnection(StringConnection c) {}
 
     /** The server is being cleanly stopped, disconnect all the connections.
@@ -229,21 +255,24 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         conns.clear();
     }
 
-    /** remove a connection from the system */
-    public synchronized void removeConnection(StringConnection c)
+    /** remove a connection from the system; synchronized on list of connections */
+    public void removeConnection(StringConnection c)
     {
         Object cKey = c.getData();
-        if (cKey != null)
+        synchronized (unnamedConns)
         {
-            if (null == conns.remove(cKey))
+            if (cKey != null)
             {
-                // Was not a member
-                return;
+                if (null == conns.remove(cKey))
+                {
+                    // Was not a member
+                    return;
+                }
             }
-        }
-        else
-        {
-            unnamedConns.removeElement(c);
+            else
+            {
+                unnamedConns.removeElement(c);
+            }
         }
 
         c.disconnect();
@@ -257,60 +286,86 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /**
      * Add a connection to the system.
      * c.connect() is called.
-     * If ... (TODO) named vs unnamed
+     * If ... (TODO) named vs unnamed...
+     * Synchronized on unnamedConns.
      *
      * @param c Connecting client; its key data ({@link StringConnection#getData()}) must not be null.
      * @see #nameConnection(StringConnection)
      * @see #removeConnection(StringConnection)
      */
-    public synchronized void addConnection(StringConnection c)
+    public void addConnection(StringConnection c)
     {
         Object cKey = c.getData();  // May be null
+        boolean connAccepted;
 
-        if (c.connect())
+        synchronized (unnamedConns)
+        {
+            if (c.connect())
+            {
+                connAccepted = newConnection1(c);
+                if (connAccepted)
+                {
+                    if (cKey != null)
+                        conns.put(cKey, c);
+                    else
+                        unnamedConns.add(c);
+                }
+            } else {
+                return;  // <--- early return: c.connect failed ---
+            }
+        }
+        
+        // Now that they're accepted, finish their init/welcome
+        if (connAccepted)
         {
             numberOfConnections++;
-            newConnection(c);
-            if (cKey != null)
-                conns.put(cKey, c);
-            else
-                unnamedConns.add(c);
             D.ebugPrintln(c.host() + " came (" + connectionCount() + ")  " + (new Date()).toString());
+            newConnection2(c);
+        } else {
+            D.ebugPrintln(c.host() + " came but rejected (" + connectionCount() + ")  " + (new Date()).toString());
         }
     }
 
     /**
      * Name a current connection to the system.
+     * Synchronized on unnamedConns.
      *
      * @param c Connected client; its key data ({@link StringConnection#getData()}) must not be null.
      * @throws IllegalArgumentException If c isn't already connected, or If c.getData() returns null
      * @see #addConnection(StringConnection)
      */
-    public synchronized void nameConnection(StringConnection c)
+    public void nameConnection(StringConnection c)
         throws IllegalArgumentException
     {
         Object cKey = c.getData();
         if (cKey == null)
             throw new IllegalArgumentException("null c.getData");
 
-        if (unnamedConns.removeElement(c))
+        synchronized (unnamedConns)
         {
-            conns.put(cKey, c);            
-        }
-        else
-        {
-            throw new IllegalArgumentException("was not connected and unnamed");
+            if (unnamedConns.removeElement(c))
+            {
+                conns.put(cKey, c);            
+            }
+            else
+            {
+                throw new IllegalArgumentException("was not connected and unnamed");
+            }
         }
     }
 
     /**
-     * Broadcast a SOCmessage to all connected clients.
+     * Broadcast a SOCmessage to all connected clients, named and unnamed.
      *
      * @param m SOCmessage string, generated by {@link SOCMessage#toCmd()}
      */
     protected synchronized void broadcast(String m)
     {
         for (Enumeration e = getConnections(); e.hasMoreElements();)
+        {
+            ((StringConnection) e.nextElement()).put(m);
+        }
+        for (Enumeration e = unnamedConns.elements(); e.hasMoreElements();)
         {
             ((StringConnection) e.nextElement()).put(m);
         }

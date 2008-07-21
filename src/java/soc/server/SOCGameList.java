@@ -48,10 +48,17 @@ public class SOCGameList
      * @see #createGame(String)
      */
     public static int GAME_EXPIRE_MINUTES = 90;
-    
+
+    /** mutexes to synchronize game state access */
     protected Hashtable gameMutexes;
+
+    /** map of game names to Vector of game members */
     protected Hashtable gameMembers;
+
+    /** map of game names to SOCGame objects */
     protected Hashtable gameData;
+
+    /** used with gamelist's monitor */
     protected boolean inUse;
 
     /**
@@ -287,6 +294,7 @@ public class SOCGameList
 
     /**
      * create a new game, and add to the list; game will expire in GAME_EXPIRE_MINUTES.
+     * If a game already exists (per {@link #isGame(String)}), do nothing.
      *
      * @param gaName  the name of the game
      *

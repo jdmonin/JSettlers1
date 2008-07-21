@@ -149,7 +149,8 @@ public class SOCGame implements Serializable, Cloneable
     private boolean active;
 
     /**
-     * true if the game's network is local for practice (used only at client)
+     * true if the game's network is local for practice.  Used by
+     * client to route messages to appropriate connection.
      */
     public boolean isLocal;
 
@@ -1366,6 +1367,11 @@ public class SOCGame implements Serializable, Cloneable
     public void setFirstPlayer(int pn)
     {
         firstPlayerNumber = pn;
+        if (pn < 0)  // -1 == not set yet; use <0 to be defensive in while-loop
+        {
+            lastPlayerNumber = -1;
+            return;
+        }
         lastPlayerNumber = pn - 1;
 
         if (lastPlayerNumber < 0)
@@ -1398,9 +1404,14 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * @return true if its ok for this player end the turn
-     *
+     * Can this player end the current turn?
+     * In some states, the current player can't end their turn yet
+     * (such as needing to move the robber, or choose resources for a
+     *  year-of-plenty card, or discard if a 7 is rolled).
+     * 
      * @param pn  player number of the player who wants to end the turn
+     * @return true if ok for this player to end the turn
+     *    (They are current player, game state is {@link #PLAY1})
      */
     public boolean canEndTurn(int pn)
     {
