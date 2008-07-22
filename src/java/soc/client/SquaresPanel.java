@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,7 +22,6 @@
 package soc.client;
 
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Panel;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -35,11 +35,13 @@ import java.awt.event.MouseListener;
  * @see SOCHandPanel
  * @see TradeOfferPanel
  */
-public class SquaresPanel extends Panel implements MouseListener
+public class SquaresPanel extends Panel implements MouseListener, ColorSquareListener
 {
-    // Each ColorSquare handles its own mouse events.
-    private ColorSquare[] give;
-    private ColorSquare[] get;
+    /**
+     *  To change its value, each ColorSquare handles its own mouse events.
+     *  We also add ourself as listeners to mouse and ColorSquare value changes. 
+     */
+    private ColorSquare[] give, get;
     boolean interactive;
     boolean notAllZero;
     SOCHandPanel parentHand;
@@ -88,9 +90,9 @@ public class SquaresPanel extends Panel implements MouseListener
         {
             add(get[i]);
             add(give[i]);
-            get[i].setSquaresPanel(this);
-            give[i].setSquaresPanel(this);
+            get[i].setSquareListener(this);
             get[i].addMouseListener(this);
+            give[i].setSquareListener(this);
             give[i].addMouseListener(this);
         }
 
@@ -241,10 +243,13 @@ public class SquaresPanel extends Panel implements MouseListener
         return notAllZero;
     }
     
-    /** Called by colorsquare when clicked; if we're part of a HandPanel,
-     *  could enable/disable its buttons based on new value.
+    /**
+     * Called by colorsquare when clicked; if we're part of a HandPanel,
+     * could enable/disable its buttons based on new value.
+     * If needed, also call {@link SOCHandPanel#sqPanelZerosChange(boolean)}
+     * if {@link #parentHand} is set.
      */
-    public void squareChanged(ColorSquare sq, int newValue)
+    public void squareChanged(ColorSquare sq, int oldValue, int newValue)
     {
         boolean wasNotZero = notAllZero;
         

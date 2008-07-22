@@ -20,6 +20,7 @@
  **/
 package soc.client;
 
+import soc.client.SOCBoardPanel.BoardPanelSendBuildTask;
 import soc.debug.D;  // JM
 
 import soc.game.SOCGame;
@@ -48,6 +49,8 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 import java.util.StringTokenizer;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import java.io.PrintWriter;  // For chatPrintStackTrace
 import java.io.StringWriter;
@@ -203,6 +206,18 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     protected ResetBoardVoteDialog boardResetVoteDia;
 
+    /** Is one or more handpanel (of other players) showing a "Discarding..." message? */
+    private boolean showingPlayerDiscards;
+
+    /**
+     * Synchronize access to {@link #showingPlayerDiscards}
+     * and {@link #showingPlayerDiscardsTask}
+     */
+    private Object showingPlayerDiscards_lock;
+
+    /** May be null if not active. @see #showingPlayerDiscards */
+    private SOCPIDiscardMsgTask showingPlayerDiscardsTask;
+
     /**
      * number of columns in the text output area
      */
@@ -226,6 +241,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * will be scanned for " rolled a ".
      */
     protected int textDisplayRollExpected;
+    
+    /**
+     * Utility for time-driven events in the interface.
+     * See {@link #getEventTimer()} for some users.
+     */
+    protected Timer eventTimer;
 
     /**
      * the dialog for getting what resources the player wants to discard
@@ -266,6 +287,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         clientHand = null;
         clientHandPlayerNum = -1;
 
+        showingPlayerDiscards = false;
+        showingPlayerDiscards_lock = new Object();
+
         /**
          * initialize the player colors
          */
@@ -281,6 +305,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         {
             playerColorsGhost[i] = makeGhostColor(playerColors[i]);
         }
+        eventTimer = new Timer(true);  // use daemon thread
 
         /**
          * initialize the font and the forground, and background colors
@@ -459,6 +484,17 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     public SOCBoardPanel getBoardPanel()
     {
         return boardPanel;
+    }
+
+    /**
+     * @return the timer for time-driven events in the interface
+     *
+     * @see SOCHandPanel#autoRollSetupTimer()
+     * @see SOCBoardPanel#popupSetBuildRequest(int, int)
+     */
+    public Timer getEventTimer()
+    {
+        return eventTimer;
     }
 
     /**
@@ -1159,6 +1195,20 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 clientHand.updateAtTurn();
         }
 
+        // React if waiting for players to discard,
+        // or if we were waiting, and aren't anymore.
+        if (gs == SOCGame.WAITING_FOR_DISCARDS)
+        {
+            // Set timer.  If still waiting for discards after 2 seconds,
+            // show on-screen. (hands[i].setDiscardMsg)
+            discardTimerSet();
+        } else if (gs == SOCGame.PLAY1)
+        {
+            // Not all discards were cleared by players.
+            // Clean up.
+            discardTimerClear();
+        }
+
         // React if we are current player
         if (clientHand != null)
         {            
@@ -1177,6 +1227,44 @@ public class SOCPlayerInterface extends Frame implements ActionListener
                 {
                     updateAtPlay1();
                 }
+            }
+        }
+    }
+
+    /**
+     * Gamestate just became {@link SOCGame#WAITING_FOR_DISCARDS}.
+     * Set up a timer to wait 1 second and show "Discarding..." in players.
+     */
+    private void discardTimerSet()
+    {
+        synchronized (showingPlayerDiscards_lock)
+        {
+            if (showingPlayerDiscardsTask != null)
+            {
+                showingPlayerDiscardsTask.cancel();  // cancel any previous
+            }
+            showingPlayerDiscardsTask = new SOCPIDiscardMsgTask(this);
+
+            // Run once, after a brief delay in case only robots must discard.
+            eventTimer.schedule(showingPlayerDiscardsTask, 1000 /* ms */ );
+        }
+    }
+
+    // TODO javadocs
+    private void discardTimerClear()
+    {
+        synchronized (showingPlayerDiscards_lock)
+        {
+            if (showingPlayerDiscardsTask != null)
+            {
+                showingPlayerDiscardsTask.cancel();  // cancel any previous
+                showingPlayerDiscardsTask = null;
+            }
+            if (showingPlayerDiscards)
+            {
+                for (int i = SOCGame.MAXPLAYERS - 1; i >= 0; --i)
+                    hands[i].clearDiscardMsg();
+                showingPlayerDiscards = false;
             }
         }
     }
@@ -1558,7 +1646,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             // leaveGame();
             SOCQuitConfirmDialog.createAndShow(pi.getClient(), pi);
         }
-    }
+    }  // MyWindowAdapter
 
     /**
      * Used for chat textfield setting/clearing initial prompt text
@@ -1631,6 +1719,52 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         /** Stub required for FocusListner. */
         public void focusGained(FocusEvent e) {}
 
-    }
+    }  // SOCPITextfieldListener
 
-}
+
+    /**
+     * When timer fires, show discard message in any other player
+     * (not client player) who must discard.
+     * @see SOCPlayerInterface#discardTimerSet()
+     */
+    private static class SOCPIDiscardMsgTask extends TimerTask
+    {
+        private SOCPlayerInterface pi;
+
+        public SOCPIDiscardMsgTask (SOCPlayerInterface spi)
+        {
+            pi = spi;
+        }
+
+        /**
+         * Called when timer fires. Examine game state and players.
+         * Sets "discarding..." to handpanels of discarding players.
+         */
+        public void run()
+        {
+            int clientPN = pi.clientHandPlayerNum;
+            boolean anyShowing = false;
+            SOCHandPanel hp;
+            synchronized (pi.showingPlayerDiscards_lock)
+            {
+                if (pi.game.getGameState() != SOCGame.WAITING_FOR_DISCARDS)
+                {
+                    return;  // <--- Early return: No longer relevant ---
+                }
+                for (int i = SOCGame.MAXPLAYERS-1; i >=0; --i)
+                {
+                    hp = pi.hands[i];
+                    if ((i != clientPN) &&
+                        (7 < hp.getPlayer().getResources().getTotal()))
+                    {
+                        if (hp.setDiscardMsg())
+                            anyShowing = true;
+                    }
+                }
+                pi.showingPlayerDiscards = anyShowing;
+                pi.showingPlayerDiscardsTask = null;  // No longer needed (fires once)
+            }
+        }
+
+    }  // SOCPIDiscardMsgTask
+}  // SOCPlayerInterface

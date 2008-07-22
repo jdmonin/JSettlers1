@@ -1,6 +1,6 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
- * Copyright (C) 2003  Robert S. Thomas
+ * This file Copyright (C) 2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,27 +17,24 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  * The author of this program can be reached at thomas@infolab.northwestern.edu
- **/
-package soc.game;
-
+ */
+package soc.client;
 
 /**
- * This is a list of constants for representing
- * types of resources in Settlers of Catan.
+ * Listen for changes to the value of the color square,
+ * when a user clicks or a setter is called.
+ *
+ * @author Jeremy D Monin <jeremy@nand.net>
  */
-public interface SOCResourceConstants
+public interface ColorSquareListener
 {
     /**
-     * Warning: Don't mess with these constants, other pieces
-     *          of code depend on these numbers staying like this.
-     *          Clay is first, Wood is last.
+     * Called by {@link ColorSquare} when clicked and value changes.
+     *
+     * @param sq The square being changed
+     * @param oldValue The previous value before clicking
+     * @param newValue The new value after clicking; for boolean squares,
+     *                 unchecked/no is 0 and checked/yes is 1.
      */
-    public static final int CLAY = 1;
-    public static final int ORE = 2;
-    public static final int SHEEP = 3;
-    public static final int WHEAT = 4;
-    public static final int WOOD = 5;
-    public static final int UNKNOWN = 6;
-    public static final int MIN = 1;
-    public static final int MAXPLUSONE = 7;
+    public void squareChanged(ColorSquare sq, int oldValue, int newValue);
 }

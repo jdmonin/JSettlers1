@@ -26,9 +26,12 @@ import java.io.Serializable;
 /**
  * This represents a collection of
  * clay, ore, sheep, wheat, and wood resources.
+ * Unknown resources are also tracked here.
+ * Although it's possible to store negative amounts of resources, it's discouraged.
  */
 public class SOCResourceSet implements Serializable, Cloneable
 {
+    /** Resource set with zero of each resource type */
     public static final SOCResourceSet EMPTY_SET = new SOCResourceSet();
 
     /**
@@ -82,7 +85,7 @@ public class SOCResourceSet implements Serializable, Cloneable
     /**
      * @return the number of a kind of resource
      *
-     * @param rtype  the type of resource
+     * @param rtype  the type of resource, like {@link SOCResourceConstants#CLAY}
      */
     public int getAmount(int rtype)
     {
@@ -108,7 +111,7 @@ public class SOCResourceSet implements Serializable, Cloneable
     /**
      * set the amount of a resource
      *
-     * @param rtype the type of resource
+     * @param rtype the type of resource, like {@link SOCResourceConstants#CLAY}
      * @param amt   the amount
      */
     public void setAmount(int amt, int rtype)
@@ -119,7 +122,7 @@ public class SOCResourceSet implements Serializable, Cloneable
     /**
      * add an amount to a resource
      *
-     * @param rtype the type of resource
+     * @param rtype the type of resource, like {@link SOCResourceConstants#CLAY}
      * @param amt   the amount
      */
     public void add(int amt, int rtype)
@@ -128,9 +131,13 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * subtract an amount from a resource
+     * subtract an amount from a resource.
+     * If we're subtracting more from a resource than there are of that resource,
+     * set that resource to zero, and then take the difference away from the
+     * {@link SOCResourceConstants#UNKNOWN} resources.
+     * As a result, UNKNOWN may be less than zero afterwards.
      *
-     * @param rtype the type of resource
+     * @param rtype the type of resource, like {@link SOCResourceConstants#CLAY}
      * @param amt   the amount
      */
     public void subtract(int amt, int rtype)
@@ -158,7 +165,7 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * add an entire resource set
+     * add an entire resource set's amounts into this set.
      *
      * @param rs  the resource set
      */
@@ -173,7 +180,7 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * subtract an entire resource set
+     * subtract an entire resource set. If any type's amount would go below 0, set it to 0.
      *
      * @param rs  the resource set
      */
@@ -245,7 +252,9 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * @return a human readable form of the set
+     * Human-readable form of the set, with format "clay=5|ore=1|sheep=0|wheat=0|wood=3|unknown=0"
+     * @return a human readable longer form of the set
+     * @see #toShortString()
      */
     public String toString()
     {
@@ -255,7 +264,9 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * @return a human readable form of the set
+     * Human-readable form of the set, with format "Resources: 5 1 0 0 3 0".
+     * Order of types is Clay, ore, sheep, wheat, wood, unknown.
+     * @return a human readable short form of the set
      */
     public String toShortString()
     {
@@ -275,7 +286,7 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * @return true if the argument contains the same data
+     * @return true if the argument is a SOCResourceSet containing the same amounts of each resource, including UNKNOWN
      *
      * @param anObject  the object in question
      */
@@ -311,9 +322,9 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
-     * copy a resource set into this one
+     * copy a resource set into this one. This one's current data is lost and overwritten.
      *
-     * @param set  the set to copy
+     * @param set  the set to copy from
      */
     public void setAmounts(SOCResourceSet set)
     {

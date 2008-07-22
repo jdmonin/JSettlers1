@@ -30,7 +30,9 @@ import java.util.Vector;
  */
 public class SOCMoveRobberResult
 {
+    /** Victim, or possible victims, or empty or null; content type {@link SOCPlayer} */ 
     Vector victims;
+    /** Resource type of loot stolen, as in {@link SOCResourceConstants}, or -1 */
     int loot;
 
     /**
@@ -43,9 +45,9 @@ public class SOCMoveRobberResult
     }
 
     /**
-     * DOCUMENT ME!
+     * Set the victim (if any) or possible victims
      *
-     * @param v DOCUMENT ME!
+     * @param v Victim or possible victims, may be empty or null; Vector of {@link SOCPlayer}
      */
     public void setVictims(Vector v)
     {
@@ -53,9 +55,9 @@ public class SOCMoveRobberResult
     }
 
     /**
-     * DOCUMENT ME!
+     * Get the victim (if any) or possible victims
      *
-     * @return DOCUMENT ME!
+     * @return Victim or possible victims, may be empty or null; Vector of {@link SOCPlayer}
      */
     public Vector getVictims()
     {
@@ -63,9 +65,10 @@ public class SOCMoveRobberResult
     }
 
     /**
-     * DOCUMENT ME!
+     * Set the type of resource stolen from the victim
      *
-     * @param l DOCUMENT ME!
+     * @param l type of resource stolen, as in {@link SOCResourceConstants},
+     *          or -1 if nothing stolen
      */
     public void setLoot(int l)
     {
@@ -73,9 +76,11 @@ public class SOCMoveRobberResult
     }
 
     /**
-     * DOCUMENT ME!
+     * Get the type of resource stolen from the victim;
+     * undefined unless {@link #getVictims()}.size() == 1.
      *
-     * @return DOCUMENT ME!
+     * @return type of resource stolen, as in {@link SOCResourceConstants},
+     *         or -1 if nothing stolen
      */
     public int getLoot()
     {

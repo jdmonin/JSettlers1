@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,14 +65,20 @@ public class ColorSquare extends Canvas implements MouseListener
     public final static int WIDTH = 16;
     public final static int HEIGHT = 16;
 
-    /** The warning-level color (high, low, or zero)
+    /** The warning-level text color (high, low, or zero)
      * 
      *  @see #setHighWarningLevel(int)
      *  @see #setLowWarningLevel(int)
      *  @see #setTooltipZeroText(String)
+     *  @see #WARN_LEVEL_COLOR_BG_FROMGREY
      */
-    public static Color WARN_LEVEL_COLOR = new Color(200, 0, 0);  // For warning level
-    public static Color WARN_LEVEL_COLOR_BG_FROMGREY = new Color(255, 255, 0);  // For warning level if grey normally
+    public static Color WARN_LEVEL_COLOR = new Color(200, 0, 0);
+
+    /**
+     * Background color for warning-level, if grey normally
+     * @see #WARN_LEVEL_COLOR
+     */
+    public static Color WARN_LEVEL_COLOR_BG_FROMGREY = new Color(255, 255, 0);
 
     int intValue;
     boolean boolValue;
@@ -81,12 +87,13 @@ public class ColorSquare extends Canvas implements MouseListener
     int upperBound;
     int lowerBound;
     boolean interactive;
-    protected SquaresPanel sqparent;
+    protected ColorSquareListener sqListener;
     protected AWTToolTip ttip;
 
     /**
      * Normal background color is GREY (when not high or low "warning" color).
      * Background does not change for warning, unless this is true.
+     * @see #WARN_LEVEL_COLOR_BG_FROMGREY
      */
     protected boolean warn_bg_grey;
 
@@ -194,7 +201,7 @@ public class ColorSquare extends Canvas implements MouseListener
         setBackground(c);
         kind = k;
         interactive = in;
-        sqparent = null;
+        sqListener = null;
         ttip = null;
         ttip_text = null;
         ttip_text_warnLow = null;
@@ -741,13 +748,17 @@ public class ColorSquare extends Canvas implements MouseListener
 
     /**
      * DOCUMENT ME!
+     * If a {@link ColorSquareListener} is attached, and value changes,
+     * the listener will be called.
      *
      * @param v DOCUMENT ME!
      */
     public void setIntValue(int v)
     {
-        if (intValue == v)
+        if (v == intValue)
             return;  // <-- Early return: No change in intValue
+
+        int oldIntValue = intValue;
 
         // Must check for zero before change, because
         // isWarnLow is also true for 0, but they
@@ -784,9 +795,9 @@ public class ColorSquare extends Canvas implements MouseListener
                 ttip.setTip(ttip_text);
         }
 
-        // Callback (TODO docu/refactor)
-        if (sqparent != null)
-            sqparent.squareChanged(this, intValue);
+        // Listener callback
+        if (sqListener != null)
+            sqListener.squareChanged(this, oldIntValue, intValue);
     }
 
     /**
@@ -801,13 +812,24 @@ public class ColorSquare extends Canvas implements MouseListener
 
     /**
      * DOCUMENT ME!
+     * If a {@link ColorSquareListener} is attached, and value changes,
+     * the listener will be called.
      *
      * @param v DOCUMENT ME!
      */
     public void setBoolValue(boolean v)
     {
+        if (v == boolValue)
+            return;  // <-- Early return: No change in intValue
+
+        boolean oldBoolValue = boolValue;
         boolValue = v;
         repaint();
+
+        // Listener callback
+        if (sqListener != null)
+            sqListener.squareChanged
+                (this, oldBoolValue ? 1 : 0, boolValue ? 1 : 0);
     }
 
     /**
@@ -821,21 +843,22 @@ public class ColorSquare extends Canvas implements MouseListener
     }
 
     /**
-     * A SquaresPanel can be associated with it.
-     * @return square parent panel, or null.
+     * Optionally, a square listener can be called when the value changes.
+     * If this square is part of a {@link SquaresPanel}, that panel is the listener. 
+     * @return square listener, or null.
      */
-    public SquaresPanel getSquaresPanel()
+    public ColorSquareListener getSquareListener()
     {
-        return sqparent;
+        return sqListener;
     }
 
     /**
-     * A SquaresPanel can be associated with it.
-     * @return square parent panel, or null.
+     * Optionally, a square listener can be called when the value changes.
+     * @param sp Square listener, or null to clear
      */
-    public void setSquaresPanel(SquaresPanel sp)
+    public void setSquareListener(ColorSquareListener sp)
     {
-        sqparent = sp;
+        sqListener = sp;
     }
 
     /**
@@ -880,6 +903,8 @@ public class ColorSquare extends Canvas implements MouseListener
 
     /**
      * DOCUMENT ME!
+     * If a {@link ColorSquareListener} is attached, and value changes,
+     * the listener will be called.
      *
      * @param evt DOCUMENT ME!
      */
@@ -887,13 +912,15 @@ public class ColorSquare extends Canvas implements MouseListener
     {
         if (interactive)
         {
-            int oldval = intValue;
+            int oldIVal = intValue;
+            boolean bvalChanged = false;
 
             switch (kind)
             {
             case YES_NO:
             case CHECKBOX:
                 boolValue = !boolValue;
+                bvalChanged = true;
 
                 break;
 
@@ -922,8 +949,13 @@ public class ColorSquare extends Canvas implements MouseListener
             }
 
             repaint();
-            if ((oldval != intValue) && (sqparent != null))
-                sqparent.squareChanged(this, intValue);
+            if (sqListener != null)
+            {
+                if (bvalChanged)
+                    sqListener.squareChanged(this, boolValue ? 0 : 1, boolValue ? 1 : 0);
+                else if (oldIVal != intValue)
+                    sqListener.squareChanged(this, oldIVal, intValue);
+            }
         }
     }
 }

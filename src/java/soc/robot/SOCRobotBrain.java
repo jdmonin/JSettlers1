@@ -4230,34 +4230,7 @@ public class SOCRobotBrain extends Thread
             /**
              *  choose discards at random
              */
-            Vector hand = new Vector(16);
-            int cnt = 0;
-
-            // System.err.println("resources="+ourPlayerData.getResources());
-            for (int rsrcType = SOCResourceConstants.CLAY;
-                    rsrcType <= SOCResourceConstants.WOOD; rsrcType++)
-            {
-                for (int i = ourPlayerData.getResources().getAmount(rsrcType);
-                        i != 0; i--)
-                {
-                    hand.addElement(new Integer(rsrcType));
-
-                    // System.err.println("rsrcType="+rsrcType);
-                }
-            }
-
-            /**
-             * pick cards
-             */
-            for (; numDiscards > 0; numDiscards--)
-            {
-                // System.err.println("numDiscards="+numDiscards+"|hand.size="+hand.size());
-                int idx = Math.abs(rand.nextInt() % hand.size());
-
-                // System.err.println("idx="+idx);
-                discards.add(1, ((Integer) hand.elementAt(idx)).intValue());
-                hand.removeElementAt(idx);
-            }
+            SOCGame.discardPickRandom(ourPlayerData.getResources(), numDiscards, discards, rand);
         }
 
         //D.ebugPrintln("!!! DISCARDING !!!");

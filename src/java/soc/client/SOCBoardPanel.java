@@ -326,8 +326,17 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     private long popupMenuSystime;
 
-    protected Timer buildReqTimer;  // Created just once
-    protected BoardPanelSendBuildTask buildReqTimerTask;  // Created whenever right-click build request sent
+    /**
+     * For right-click build menu; used for fallback part of client-server-client
+     * communication of a build request. Created whenever right-click build request sent.
+     * This is the fallback for the normal method:
+     * <pre>
+     *  SOCBoardPanel.popupExpectingBuildRequest
+     *  SOCPlayerInterface.updateAtGameState
+     *  SOCBoardPanel.popupFireBuildingRequest
+     * </pre>
+     */
+    protected BoardPanelSendBuildTask buildReqTimerTask;
 
     /**
      * Edge or node being pointed to.
@@ -2488,19 +2497,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      */
     public boolean popupExpectingBuildRequest()
     {
-        if ((buildReqTimer == null) || (buildReqTimerTask == null))
+        if (buildReqTimerTask == null)
             return false;
         return ! buildReqTimerTask.wasItSentAlready();
     }
-    
+
     public void popupSetBuildRequest(int coord, int ptype)
     {
-        synchronized (this)
-        {
-            if (buildReqTimer == null)
-                buildReqTimer = new Timer(true);  // use daemon thread
-        }
-        synchronized (buildReqTimer)
+        Timer piTimer = playerInterface.getEventTimer();
+        synchronized (piTimer)
         {
             if (buildReqTimerTask != null)
             {
@@ -2511,16 +2516,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             // Run once, at maximum permissable delay;
             // hopefully the network is responsive and
             // we've heard back by then.
-            buildReqTimer.schedule(buildReqTimerTask, 1000 * BUILD_REQUEST_MAX_DELAY_SEC );
-            
+            piTimer.schedule(buildReqTimerTask, 1000 * BUILD_REQUEST_MAX_DELAY_SEC );
         }
     }
-    
+
     public void popupClearBuildRequest()
     {
-        if (buildReqTimer == null)
-            return;
-        synchronized (buildReqTimer)
+        Timer piTimer = playerInterface.getEventTimer();
+        synchronized (piTimer)
         {
             if (buildReqTimerTask == null)
                 return;
@@ -2533,9 +2536,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /** Have received gamestate placing message; send the building request in reply. */
     public void popupFireBuildingRequest()
     {
-        if (buildReqTimer == null)
-            return;
-        synchronized (buildReqTimer)
+        Timer piTimer = playerInterface.getEventTimer();
+        synchronized (piTimer)
         {
             if (buildReqTimerTask == null)
                 return;
@@ -3701,7 +3703,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     {
         protected int buildLoc, pieceType;
         protected boolean wasSentAlready;
-        
+
         /** Send this after maximum delay.
          * 
          * @param coord Board coordinates, as used in SOCPutPiece message

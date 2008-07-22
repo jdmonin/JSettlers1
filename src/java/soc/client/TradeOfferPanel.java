@@ -38,7 +38,15 @@ import java.awt.event.ActionListener;
 
 
 /**
- * DOCUMENT ME!
+ * Two-mode panel to display either a short status message, or a
+ * resource trade offer/counter-offer.
+ *<P>
+ * The status message mode is used for tasks such as:
+ *<UL>
+ *  <LI> Saying "no thanks" to a trade offer
+ *  <LI> Showing vote on a board reset request
+ *  <LI> Showing the player is deciding what to discard
+ *</UL>
  *
  * @author $author$
  * @version $Revision: 1.3 $
@@ -92,9 +100,10 @@ public class TradeOfferPanel extends Panel
     {
         SpeechBalloon balloon;
         Label msg;
+        int msgHeight;
 
         /**
-         * Creates a new TradeOfferPanel object.
+         * Creates a new MessagePanel object.
          */
         public MessagePanel()
         {
@@ -103,6 +112,7 @@ public class TradeOfferPanel extends Panel
         
             msg = new Label(" ", Label.CENTER);
             msg.setBackground(insideBGColor);
+            msgHeight = 0;  // set in doLayout
             add(msg);
         
             balloon = new SpeechBalloon(pi.getPlayerColor(from));
@@ -125,10 +135,16 @@ public class TradeOfferPanel extends Panel
             Dimension dim = getSize();
             int buttonW = 48;
             int inset = 10;
+            if (msgHeight == 0)
+                msgHeight = getFontMetrics(msg.getFont()).getHeight() + 4;
             int w = Math.min((2*(inset+5) + 3*buttonW), dim.width);
             int h = Math.min(92 + 2 * ColorSquareLarger.HEIGHT_L, dim.height);
-
-            msg.setBounds(inset, ((h - 18) / 2), w - (2 * inset), 18);
+            int msgY = (h - msgHeight) / 2;
+            if (msgY < 0)
+                msgY = 0;
+            if (msgHeight > h)
+                msgHeight = h;
+            msg.setBounds(inset, msgY, w - (2 * inset), msgHeight);
             balloon.setBounds(0, 0, w, h);
         }
     }

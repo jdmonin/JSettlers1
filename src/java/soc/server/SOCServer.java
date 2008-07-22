@@ -3160,6 +3160,8 @@ public class SOCServer extends Server
                          * Client expects to see DiceResult first, then text message;
                          * to reduce visual clutter, SOCPlayerInterface.print
                          * expects text message to follow a certain format.
+                         * If a 7 is rolled, sendGameState will also say who must discard
+                         * (in a GAMETEXTMSG).
                          */
                         messageToGame(gn, new SOCDiceResult(gn, ga.getCurrentDice()));
                         messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " rolled a " + dice.getA() + " and a " + dice.getB() + "."));
@@ -3274,6 +3276,7 @@ public class SOCServer extends Server
 
                                         if (ga.getPlayer(i).getName().equals((String) con.getData()))
                                         {
+                                            // Request discard half (round down)
                                             con.put(SOCDiscardRequest.toCmd(ga.getName(), ga.getPlayer(i).getResources().getTotal() / 2));
 
                                             break;
@@ -3326,27 +3329,7 @@ public class SOCServer extends Server
                         /**
                          * tell the player client that the player discarded the resources
                          */
-                        int cl;
-
-                        /**
-                         * tell the player client that the player discarded the resources
-                         */
-                        int or;
-
-                        /**
-                         * tell the player client that the player discarded the resources
-                         */
-                        int sh;
-
-                        /**
-                         * tell the player client that the player discarded the resources
-                         */
-                        int wh;
-
-                        /**
-                         * tell the player client that the player discarded the resources
-                         */
-                        int wo;
+                        int cl, or, sh, wh, wo;
                         cl = mes.getResources().getAmount(SOCResourceConstants.CLAY);
                         or = mes.getResources().getAmount(SOCResourceConstants.ORE);
                         sh = mes.getResources().getAmount(SOCResourceConstants.SHEEP);
@@ -4242,11 +4225,7 @@ public class SOCServer extends Server
                             ga.doDiscoveryAction(mes.getResources());
 
                             String message = (String) c.getData() + " received ";
-                            int cl;
-                            int or;
-                            int sh;
-                            int wh;
-                            int wo;
+                            int cl, or, sh, wh, wo;
                             cl = mes.getResources().getAmount(SOCResourceConstants.CLAY);
                             or = mes.getResources().getAmount(SOCResourceConstants.ORE);
                             sh = mes.getResources().getAmount(SOCResourceConstants.SHEEP);
@@ -5102,7 +5081,7 @@ public class SOCServer extends Server
      * @param ga  the game
      * @param pe  the perpetrator
      * @param vi  the the victim
-     * @param rsrc  what was stolen
+     * @param rsrc  type of resource stolen, as in SOCResourceConstants
      */
     protected void reportRobbery(SOCGame ga, SOCPlayer pe, SOCPlayer vi, int rsrc)
     {

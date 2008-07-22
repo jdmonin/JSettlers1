@@ -103,6 +103,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected static final String ROLL_OR_PLAY_CARD = "Roll or Play Card";
     protected static final String SENDBUTTIP_ENA = "Send trade offer to other players";
     protected static final String SENDBUTTIP_DIS = "To offer a trade, first click resources";
+    protected static final String TRADEMSG_DISCARD = "Discarding..."; 
 
     /** If player has won the game, update pname label */
     protected static final String WINNER_SUFFIX = " - Winner";
@@ -200,7 +201,6 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     protected Label rollPromptCountdownLab;
     protected boolean rollPromptInUse;
-    protected Timer autoRollTimer;  // Created just once
     protected TimerTask autoRollTimerTask;  // Created every turn when countdown needed
     protected Button rollBut;
     /** "Done" with turn during play; also "Restart" for board reset at end of game */
@@ -230,6 +230,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      * Also used to display board-reset vote messages.
      *
      * @see #offerIsResetMessage
+     * @see #offerIsDiscardMessage
      */
     protected TradeOfferPanel offer;
 
@@ -239,9 +240,15 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected boolean offerIsResetMessage;
 
     /**
-     * Board-reset voting: If true, {@link #offer} was holding an active trade offer before {@link #offerIsResetMessage} was set.
+     * Board-reset voting: If true, {@link #offer} is holding a discard message.
      */
-    protected boolean offerIsResetWasTrade;
+    protected boolean offerIsDiscardMessage;
+
+    /**
+     * Board-reset voting: If true, {@link #offer} was holding an active trade offer
+     * before {@link #offerIsResetMessage} or {@link #offerIsDiscardMessage} was set.
+     */
+    protected boolean offerIsMessageWasTrade;
 
     /**
      * When this flag is true, the panel is interactive.
@@ -483,7 +490,6 @@ public class SOCHandPanel extends Panel implements ActionListener
         rollPromptCountdownLab = new Label(" ");
         add(rollPromptCountdownLab);
         rollPromptInUse = false;   // Nothing yet (no game in progress)
-        autoRollTimer = null;      // Nothing yet
         autoRollTimerTask = null;  // Nothing yet
 
         rollBut = new Button(ROLL);
@@ -714,78 +720,116 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
         else if ((e.getSource() == cardList) || (target == CARD))
         {
-            String item;
-            int itemNum;
-
-            item = cardList.getSelectedItem();
-            itemNum = cardList.getSelectedIndex();
-
-            if (item == null || item.length() == 0)
-            {
-                if (cardList.getItemCount() == 1)
-                {
-                    // No card selected, but only one to choose from
-                    item = cardList.getItem(0);
-                    itemNum = 0;
-                    if (item.length() == 0)
-                        return;
-                } else {
-                    if (cardList.getItemCount() > 1)
-                    {
-                        playerInterface.print("* Please click a card first to select it.");
-                    }
-                    return;
-                }
-            }
-
-            setRollPrompt(null);  // Clear prompt if Play Card clicked (vs Roll)
-
-            if (playerIsCurrent)
-            {
-                if (player.hasPlayedDevCard())
-                {
-                    playerInterface.print("*** You may play only one card per turn.");
-                    playCardBut.setEnabled(false);
-                }
-                else if (item.equals("Soldier"))
-                {
-                    if (game.canPlayKnight(player.getPlayerNumber()))
-                    {
-                        client.playDevCard(game, SOCDevCardConstants.KNIGHT);
-                    }
-                }
-                else if (item.equals("Road Building"))
-                {
-                    if (game.canPlayRoadBuilding(player.getPlayerNumber()))
-                    {
-                        client.playDevCard(game, SOCDevCardConstants.ROADS);
-                    }
-                }
-                else if (item.equals("Year of Plenty"))
-                {
-                    if (game.canPlayDiscovery(player.getPlayerNumber()))
-                    {
-                        client.playDevCard(game, SOCDevCardConstants.DISC);
-                    }
-                }
-                else if (item.equals("Monopoly"))
-                {
-                    if (game.canPlayMonopoly(player.getPlayerNumber()))
-                    {
-                        client.playDevCard(game, SOCDevCardConstants.MONO);
-                    }
-                }
-                else if (item.indexOf("VP)") > 0)
-                {
-                    playerInterface.print("*** You secretly played this VP card when you bought it.");
-                    itemNum = cardList.getSelectedIndex();
-                    if (itemNum >= 0)
-                        cardList.deselect(itemNum);
-                }
-            }
+            clickPlayCardButton();
         }
         } catch (Throwable th) {
             playerInterface.chatPrintStackTrace(th);
+        }
+    }
+
+    /**
+     * Handle a click on the "play card" button, or double-click
+     * on an item in the list of cards held.
+     * Called from actionPerformed()
+     */
+    public void clickPlayCardButton()
+    {
+        String item;
+        int itemNum;  // Which one to play from list?
+
+        setRollPrompt(null);  // Clear prompt if Play Card clicked (vs Roll clicked)
+        if (playerIsCurrent && player.hasPlayedDevCard())
+        {
+            playerInterface.print("*** You may play only one card per turn.");
+            playCardBut.setEnabled(false);
+            return;
+        }
+
+        item = cardList.getSelectedItem();
+        itemNum = cardList.getSelectedIndex();
+
+        if (item == null || item.length() == 0)
+        {
+            if (cardList.getItemCount() == 1)
+            {
+                // No card selected, but only one to choose from
+                item = cardList.getItem(0);
+                itemNum = 0;
+                if (item.length() == 0)
+                    return;
+            } else {
+                // No card selected, multiple are in the list.
+                // See if only one card isn't a "(VP)" card, isn't new.
+                itemNum = -1;  // Nothing yet
+                for (int i = cardList.getItemCount() - 1; i >= 0; --i)
+                {
+                    item = cardList.getItem(i);
+                    if ((item != null) && (item.length() > 0)
+                        && (item.indexOf("VP)") <= 0)
+                        && ! item.startsWith("*NEW*"))
+                    {
+                        // Non-VP non-new card found
+                        if (itemNum == -1)
+                        {
+                            itemNum = i;
+                        } else {
+                            itemNum = -1;  // More than one found,
+                            break;         // stop looking.
+                        }
+                    }
+                }
+                if (itemNum == -1)
+                {
+                    playerInterface.print("* Please click a card first to select it.");
+                    return;
+                } else {
+                    item = cardList.getItem(itemNum);
+                }
+            }
+        }
+
+        // At this point, itemNum is the index of the card we want,
+        // and item is its text string.
+
+        if (! playerIsCurrent)
+        {
+            return;  // <--- Early Return: Not current player ---
+        }
+
+        if (item.equals("Soldier"))
+        {
+            if (game.canPlayKnight(player.getPlayerNumber()))
+            {
+                client.playDevCard(game, SOCDevCardConstants.KNIGHT);
+            }
+        }
+        else if (item.equals("Road Building"))
+        {
+            if (game.canPlayRoadBuilding(player.getPlayerNumber()))
+            {
+                client.playDevCard(game, SOCDevCardConstants.ROADS);
+            }
+        }
+        else if (item.equals("Year of Plenty"))
+        {
+            if (game.canPlayDiscovery(player.getPlayerNumber()))
+            {
+                client.playDevCard(game, SOCDevCardConstants.DISC);
+            }
+        }
+        else if (item.equals("Monopoly"))
+        {
+            if (game.canPlayMonopoly(player.getPlayerNumber()))
+            {
+                client.playDevCard(game, SOCDevCardConstants.MONO);
+            }
+        }
+        else if (item.indexOf("VP)") > 0)
+        {
+            playerInterface.print("*** You secretly played this VP card when you bought it.");
+            itemNum = cardList.getSelectedIndex();
+            if (itemNum >= 0)
+                cardList.deselect(itemNum);
         }
     }
 
@@ -1177,17 +1221,16 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     protected void autoRollSetupTimer()
     {
+        Timer piTimer = playerInterface.getEventTimer();
         if (autoRollTimerTask != null)
             autoRollTimerTask.cancel();  // cancel any previous
         if (! game.canRollDice(player.getPlayerNumber()))
             return;
-        if (autoRollTimer == null)
-            autoRollTimer = new Timer(true);  // use daemon thread
 
         // Set up to run once per second, it will cancel
         //   itself after AUTOROLL_TIME seconds.
         autoRollTimerTask = new HandPanelAutoRollTask();
-        autoRollTimer.scheduleAtFixedRate(autoRollTimerTask, 0, 1000 /* ms */ );
+        piTimer.scheduleAtFixedRate(autoRollTimerTask, 0, 1000 /* ms */ );
     }
 
     /**
@@ -1508,14 +1551,14 @@ public class SOCHandPanel extends Panel implements ActionListener
 
             if (currentOffer != null)
             {
-                if (! offerIsResetMessage)
+                if (! (offerIsResetMessage || offerIsDiscardMessage))
                 {
                     offer.setOffer(currentOffer);
                     offer.setVisible(true);
                     offer.repaint();
                 }
                 else
-                    offerIsResetWasTrade = true;  // Will show after voting
+                    offerIsMessageWasTrade = true;  // Will show after voting
             }
             else
             {
@@ -1540,7 +1583,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void clearTradeMsg()
     {
-        if ((offer.getMode() == TradeOfferPanel.MESSAGE_MODE) && ! offerIsResetMessage)
+        if ((offer.getMode() == TradeOfferPanel.MESSAGE_MODE)
+            && ! (offerIsResetMessage || offerIsDiscardMessage))
         {
             offer.setVisible(false);
             repaint();
@@ -1599,16 +1643,18 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * Show or hide a message related to board-reset voting.
+     * Show or hide a message in the trade-panel.
+     * Should not be client player, only other players.
+     * Sets offerIsMessageWasTrade, but does not set boolean modes (offerIsResetMessage, offerIsDiscardMessage, etc.)
+     * Will clear boolean modes if message null.
      *
-     * @param message Message to show, or null to hide
+     * @param message Message to show, or null to hide (and return tradepanel to previous display, if any)
      */
-    public void resetBoardSetMessage(String message)
+    private void tradeSetMessage(String message)
     {
         if (message != null)
         {
-            offerIsResetWasTrade = (offer.isVisible() && (offer.getMode() == TradeOfferPanel.OFFER_MODE));
-            offerIsResetMessage = true;
+            offerIsMessageWasTrade = (offer.isVisible() && (offer.getMode() == TradeOfferPanel.OFFER_MODE));
             offer.setMessage(message);
             offer.setVisible(true);
             repaint();
@@ -1616,12 +1662,60 @@ public class SOCHandPanel extends Panel implements ActionListener
         else
         {
             // restore previous state of offer panel
+            offerIsDiscardMessage = false;
             offerIsResetMessage = false;
-            if ((! offerIsResetWasTrade) || (! inPlay))
+            if ((! offerIsMessageWasTrade) || (! inPlay))
                 clearTradeMsg();
             else
                 updateCurrentOffer();
         }
+    }
+
+    /**
+     * Show or hide a message related to board-reset voting.
+     *
+     * @param message Message to show, or null to hide
+     * @throws IllegalStateException if offerIsDiscardMessage true when called
+     */
+    public void resetBoardSetMessage(String message)
+        throws IllegalStateException
+    {
+        if (offerIsDiscardMessage)
+            throw new IllegalStateException("Cannot call resetmessage when discard msg");
+        tradeSetMessage(message);
+        offerIsResetMessage = (message != null);
+    }
+
+    /**
+     * Show the "discarding..." message in the trade panel.
+     * Assumes player can't be discarding and asking for board-reset at same time.
+     * Normally, this will be cleared by {@link #updateValue(int)} for NUMRESOURCES,
+     * because that's what the server sends all other players on discard.
+     * @see #clearDiscardMsg()
+     * @see #TRADEMSG_DISCARD
+     * @return true if set, false if not set because was in reset-mode already.
+     */
+    public boolean setDiscardMsg()
+    {
+        if (offerIsResetMessage)
+            return false;
+        tradeSetMessage(TRADEMSG_DISCARD);
+        offerIsDiscardMessage = true;
+        return true;
+    }
+
+    /**
+     * Clear the "discarding..." message in the trade panel.
+     * Assumes player can't be discarding and asking for board-reset at same time.
+     * If wasn't in discardMessage mode, do nothing.
+     * @see #setDiscardMsg()
+     */
+    public void clearDiscardMsg()
+    {
+        if (! offerIsDiscardMessage)
+            return;
+        tradeSetMessage(null);
+        offerIsDiscardMessage = false;
     }
 
     /**
@@ -1799,7 +1893,8 @@ public class SOCHandPanel extends Panel implements ActionListener
         case NUMRESOURCES:
 
             resourceSq.setIntValue(player.getResources().getTotal());
-
+            if (offerIsDiscardMessage)
+                clearDiscardMsg();
             break;
 
         case ROADS:

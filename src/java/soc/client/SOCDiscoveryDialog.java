@@ -35,13 +35,15 @@ import java.awt.event.ActionListener;
  * Dialog asking player to pick two resources
  * when playing a discovery card.
  */
-class SOCDiscoveryDialog extends Dialog implements ActionListener
+class SOCDiscoveryDialog extends Dialog implements ActionListener, ColorSquareListener
 {
-    Button doneBut;
-    Button clearBut;
-    ColorSquare[] rsrc;
-    Label msg;
-    SOCPlayerInterface pi;
+    private Button doneBut;
+    private Button clearBut;
+    private ColorSquare[] rsrc;
+    private Label msg;
+    private SOCPlayerInterface pi;
+    /** Total number of resources clicked */
+    private int rsrcTotal;
 
     /**
      * Creates a new SOCDiscoveryDialog object.
@@ -51,6 +53,8 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
     public SOCDiscoveryDialog(SOCPlayerInterface pi)
     {
         super(pi, "Year of Plenty", true);
+
+        rsrcTotal = 0;
 
         this.pi = pi;
         setBackground(new Color(255, 230, 162));
@@ -70,7 +74,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         add(doneBut);
         doneBut.addActionListener(this);
-        // doneBut.disable();  // Since nothing picked yet
+        doneBut.disable();  // Since nothing picked yet
 
         add(clearBut);
         clearBut.addActionListener(this);
@@ -86,11 +90,12 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
         for (int i = 0; i < 5; i++)
         {
             add(rsrc[i]);
+            rsrc[i].setSquareListener(this);
         }
     }
 
     /**
-     * When dialog becomes visible, set focus to the "Done" button.
+     * When dialog becomes visible, set focus to the "Clear" button.
      *
      * @param b Visible?
      */
@@ -100,7 +105,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
 
         if (b)
         {
-            doneBut.requestFocus();
+            clearBut.requestFocus();
         }
     }
 
@@ -205,9 +210,24 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener
             {
                 rsrc[i].setIntValue(0);
             }
+            rsrcTotal = 0;
+            doneBut.disable();
         }
         } catch (Throwable th) {
             pi.chatPrintStackTrace(th);
         }
+    }
+
+    /**
+     * Called by colorsquare when clicked; potentially
+     * enable/disable Done button, based on new value.
+     */
+    public void squareChanged(ColorSquare sq, int oldValue, int newValue)
+    {
+        boolean wasDone = (rsrcTotal == 2);
+        rsrcTotal += (newValue - oldValue);
+        boolean isDone = (rsrcTotal == 2); 
+        if (wasDone != isDone)
+            doneBut.setEnabled(isDone);
     }
 }

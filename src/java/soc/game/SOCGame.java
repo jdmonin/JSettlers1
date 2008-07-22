@@ -35,15 +35,47 @@ import java.util.Vector;
 
 /**
  * A class for holding and manipulating game data.
+ * Most methods are not implicitly thread-safe;
+ * call {@link #takeMonitor()} and {@link #releaseMonitor()} around them.
  * 
- * putPiece updates the game state.
+ * {@link #putPiece(SOCPlayingPiece)} and other game-action methods update the game state.
  *
  * @author Robert S. Thomas
  */
 public class SOCGame implements Serializable, Cloneable
 {
     /**
-     * game states
+     * Game states.  NEW is a brand-new game, not yet ready to start playing.
+     *<P>
+     * General assumptions for states and their numeric values:
+     * <UL>
+     * <LI> Active game states are >= {@link #START1A} and < {@link #OVER}
+     * <LI> Initial placement ends after {@link #START2B}, going directly to {@link #PLAY}
+     * <LI> A Normal turn's "main phase" is {@link #PLAY1}, after dice-roll/card-play in {@link #PLAY}
+     * <LI> When the game is waiting for a player to react to something,
+     *      state is > {@link #PLAY1}, < {@link #OVER}; state name starts with
+     *      PLACING_ or WAITING_
+     * </UL>
+     *<P>
+     * The code reacts to (switches based on) game state in several places. 
+     * The main places to check, if you add a game state:
+     * <PRE>
+        {@link soc.client.SOCBoardPanel#updateMode()}
+        {@link soc.client.SOCBuildingPanel#updateButtonStatus()}
+        {@link soc.client.SOCPlayerInterface#updateAtGameState()}
+        {@link soc.game.SOCGame#putPiece(SOCPlayingPiece)}
+        {@link soc.robot.SOCRobotBrain#run()}
+        {@link soc.server.SOCServer#sendGameState(SOCGame)}
+     * </PRE>
+     * Other places to check, if you add a game state:
+     * <PRE>
+        SOCBoardPanel.BoardPopupMenu.showBuild, showCancelBuild
+        SOCBoardPanel.drawBoard
+        SOCHandPanel.addPlayer, began, removePlayer, updateAtTurn, updateValue
+        SOCGame.addPlayer
+        SOCServer.handleSTARTGAME, leaveGame, sitDown, handleCANCELBUILDREQUEST, handlePUTPIECE
+        SOCPlayerClient.handleCANCELBUILDREQUEST, SOCDisplaylessPlayerClient.handleCANCELBUILDREQUEST
+     * </PRE>
      */
     public static final int NEW = 0; // Brand new game
     public static final int READY = 1; // Ready to start playing
@@ -63,6 +95,7 @@ public class SOCGame implements Serializable, Cloneable
     public static final int WAITING_FOR_CHOICE = 51; // Waiting for player to choose a player
     public static final int WAITING_FOR_DISCOVERY = 52; // Waiting for player to choose 2 resources
     public static final int WAITING_FOR_MONOPOLY = 53; // Waiting for player to choose a resource
+    public static final int WAITING_FOR_OTHER_DISCARDS_ENDTURN = 54; // Waiting for other players to discard; after that, will end own turn
     public static final int OVER = 1000; // The game is over
     /**
      * This game is an obsolete old copy of a new (reset) game with the same name.
@@ -75,15 +108,13 @@ public class SOCGame implements Serializable, Cloneable
     /**
      * seat states
      */
-    public static final int VACANT = 0;
-    public static final int OCCUPIED = 1;
+    public static final int VACANT = 0, OCCUPIED = 1;
     /**
      * seatLock states
      */
-    public static final boolean LOCKED = true;
-    public static final boolean UNLOCKED = false;
+    public static final boolean LOCKED = true, UNLOCKED = false;
     /**
-     * boardResetVotes states: no vote sent; yes; no.
+     * {@link #boardResetVotes} per-player states: no vote sent; yes; no.
      */
     public static final int VOTE_NONE = 0;
     public static final int VOTE_YES  = 1;
@@ -634,6 +665,9 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
+     * Current game state.  For general information about
+     * what states are expected when, please see the javadoc for {@link #NEW}.
+     *
      * @return the current game state
      */
     public int getGameState()
@@ -643,7 +677,9 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * set the current game state.
-     * If the new state is OVER, and no playerWithWin yet determined, call checkForWinner.
+     * If the new state is {@link #OVER}, and no playerWithWin yet determined, call checkForWinner.
+     * For general information about what states are expected when,
+     * please see the javadoc for {@link #NEW}.
      *
      * @param gs  the game state
      * @see #checkForWinner()
@@ -853,7 +889,8 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * put this piece on the board and update game state
+     * Put this piece on the board and update all related game state.
+     * If the piece is a city, putPiece removes the settlement there.
      *
      * @param pp the piece to put on the board
      */
@@ -1412,6 +1449,9 @@ public class SOCGame implements Serializable, Cloneable
      * @param pn  player number of the player who wants to end the turn
      * @return true if ok for this player to end the turn
      *    (They are current player, game state is {@link #PLAY1})
+     *
+     * @see #endTurn()
+     * @see #forceEndTurn()
      */
     public boolean canEndTurn(int pn)
     {
@@ -1440,6 +1480,7 @@ public class SOCGame implements Serializable, Cloneable
      *
      * @see #setCurrentPlayerNumber(int)
      * @see #checkForWinner()
+     * @see #forceEndTurn()
      */
     public void endTurn()
     {
@@ -1451,6 +1492,177 @@ public class SOCGame implements Serializable, Cloneable
         resetVoteClear();
         if (players[currentPlayerNumber].getTotalVP() >= VP_WINNER)
             checkForWinner();
+    }
+
+    /**
+     * In an active game, force current turn to be able to be ended.
+     * Takes whatever action needed to force current player to end their turn,
+     * and if possible, sets state to {@link #PLAY1}, but does not call {@link #endTurn()}.
+     * May be used if player loses connection, or robot does not respond.
+     * TODO finish this javadoc...
+     * Since only the server calls {@link #endTurn()}, this method does not do so.
+     * After calling forceEndTurn, the gamestate will usually be {@link #PLAY1},
+     * or {@link #WAITING_FOR_OTHER_DISCARDS_ENDTURN} if the result is
+     * {@link SOCForceEndTurnResult#FORCE_ENDTURN_NOTYET_WAITING}.
+     *
+     * @return Type of action performed, one of these values:
+     *     <UL>
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_NONE}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_RET_UNPLACE}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_ROBBER}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_LOST_CHOICE}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_NOTYET_WAITING}
+     *     </UL>
+     * @throws IllegalStateException if game is not active
+     *     (gamestate < {@link #PLAY} or >= {@link #OVER}); if the game is still
+     *     being started ({@link #START2B} or earlier), you'll probably have to
+     *     tell the players to start a new game.
+     * @see #canEndTurn(int)
+     * @see #endTurn()
+     */
+    public SOCForceEndTurnResult forceEndTurn()
+        throws IllegalStateException
+    {
+        if ((gameState < PLAY) || (gameState >= OVER))
+            throw new IllegalStateException("Game not active: state " + gameState);
+
+        switch (gameState)
+        {
+        case PLAY:
+            gameState = PLAY1;
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_NONE);
+
+        case PLAY1:
+            // already good to go
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_NONE);
+
+        case WAITING_FOR_OTHER_DISCARDS_ENDTURN:
+            // Must wait for other players to discard
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_NOTYET_WAITING);
+
+        case PLACING_ROAD:
+            cancelBuildRoad(currentPlayerNumber);
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+
+        case PLACING_SETTLEMENT:
+            cancelBuildSettlement(currentPlayerNumber);
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+
+        case PLACING_CITY:
+            cancelBuildCity(currentPlayerNumber);
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+
+        case PLACING_ROBBER:
+            gameState = PLAY1;
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_ROBBER);
+
+        case PLACING_FREE_ROAD1:
+        case PLACING_FREE_ROAD2:
+            gameState = PLAY1;
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+
+        case WAITING_FOR_DISCARDS:
+            return forceEndTurnChkDiscards();
+
+        case WAITING_FOR_CHOICE:
+        case WAITING_FOR_DISCOVERY:
+        case WAITING_FOR_MONOPOLY:
+            gameState = PLAY1;
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_LOST_CHOICE);
+
+        default:
+            throw new IllegalStateException("Internal error, force un-handled gamestate: "
+                    + gameState);
+        }
+
+        // Always returns within switch
+    }
+
+    /**
+     * Choose cards to randomly discard from current player's hand.
+     * Look at other players' hand size. If no one else must discard,
+     * ready to end turn. Otherwise, must wait for them; if so,
+     * set game state to {@link #WAITING_FOR_OTHER_DISCARDS_ENDTURN}.
+     * @return
+     */
+    private SOCForceEndTurnResult forceEndTurnChkDiscards()
+    {
+        boolean otherDiscarders = false;
+        for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
+        {
+            if ((i != currentPlayerNumber) && players[i].getNeedToDiscard())
+            {
+                otherDiscarders = true;
+                break;
+            }
+        }
+
+        // select random cards to discard
+        SOCResourceSet discards = new SOCResourceSet();
+        {
+            SOCResourceSet hand = players[currentPlayerNumber].getResources(); 
+            discardPickRandom(hand, hand.getTotal() / 2, discards, rand);
+        }
+
+        if (otherDiscarders)
+        {
+            gameState = WAITING_FOR_OTHER_DISCARDS_ENDTURN;
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD_WAIT, discards);
+        } else {
+            gameState = PLAY1;
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD, discards);
+        }
+    }
+
+    /**
+     * choose discards at random
+     * @param fromHand     Discard from this set
+     * @param numDiscards  This many must be discarded
+     * @param discards     Add discards to this set (typically new,empty, when called)
+     * @param rand         Source of random
+     */
+    public static void discardPickRandom(SOCResourceSet fromHand, int numDiscards, SOCResourceSet discards, Random rand)
+    {
+        Vector hand = new Vector(16);
+
+        // System.err.println("resources="+ourPlayerData.getResources());
+        for (int rsrcType = SOCResourceConstants.CLAY;
+                rsrcType <= SOCResourceConstants.WOOD; rsrcType++)
+        {
+            for (int i = fromHand.getAmount(rsrcType);
+                    i != 0; i--)
+            {
+                hand.addElement(new Integer(rsrcType));
+
+                // System.err.println("rsrcType="+rsrcType);
+            }
+        }
+
+        /**
+         * pick cards
+         */
+        for (; numDiscards > 0; numDiscards--)
+        {
+            // System.err.println("numDiscards="+numDiscards+"|hand.size="+hand.size());
+            int idx = Math.abs(rand.nextInt() % hand.size());
+
+            // System.err.println("idx="+idx);
+            discards.add(1, ((Integer) hand.elementAt(idx)).intValue());
+            hand.removeElementAt(idx);
+        }
     }
 
     /**
@@ -2071,7 +2283,7 @@ public class SOCGame implements Serializable, Cloneable
      * perform the robbery.  Set gameState back to oldGameState.
      *
      * @param pn  the number of the player being robbed
-     * @return the type of resource that was stolen
+     * @return the type of resource that was stolen, as in {@link SOCResourceConstants}
      */
     public int stealFromPlayer(int pn)
     {
@@ -2461,7 +2673,7 @@ public class SOCGame implements Serializable, Cloneable
      */
     public int buyDevCard()
     {
-        int card = devCardDeck[numDevCards - 1];
+        int card =  devCardDeck[numDevCards - 1];
         numDevCards--;
 
         SOCResourceSet resources = players[currentPlayerNumber].getResources();
