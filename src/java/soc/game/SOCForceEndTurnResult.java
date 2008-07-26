@@ -86,6 +86,25 @@ public class SOCForceEndTurnResult
     }
 
     /**
+     * Creates a new SOCForceEndTurnResult object, with resources gained/lost.
+     * If all resource amounts are zero, an empty {@link SOCResourceSet} is created.
+     *
+     * @param res Result type, from constants in this class
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
+     * @param cl  amount of clay resources gained (positive)/lost (negative)
+     * @param or  amount of ore resources
+     * @param sh  amount of sheep resources
+     * @param wh  amount of wheat resources
+     * @param wo  amount of wood resources
+     * @throws IllegalArgumentException If res is not in the range
+     *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX}.
+     */
+    public SOCForceEndTurnResult(int res, int cl, int or, int sh, int wh, int wo)
+    {
+        this (res, new SOCResourceSet (cl, or, sh, wh, wo, 0));
+    }
+
+    /**
      * Get the force result type.
      * @return Result type, from constants in this class
      *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)

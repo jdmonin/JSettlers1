@@ -2012,8 +2012,18 @@ public class SOCHandPanel extends Panel implements ActionListener
         }
     }
 
-    /** Is this panel showing the client player,
-     *  and is that player the game's current player?
+    /**
+     * Is this panel showing the client's player?
+     * @see #isClientAndCurrentPlayer()
+     */
+    public boolean isClientPlayer()
+    {
+        return (playerIsClient);
+    }
+
+    /**
+     * Is this panel showing the client's player,
+     * and is that player the game's current player?
      */
     public boolean isClientAndCurrentPlayer()
     {

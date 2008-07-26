@@ -95,7 +95,6 @@ public class SOCGame implements Serializable, Cloneable
     public static final int WAITING_FOR_CHOICE = 51; // Waiting for player to choose a player
     public static final int WAITING_FOR_DISCOVERY = 52; // Waiting for player to choose 2 resources
     public static final int WAITING_FOR_MONOPOLY = 53; // Waiting for player to choose a resource
-    public static final int WAITING_FOR_OTHER_DISCARDS_ENDTURN = 54; // Waiting for other players to discard; after that, will end own turn
     public static final int OVER = 1000; // The game is over
     /**
      * This game is an obsolete old copy of a new (reset) game with the same name.
@@ -109,10 +108,12 @@ public class SOCGame implements Serializable, Cloneable
      * seat states
      */
     public static final int VACANT = 0, OCCUPIED = 1;
+
     /**
      * seatLock states
      */
     public static final boolean LOCKED = true, UNLOCKED = false;
+
     /**
      * {@link #boardResetVotes} per-player states: no vote sent; yes; no.
      */
@@ -267,6 +268,16 @@ public class SOCGame implements Serializable, Cloneable
     private int oldGameState;
 
     /**
+     * If true, this turn is being ended. Controller of game should call {@link #endTurn()}
+     * whenever possible.  Usually set if we have called {@link #forceEndTurn()}, and
+     * forced the current player to discard randomly, and are waiting for other players
+     * to discard in gamestate {@link #WAITING_FOR_DISCARDS}.  Once all players have
+     * discarded, the turn should be ended.
+     * @see #forceEndTurn()
+     */
+    private boolean forcingEndTurn;
+
+    /**
      * the player with the largest army, or -1 if none
      */
     private int playerWithLargestArmy;
@@ -349,6 +360,7 @@ public class SOCGame implements Serializable, Cloneable
         playerWithWin = -1;
         numDevCards = 25;
         gameState = NEW;
+        forcingEndTurn = false;
         oldPlayerWithLongestRoad = new Stack();
         startTime = new Date();
     }
@@ -708,6 +720,19 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
+     * If true, this turn is being ended. Controller of game should call {@link #endTurn()}
+     * whenever possible.  Usually set if we have called {@link #forceEndTurn()}, and
+     * forced the current player to discard randomly, and are waiting for other players
+     * to discard in gamestate {@link #WAITING_FOR_DISCARDS}.  Once all players have
+     * discarded, the turn should be ended.
+     * @see #forceEndTurn()
+     */
+    public boolean isForcingEndTurn()
+    {
+        return forcingEndTurn;
+    }
+
+    /**
      * @return the number of dev cards in the deck
      */
     public int getNumDevCards()
@@ -864,6 +889,8 @@ public class SOCGame implements Serializable, Cloneable
                 currentPlayerNumber = MAXPLAYERS - 1;
             }
         }
+
+        forcingEndTurn = false;
     }
 
     /**
@@ -886,6 +913,8 @@ public class SOCGame implements Serializable, Cloneable
                 currentPlayerNumber = 0;
             }
         }
+
+        forcingEndTurn = false;
     }
 
     /**
@@ -1111,7 +1140,9 @@ public class SOCGame implements Serializable, Cloneable
                 if (tmpCPN == lastPlayerNumber)
                 {
                     // player number is unchanged.
+                    // "virtual" endTurn here.                    
                     gameState = PLAY;
+                    forcingEndTurn = false;
                 }
                 else
                 {
@@ -1475,12 +1506,13 @@ public class SOCGame implements Serializable, Cloneable
      * endTurn() is called only at server - client instead calls
      * setCurrentPlayerNumber.
      * The winner check is needed because a player can win only
-     * during their own turn; if they reach winning points (VP_WINNER
+     * during their own turn; if they reach winning points ({@link #VP_WINNER}
      * or more) during another player's turn, they must wait.
      *
      * @see #setCurrentPlayerNumber(int)
      * @see #checkForWinner()
      * @see #forceEndTurn()
+     * @see #isForcingEndTurn()
      */
     public void endTurn()
     {
@@ -1502,8 +1534,9 @@ public class SOCGame implements Serializable, Cloneable
      * TODO finish this javadoc...
      * Since only the server calls {@link #endTurn()}, this method does not do so.
      * After calling forceEndTurn, the gamestate will usually be {@link #PLAY1},
-     * or {@link #WAITING_FOR_OTHER_DISCARDS_ENDTURN} if the result is
+     * or {@link #WAITING_FOR_DISCARDS} if the result is
      * {@link SOCForceEndTurnResult#FORCE_ENDTURN_NOTYET_WAITING}.
+     * (If WAITING_FOR_DISCARDS, the {@link #isForcingEndTurn()} flag will also be set.)
      *
      * @return Type of action performed, one of these values:
      *     <UL>
@@ -1528,6 +1561,8 @@ public class SOCGame implements Serializable, Cloneable
         if ((gameState < PLAY) || (gameState >= OVER))
             throw new IllegalStateException("Game not active: state " + gameState);
 
+        forcingEndTurn = true;
+
         switch (gameState)
         {
         case PLAY:
@@ -1540,25 +1575,20 @@ public class SOCGame implements Serializable, Cloneable
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_NONE);
 
-        case WAITING_FOR_OTHER_DISCARDS_ENDTURN:
-            // Must wait for other players to discard
-            return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_NOTYET_WAITING);
-
         case PLACING_ROAD:
             cancelBuildRoad(currentPlayerNumber);
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, 1, 0, 0, 0, 1);
 
         case PLACING_SETTLEMENT:
             cancelBuildSettlement(currentPlayerNumber);
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, 1, 0, 1, 1, 1);
 
         case PLACING_CITY:
             cancelBuildCity(currentPlayerNumber);
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, 0, 3, 0, 2, 0);
 
         case PLACING_ROBBER:
             gameState = PLAY1;
@@ -1593,7 +1623,7 @@ public class SOCGame implements Serializable, Cloneable
      * Choose cards to randomly discard from current player's hand.
      * Look at other players' hand size. If no one else must discard,
      * ready to end turn. Otherwise, must wait for them; if so,
-     * set game state to {@link #WAITING_FOR_OTHER_DISCARDS_ENDTURN}.
+     * set game state to {@link #WAITING_FOR_DISCARDS} with {@link #isForcingEndTurn()} flag.
      * @return
      */
     private SOCForceEndTurnResult forceEndTurnChkDiscards()
@@ -1617,7 +1647,8 @@ public class SOCGame implements Serializable, Cloneable
 
         if (otherDiscarders)
         {
-            gameState = WAITING_FOR_OTHER_DISCARDS_ENDTURN;
+            gameState = WAITING_FOR_DISCARDS;
+            forcingEndTurn = true;
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD_WAIT, discards);
         } else {
@@ -1887,7 +1918,14 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * A player is discarding resources
+     * A player is discarding resources. Discard, check if other players
+     * must still discard, and set gameState to {@link #WAITING_FOR_DISCARDS}
+     * or {@link #PLACING_ROBBER}.
+     *<P>
+     * Special case:
+     * If {@link #isForcingEndTurn()}, and no one else needs to discard,
+     * gameState becomes {@link #PLAY1} but the caller must call
+     * {@link #endTurn()} as soon as possible.
      *
      * @param pn   the number of the player
      * @param rs   the resources that are being discarded
@@ -1913,13 +1951,16 @@ public class SOCGame implements Serializable, Cloneable
         }
 
         /**
-         * if no one needs to discard, then wait for
-         * the robber to move
+         * if no one needs to discard, and not forcing end of turn,
+         * then wait for the robber to move
          */
         if (gameState != WAITING_FOR_DISCARDS)
         {
             oldGameState = PLAY1;
-            gameState = PLACING_ROBBER;
+            if (! forcingEndTurn)
+                gameState = PLACING_ROBBER;
+            else
+                gameState = PLAY1;
         }
     }
 

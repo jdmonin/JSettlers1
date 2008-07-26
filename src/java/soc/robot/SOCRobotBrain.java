@@ -20,6 +20,8 @@
  **/
 package soc.robot;
 
+import soc.client.SOCDisplaylessPlayerClient;
+import soc.client.SOCPlayerClient;
 import soc.disableDebug.D;
 
 import soc.game.SOCBoard;
@@ -868,301 +870,68 @@ public class SOCRobotBrain extends Thread
                         {
                         case SOCPlayerElement.ROADS:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-                                pl.setNumPieces(SOCPlayingPiece.ROAD, ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.setNumPieces(SOCPlayingPiece.ROAD, pl.getNumPieces(SOCPlayingPiece.ROAD) + ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.setNumPieces(SOCPlayingPiece.ROAD, pl.getNumPieces(SOCPlayingPiece.ROAD) - ((SOCPlayerElement) mes).getValue());
-
-                                break;
-                            }
-
+                            SOCDisplaylessPlayerClient.handlePLAYERELEMENT_numPieces
+                                ((SOCPlayerElement) mes, pl, SOCPlayingPiece.ROAD);
                             break;
 
                         case SOCPlayerElement.SETTLEMENTS:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-                                pl.setNumPieces(SOCPlayingPiece.SETTLEMENT, ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.setNumPieces(SOCPlayingPiece.SETTLEMENT, pl.getNumPieces(SOCPlayingPiece.SETTLEMENT) + ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.setNumPieces(SOCPlayingPiece.SETTLEMENT, pl.getNumPieces(SOCPlayingPiece.SETTLEMENT) - ((SOCPlayerElement) mes).getValue());
-
-                                break;
-                            }
-
+                            SOCDisplaylessPlayerClient.handlePLAYERELEMENT_numPieces
+                                ((SOCPlayerElement) mes, pl, SOCPlayingPiece.SETTLEMENT);
                             break;
 
                         case SOCPlayerElement.CITIES:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-                                pl.setNumPieces(SOCPlayingPiece.CITY, ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.setNumPieces(SOCPlayingPiece.CITY, pl.getNumPieces(SOCPlayingPiece.CITY) + ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.setNumPieces(SOCPlayingPiece.CITY, pl.getNumPieces(SOCPlayingPiece.CITY) - ((SOCPlayerElement) mes).getValue());
-
-                                break;
-                            }
-
+                            SOCDisplaylessPlayerClient.handlePLAYERELEMENT_numPieces
+                                ((SOCPlayerElement) mes, pl, SOCPlayingPiece.CITY);
                             break;
 
                         case SOCPlayerElement.NUMKNIGHTS:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-                                pl.setNumKnights(((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.setNumKnights(pl.getNumKnights() + ((SOCPlayerElement) mes).getValue());
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.setNumKnights(pl.getNumKnights() - ((SOCPlayerElement) mes).getValue());
-
-                                break;
-                            }
-
-                            game.updateLargestArmy();
-
+                            // PLAYERELEMENT(NUMKNIGHTS) is sent after a Soldier card is played.
+                            SOCDisplaylessPlayerClient.handlePLAYERELEMENT_numKnights
+                                ((SOCPlayerElement) mes, pl, game);
                             break;
 
                         case SOCPlayerElement.CLAY:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-
-                                if (D.ebugOn)
-                                {
-                                    if (((SOCPlayerElement) mes).getValue() != ourPlayerData.getResources().getAmount(SOCResourceConstants.CLAY))
-                                    {
-                                        client.sendText(game, ">>> RSRC ERROR FOR CLAY: " + ((SOCPlayerElement) mes).getValue() + " != " + ourPlayerData.getResources().getAmount(SOCResourceConstants.CLAY));
-                                    }
-                                }
-
-                                pl.getResources().setAmount(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.CLAY);
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.getResources().add(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.CLAY);
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.getResources().subtract(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.CLAY);
-
-                                break;
-                            }
-
+                            handlePLAYERELEMENT_numRsrc
+                                ((SOCPlayerElement) mes, pl, SOCResourceConstants.CLAY, "CLAY");
                             break;
 
                         case SOCPlayerElement.ORE:
-
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-
-                                if (D.ebugOn)
-                                {
-                                    if (((SOCPlayerElement) mes).getValue() != ourPlayerData.getResources().getAmount(SOCResourceConstants.ORE))
-                                    {
-                                        client.sendText(game, ">>> RSRC ERROR FOR ORE: " + ((SOCPlayerElement) mes).getValue() + " != " + ourPlayerData.getResources().getAmount(SOCResourceConstants.ORE));
-                                    }
-                                }
-
-                                pl.getResources().setAmount(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.ORE);
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.getResources().add(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.ORE);
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.getResources().subtract(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.ORE);
-
-                                break;
-                            }
-
+                            
+                            handlePLAYERELEMENT_numRsrc
+                                ((SOCPlayerElement) mes, pl, SOCResourceConstants.ORE, "ORE");
                             break;
 
                         case SOCPlayerElement.SHEEP:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-
-                                if (D.ebugOn)
-                                {
-                                    if (((SOCPlayerElement) mes).getValue() != ourPlayerData.getResources().getAmount(SOCResourceConstants.SHEEP))
-                                    {
-                                        client.sendText(game, ">>> RSRC ERROR FOR SHEEP: " + ((SOCPlayerElement) mes).getValue() + " != " + ourPlayerData.getResources().getAmount(SOCResourceConstants.SHEEP));
-                                    }
-                                }
-
-                                pl.getResources().setAmount(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.SHEEP);
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.getResources().add(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.SHEEP);
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.getResources().subtract(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.SHEEP);
-
-                                break;
-                            }
-
+                            handlePLAYERELEMENT_numRsrc
+                                ((SOCPlayerElement) mes, pl, SOCResourceConstants.SHEEP, "SHEEP");
                             break;
 
                         case SOCPlayerElement.WHEAT:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-
-                                if (D.ebugOn)
-                                {
-                                    if (((SOCPlayerElement) mes).getValue() != ourPlayerData.getResources().getAmount(SOCResourceConstants.WHEAT))
-                                    {
-                                        client.sendText(game, ">>> RSRC ERROR FOR WHEAT: " + ((SOCPlayerElement) mes).getValue() + " != " + ourPlayerData.getResources().getAmount(SOCResourceConstants.WHEAT));
-                                    }
-                                }
-
-                                pl.getResources().setAmount(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.WHEAT);
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.getResources().add(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.WHEAT);
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.getResources().subtract(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.WHEAT);
-
-                                break;
-                            }
-
+                            handlePLAYERELEMENT_numRsrc
+                                ((SOCPlayerElement) mes, pl, SOCResourceConstants.WHEAT, "WHEAT");
                             break;
 
                         case SOCPlayerElement.WOOD:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-
-                                if (D.ebugOn)
-                                {
-                                    if (((SOCPlayerElement) mes).getValue() != ourPlayerData.getResources().getAmount(SOCResourceConstants.WOOD))
-                                    {
-                                        client.sendText(game, ">>> RSRC ERROR FOR WOOD: " + ((SOCPlayerElement) mes).getValue() + " != " + ourPlayerData.getResources().getAmount(SOCResourceConstants.WOOD));
-                                    }
-                                }
-
-                                pl.getResources().setAmount(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.WOOD);
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.getResources().add(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.WOOD);
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-                                pl.getResources().subtract(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.WOOD);
-
-                                break;
-                            }
-
+                            handlePLAYERELEMENT_numRsrc
+                                ((SOCPlayerElement) mes, pl, SOCResourceConstants.WOOD, "WOOD");
                             break;
 
                         case SOCPlayerElement.UNKNOWN:
 
-                            switch (((SOCPlayerElement) mes).getAction())
-                            {
-                            case SOCPlayerElement.SET:
-
-                                /**
-                                 * set the ammount of unknown resources
-                                 */
-                                if (D.ebugOn)
-                                {
-                                    if (((SOCPlayerElement) mes).getValue() != ourPlayerData.getResources().getAmount(SOCResourceConstants.UNKNOWN))
-                                    {
-                                        client.sendText(game, ">>> RSRC ERROR FOR UNKNOWN: " + ((SOCPlayerElement) mes).getValue() + " != " + ourPlayerData.getResources().getAmount(SOCResourceConstants.UNKNOWN));
-                                    }
-                                }
-
-                                pl.getResources().setAmount(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.UNKNOWN);
-
-                                break;
-
-                            case SOCPlayerElement.GAIN:
-                                pl.getResources().add(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.UNKNOWN);
-
-                                break;
-
-                            case SOCPlayerElement.LOSE:
-
-                                SOCResourceSet rs = pl.getResources();
-
-                                //
-                                // first convert known resources to unknown resources
-                                //
-                                rs.add(rs.getAmount(SOCResourceConstants.CLAY), SOCResourceConstants.UNKNOWN);
-                                rs.setAmount(0, SOCResourceConstants.CLAY);
-                                rs.add(rs.getAmount(SOCResourceConstants.ORE), SOCResourceConstants.UNKNOWN);
-                                rs.setAmount(0, SOCResourceConstants.ORE);
-                                rs.add(rs.getAmount(SOCResourceConstants.SHEEP), SOCResourceConstants.UNKNOWN);
-                                rs.setAmount(0, SOCResourceConstants.SHEEP);
-                                rs.add(rs.getAmount(SOCResourceConstants.WHEAT), SOCResourceConstants.UNKNOWN);
-                                rs.setAmount(0, SOCResourceConstants.WHEAT);
-                                rs.add(rs.getAmount(SOCResourceConstants.WOOD), SOCResourceConstants.UNKNOWN);
-                                rs.setAmount(0, SOCResourceConstants.WOOD);
-
-                                /**
-                                 * then remove the unknown resources
-                                 */
-                                pl.getResources().subtract(((SOCPlayerElement) mes).getValue(), SOCResourceConstants.UNKNOWN);
-
-                                break;
-                            }
-
+                            /**
+                             * Note: if losing unknown resources, we first
+                             * convert player's known resources to unknown resources,
+                             * then remove mes's unknown resources from player.
+                             */
+                            handlePLAYERELEMENT_numRsrc
+                                ((SOCPlayerElement) mes, pl, SOCResourceConstants.UNKNOWN, "UNKNOWN");
                             break;
                         }
 
@@ -2431,6 +2200,50 @@ public class SOCRobotBrain extends Thread
         playerTrackers = null;
         pinger.stopPinger();
         pinger = null;
+    }
+
+    /**
+    /**
+     * Update a player's amount of a resource.
+     *<ul>
+     *<LI> If this is a {@link SOCPlayerElement#LOSE} action, and the player does not have enough of that type,
+     *     the rest are taken from the player's UNKNOWN amount.
+     *<LI> If we are losing from type UNKNOWN,
+     *     first convert player's known resources to unknown resources
+     *     (individual amount information will be lost),
+     *     then remove mes's unknown resources from player.
+     *<LI> If this is a SET action, and it's for our own robot player,
+     *     check the amount against {@link #ourPlayerData}, and debug print
+     *     if they don't match already.
+     *</ul>
+     *<P>
+     *
+     * @param mes      Message with amount and action (SET/GAIN/LOSE)
+     * @param pl       Player to update
+     * @param rtype    Type of resource, like {@link SOCResourceConstants#CLAY}
+     * @param rtypeStr Resource type name, for debugging
+     */
+    protected void handlePLAYERELEMENT_numRsrc
+        (SOCPlayerElement mes, SOCPlayer pl, int rtype, String rtypeStr)
+    {
+        /**
+         * for SET, check the amount of unknown resources against
+         * what we think we know about our player.
+         */
+        if (D.ebugOn && (pl == ourPlayerData) && (mes.getAction() == SOCPlayerElement.SET)) 
+        {
+            if (mes.getValue() != ourPlayerData.getResources().getAmount(rtype))
+            {
+                client.sendText(game, ">>> RSRC ERROR FOR " + rtypeStr
+                    + ": " + mes.getValue() + " != " + ourPlayerData.getResources().getAmount(rtype));
+            }
+        }
+
+        /**
+         * Avoid code duplication.
+         */
+        SOCDisplaylessPlayerClient.handlePLAYERELEMENT_numRsrc
+            (mes, pl, rtype);
     }
 
     /**

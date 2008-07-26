@@ -3366,7 +3366,16 @@ public class SOCServer extends Server
                          */
                         messageToGameExcept(gn, c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()));
                         messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " discarded " + mes.getResources().getTotal() + " resources."));
-                        sendGameState(ga);
+
+                        /**
+                         * send the new state, or end turn if forced
+                         */
+                        if ((ga.getGameState() != SOCGame.PLAY1) || ! ga.isForcingEndTurn())
+                        {
+                            sendGameState(ga);
+                        } else {
+                            endGameTurn(ga);  // already did ga.takeMonitor()
+                        }
                     }
                     else
                     {

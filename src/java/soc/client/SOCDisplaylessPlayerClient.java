@@ -978,305 +978,216 @@ public class SOCDisplaylessPlayerClient implements Runnable
      */
     protected void handlePLAYERELEMENT(SOCPlayerElement mes)
     {
-        SOCGame ga = (SOCGame) games.get(mes.getGame());
+        final SOCGame ga = (SOCGame) games.get(mes.getGame());
 
         if (ga != null)
         {
-            SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
+            final SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
 
             switch (mes.getElementType())
             {
             case SOCPlayerElement.ROADS:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.setNumPieces(SOCPlayingPiece.ROAD, mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.setNumPieces(SOCPlayingPiece.ROAD, pl.getNumPieces(SOCPlayingPiece.ROAD) + mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-                    pl.setNumPieces(SOCPlayingPiece.ROAD, pl.getNumPieces(SOCPlayingPiece.ROAD) - mes.getValue());
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numPieces(mes, pl, SOCPlayingPiece.ROAD);
                 break;
 
             case SOCPlayerElement.SETTLEMENTS:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.setNumPieces(SOCPlayingPiece.SETTLEMENT, mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.setNumPieces(SOCPlayingPiece.SETTLEMENT, pl.getNumPieces(SOCPlayingPiece.SETTLEMENT) + mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-                    pl.setNumPieces(SOCPlayingPiece.SETTLEMENT, pl.getNumPieces(SOCPlayingPiece.SETTLEMENT) - mes.getValue());
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numPieces(mes, pl, SOCPlayingPiece.SETTLEMENT);
                 break;
 
             case SOCPlayerElement.CITIES:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.setNumPieces(SOCPlayingPiece.CITY, mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.setNumPieces(SOCPlayingPiece.CITY, pl.getNumPieces(SOCPlayingPiece.CITY) + mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-                    pl.setNumPieces(SOCPlayingPiece.CITY, pl.getNumPieces(SOCPlayingPiece.CITY) - mes.getValue());
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numPieces(mes, pl, SOCPlayingPiece.CITY);
                 break;
 
             case SOCPlayerElement.NUMKNIGHTS:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.setNumKnights(mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.setNumKnights(pl.getNumKnights() + mes.getValue());
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-                    pl.setNumKnights(pl.getNumKnights() - mes.getValue());
-
-                    break;
-                }
-
-                ga.updateLargestArmy();
-
+                // PLAYERELEMENT(NUMKNIGHTS) is sent after a Soldier card is played.
+                handlePLAYERELEMENT_numKnights(mes, pl, ga);
                 break;
 
             case SOCPlayerElement.CLAY:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.getResources().setAmount(mes.getValue(), SOCResourceConstants.CLAY);
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.getResources().add(mes.getValue(), SOCResourceConstants.CLAY);
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-
-                    if (pl.getResources().getAmount(SOCResourceConstants.CLAY) >= mes.getValue())
-                    {
-                        pl.getResources().subtract(mes.getValue(), SOCResourceConstants.CLAY);
-                    }
-                    else
-                    {
-                        pl.getResources().subtract(mes.getValue() - pl.getResources().getAmount(SOCResourceConstants.CLAY), SOCResourceConstants.UNKNOWN);
-                        pl.getResources().setAmount(0, SOCResourceConstants.CLAY);
-                    }
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numRsrc(mes, pl, SOCResourceConstants.CLAY);
                 break;
 
             case SOCPlayerElement.ORE:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.getResources().setAmount(mes.getValue(), SOCResourceConstants.ORE);
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.getResources().add(mes.getValue(), SOCResourceConstants.ORE);
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-
-                    if (pl.getResources().getAmount(SOCResourceConstants.ORE) >= mes.getValue())
-                    {
-                        pl.getResources().subtract(mes.getValue(), SOCResourceConstants.ORE);
-                    }
-                    else
-                    {
-                        pl.getResources().subtract(mes.getValue() - pl.getResources().getAmount(SOCResourceConstants.ORE), SOCResourceConstants.UNKNOWN);
-                        pl.getResources().setAmount(0, SOCResourceConstants.ORE);
-                    }
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numRsrc(mes, pl, SOCResourceConstants.ORE);
                 break;
 
             case SOCPlayerElement.SHEEP:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.getResources().setAmount(mes.getValue(), SOCResourceConstants.SHEEP);
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.getResources().add(mes.getValue(), SOCResourceConstants.SHEEP);
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-
-                    if (pl.getResources().getAmount(SOCResourceConstants.SHEEP) >= mes.getValue())
-                    {
-                        pl.getResources().subtract(mes.getValue(), SOCResourceConstants.SHEEP);
-                    }
-                    else
-                    {
-                        pl.getResources().subtract(mes.getValue() - pl.getResources().getAmount(SOCResourceConstants.SHEEP), SOCResourceConstants.UNKNOWN);
-                        pl.getResources().setAmount(0, SOCResourceConstants.SHEEP);
-                    }
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numRsrc(mes, pl, SOCResourceConstants.SHEEP);
                 break;
 
             case SOCPlayerElement.WHEAT:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.getResources().setAmount(mes.getValue(), SOCResourceConstants.WHEAT);
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.getResources().add(mes.getValue(), SOCResourceConstants.WHEAT);
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-
-                    if (pl.getResources().getAmount(SOCResourceConstants.WHEAT) >= mes.getValue())
-                    {
-                        pl.getResources().subtract(mes.getValue(), SOCResourceConstants.WHEAT);
-                    }
-                    else
-                    {
-                        pl.getResources().subtract(mes.getValue() - pl.getResources().getAmount(SOCResourceConstants.WHEAT), SOCResourceConstants.UNKNOWN);
-                        pl.getResources().setAmount(0, SOCResourceConstants.WHEAT);
-                    }
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numRsrc(mes, pl, SOCResourceConstants.WHEAT);
                 break;
 
             case SOCPlayerElement.WOOD:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-                    pl.getResources().setAmount(mes.getValue(), SOCResourceConstants.WOOD);
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.getResources().add(mes.getValue(), SOCResourceConstants.WOOD);
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-
-                    if (pl.getResources().getAmount(SOCResourceConstants.WOOD) >= mes.getValue())
-                    {
-                        pl.getResources().subtract(mes.getValue(), SOCResourceConstants.WOOD);
-                    }
-                    else
-                    {
-                        pl.getResources().subtract(mes.getValue() - pl.getResources().getAmount(SOCResourceConstants.WOOD), SOCResourceConstants.UNKNOWN);
-                        pl.getResources().setAmount(0, SOCResourceConstants.WOOD);
-                    }
-
-                    break;
-                }
-
+                handlePLAYERELEMENT_numRsrc(mes, pl, SOCResourceConstants.WOOD);
                 break;
 
             case SOCPlayerElement.UNKNOWN:
 
-                switch (mes.getAction())
-                {
-                case SOCPlayerElement.SET:
-
-                    /**
-                     * set the ammount of unknown resources
-                     */
-                    pl.getResources().setAmount(mes.getValue(), SOCResourceConstants.UNKNOWN);
-
-                    break;
-
-                case SOCPlayerElement.GAIN:
-                    pl.getResources().add(mes.getValue(), SOCResourceConstants.UNKNOWN);
-
-                    break;
-
-                case SOCPlayerElement.LOSE:
-
-                    SOCResourceSet rs = pl.getResources();
-
-                    /**
-                     * first convert known resources to unknown resources
-                     */
-                    rs.add(rs.getAmount(SOCResourceConstants.CLAY), SOCResourceConstants.UNKNOWN);
-                    rs.setAmount(0, SOCResourceConstants.CLAY);
-                    rs.add(rs.getAmount(SOCResourceConstants.ORE), SOCResourceConstants.UNKNOWN);
-                    rs.setAmount(0, SOCResourceConstants.ORE);
-                    rs.add(rs.getAmount(SOCResourceConstants.SHEEP), SOCResourceConstants.UNKNOWN);
-                    rs.setAmount(0, SOCResourceConstants.SHEEP);
-                    rs.add(rs.getAmount(SOCResourceConstants.WHEAT), SOCResourceConstants.UNKNOWN);
-                    rs.setAmount(0, SOCResourceConstants.WHEAT);
-                    rs.add(rs.getAmount(SOCResourceConstants.WOOD), SOCResourceConstants.UNKNOWN);
-                    rs.setAmount(0, SOCResourceConstants.WOOD);
-
-                    /**
-                     * then remove the unknown resources
-                     */
-                    pl.getResources().subtract(mes.getValue(), SOCResourceConstants.UNKNOWN);
-
-                    break;
-                }
-
+                /**
+                 * Note: if losing unknown resources, we first
+                 * convert player's known resources to unknown resources,
+                 * then remove mes's unknown resources from player.
+                 */
+                handlePLAYERELEMENT_numRsrc(mes, pl, SOCResourceConstants.UNKNOWN);
                 break;
             }
+        }
+    }
+
+    /**
+     * Update a player's amount of a playing piece, for {@link #handlePLAYERELEMENT(SOCPlayerElement)}.
+     * To avoid code duplication, also called from
+     * {@link SOCPlayerClient#handlePLAYERELEMENT(SOCPlayerElement)}
+     * and {@link soc.robot.SOCRobotBrain#run()}.
+     *
+     * @param mes       Message with amount and action (SET/GAIN/LOSE)
+     * @param pl        Player to update
+     * @param pieceType Playing piece type, as in {@link SOCPlayingPiece#ROAD}
+     */
+    public static void handlePLAYERELEMENT_numPieces
+        (SOCPlayerElement mes, final SOCPlayer pl, int pieceType)
+    {
+        switch (mes.getAction())
+        {
+        case SOCPlayerElement.SET:
+            pl.setNumPieces(pieceType, mes.getValue());
+
+            break;
+
+        case SOCPlayerElement.GAIN:
+            pl.setNumPieces(pieceType, pl.getNumPieces(pieceType) + mes.getValue());
+
+            break;
+
+        case SOCPlayerElement.LOSE:
+            pl.setNumPieces(pieceType, pl.getNumPieces(pieceType) - mes.getValue());
+
+            break;
+        }
+    }
+
+    /**
+     * Update a player's amount of knights, and game's largest army,
+     * for {@link #handlePLAYERELEMENT(SOCPlayerElement)}.
+     * To avoid code duplication, also called from
+     * {@link SOCPlayerClient#handlePLAYERELEMENT(SOCPlayerElement)}
+     * and {@link soc.robot.SOCRobotBrain#run()}.
+     *
+     * @param mes  Message with amount and action (SET/GAIN/LOSE)
+     * @param pl   Player to update
+     * @param ga   Game of player
+     */
+    public static void handlePLAYERELEMENT_numKnights
+        (SOCPlayerElement mes, final SOCPlayer pl, final SOCGame ga)
+    {
+        switch (mes.getAction())
+        {
+        case SOCPlayerElement.SET:
+            pl.setNumKnights(mes.getValue());
+    
+            break;
+    
+        case SOCPlayerElement.GAIN:
+            pl.setNumKnights(pl.getNumKnights() + mes.getValue());
+    
+            break;
+    
+        case SOCPlayerElement.LOSE:
+            pl.setNumKnights(pl.getNumKnights() - mes.getValue());
+    
+            break;
+        }
+    
+        ga.updateLargestArmy();
+    }
+    
+    /**
+     * Update a player's amount of a resource, for {@link #handlePLAYERELEMENT(SOCPlayerElement)}.
+     *<ul>
+     *<LI> If this is a {@link SOCPlayerElement#LOSE} action, and the player does not have enough of that type,
+     *     the rest are taken from the player's UNKNOWN amount.
+     *<LI> If we are losing from type UNKNOWN,
+     *     first convert player's known resources to unknown resources
+     *     (individual amount information will be lost),
+     *     then remove mes's unknown resources from player.
+     *</ul>
+     *<P>
+     * To avoid code duplication, also called from
+     * {@link SOCPlayerClient#handlePLAYERELEMENT(SOCPlayerElement)}
+     * and {@link soc.robot.SOCRobotBrain#run()}.
+     *
+     * @param mes    Message with amount and action (SET/GAIN/LOSE)
+     * @param pl     Player to update
+     * @param rtype  Type of resource, like {@link SOCResourceConstants#CLAY}
+     */
+    public static void handlePLAYERELEMENT_numRsrc
+        (SOCPlayerElement mes, final SOCPlayer pl, int rtype)
+    {
+        final int amount = mes.getValue();
+
+        switch (mes.getAction())
+        {
+        case SOCPlayerElement.SET:
+            pl.getResources().setAmount(amount, rtype);
+
+            break;
+
+        case SOCPlayerElement.GAIN:
+            pl.getResources().add(amount, rtype);
+
+            break;
+
+        case SOCPlayerElement.LOSE:
+
+            if (rtype != SOCResourceConstants.UNKNOWN)
+            {
+                int playerAmt = pl.getResources().getAmount(rtype); 
+                if (playerAmt >= amount)
+                {
+                    pl.getResources().subtract(amount, rtype);
+                }
+                else
+                {
+                    pl.getResources().subtract(amount - playerAmt, SOCResourceConstants.UNKNOWN);
+                    pl.getResources().setAmount(0, rtype);
+                }
+            }
+            else
+            {
+                SOCResourceSet rs = pl.getResources();
+
+                /**
+                 * first convert player's known resources to unknown resources
+                 */
+                rs.add(rs.getAmount(SOCResourceConstants.CLAY), SOCResourceConstants.UNKNOWN);
+                rs.setAmount(0, SOCResourceConstants.CLAY);
+                rs.add(rs.getAmount(SOCResourceConstants.ORE), SOCResourceConstants.UNKNOWN);
+                rs.setAmount(0, SOCResourceConstants.ORE);
+                rs.add(rs.getAmount(SOCResourceConstants.SHEEP), SOCResourceConstants.UNKNOWN);
+                rs.setAmount(0, SOCResourceConstants.SHEEP);
+                rs.add(rs.getAmount(SOCResourceConstants.WHEAT), SOCResourceConstants.UNKNOWN);
+                rs.setAmount(0, SOCResourceConstants.WHEAT);
+                rs.add(rs.getAmount(SOCResourceConstants.WOOD), SOCResourceConstants.UNKNOWN);
+                rs.setAmount(0, SOCResourceConstants.WOOD);
+
+                /**
+                 * then remove mes's unknown resources from player
+                 */
+                pl.getResources().subtract(mes.getValue(), SOCResourceConstants.UNKNOWN);
+            }
+
+            break;
         }
     }
 
@@ -1286,11 +1197,11 @@ public class SOCDisplaylessPlayerClient implements Runnable
      */
     protected void handleRESOURCECOUNT(SOCResourceCount mes)
     {
-        SOCGame ga = (SOCGame) games.get(mes.getGame());
+        final SOCGame ga = (SOCGame) games.get(mes.getGame());
 
         if (ga != null)
         {
-            SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
+            final SOCPlayer pl = ga.getPlayer(mes.getPlayerNumber());
 
             if (mes.getCount() != pl.getResources().getTotal())
             {

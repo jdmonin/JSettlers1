@@ -230,6 +230,23 @@ public class SOCResourceSet implements Serializable, Cloneable
     }
 
     /**
+     * Convert all these resources to type {@link SOCResourceConstants#UNKNOWN}.
+     * Information on amount of wood, wheat, etc is no longer available.
+     * Equivalent to:
+     * <code>
+     *    int numTotal = resSet.getTotal();
+     *    resSet.clear();
+     *    resSet.setAmount (SOCResourceConstants.UNKNOWN, numTotal);
+     * </code>
+     */
+    public void convertToUnknown()
+    {
+        int numTotal = getTotal();
+        clear();
+        resources[SOCResourceConstants.UNKNOWN] = numTotal;
+    }
+
+    /**
      * @return true if each resource type in set A is >= each resource type in set B
      *
      * @param a   set A
