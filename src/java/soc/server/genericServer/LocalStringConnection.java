@@ -1,6 +1,6 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.0.
- * Copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>.
+ * Local (StringConnection) network system.  Version 1.0.1.
+ * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -200,6 +200,9 @@ public class LocalStringConnection
     /** close the socket, discard pending buffered data, set EOF. */
     public void disconnect()
     {
+        if (! accepted)
+            return;  // <--- Early return: Already disconnected, or never connected ---
+
         D.ebugPrintln("DISCONNECTING " + data);
         accepted = false;
         synchronized (out)

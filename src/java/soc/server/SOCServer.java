@@ -26,6 +26,7 @@ import soc.game.SOCBoard;
 import soc.game.SOCCity;
 import soc.game.SOCDevCardConstants;
 import soc.game.SOCDevCardSet;
+import soc.game.SOCForceEndTurnResult;
 import soc.game.SOCGame;
 import soc.game.SOCMoveRobberResult;
 import soc.game.SOCPlayer;
@@ -450,15 +451,20 @@ public class SOCServer extends Server
     }
 
     /**
-     * the connection c leaves the game gm
-     *
+     * the connection c leaves the game gm.
+     *<P>
      * WARNING: MUST HAVE THE gameList.takeMonitorForGame(gm) before
      * calling this method
      *
-     * @param c  the connection
+     * @param c  the connection; if c is being dropped because of an error,
+     *           this method assumes that {@link StringConnection#disconnect()}
+     *           has already been called.  This method won't exclude c from
+     *           any communication about leaving the game, in case they are
+     *           still connected and in other games.
      * @param gm the game
      * @param gameListLock  true if we have the gameList.takeMonitor() lock
-     * @return true if the game was destroyed
+     * @return true if the game was destroyed (because c was the last non-robot player,
+     *              and no one was watching)
      */
     public boolean leaveGame(StringConnection c, String gm, boolean gameListLock)
     {
@@ -469,7 +475,7 @@ public class SOCServer extends Server
             gameList.removeMember(c, gm);
 
             boolean isPlayer = false;
-            int playerNumber = 0;
+            int playerNumber = 0;    // removing this player number
             SOCGame cg = gameList.getGameData(gm);
 
             boolean gameHasHumanPlayer = false;
@@ -477,30 +483,30 @@ public class SOCServer extends Server
 
             if (cg != null)
             {
+                final String plName = (String) c.getData();  // Retain name, since will become null within game obj.
+
                 for (playerNumber = 0; playerNumber < SOCGame.MAXPLAYERS;
                         playerNumber++)
                 {
                     SOCPlayer player = cg.getPlayer(playerNumber);
 
-                    if ((player != null) && (player.getName() != null))
+                    if ((player != null) && (player.getName() != null)
+                        && (player.getName().equals(plName)))
                     {
-                        if (player.getName().equals((String) c.getData()))
-                        {
-                            isPlayer = true;
-                            cg.removePlayer((String) c.getData());
+                        isPlayer = true;
+                        cg.removePlayer(plName);  // player obj name becomes null
 
-                            //broadcastGameStats(cg);
-                            break;
-                        }
+                        //broadcastGameStats(cg);
+                        break;
                     }
                 }
 
-                SOCLeaveGame leaveMessage = new SOCLeaveGame((String) c.getData(), c.host(), gm);
+                SOCLeaveGame leaveMessage = new SOCLeaveGame(plName, c.host(), gm);
                 messageToGameWithMon(gm, leaveMessage);
                 recordGameEvent(gm, leaveMessage.toCmd());
 
-                D.ebugPrintln("*** " + (String) c.getData() + " left the game " + gm);
-                messageToGameWithMon(gm, new SOCGameTextMsg(gm, SERVERNAME, (String) c.getData() + " left the game"));
+                D.ebugPrintln("*** " + plName + " left the game " + gm);
+                messageToGameWithMon(gm, new SOCGameTextMsg(gm, SERVERNAME, plName + " left the game"));
 
                 /**
                  * check if there is at least one person playing the game
@@ -702,11 +708,13 @@ public class SOCServer extends Server
                     
                     if (foundNoRobots && (playerNumber == cg.getCurrentPlayerNumber()))
                     {
-                        // Rare condition:
-                        // No robot was found, but it was this player's turn.
-                        // End their turn just to keep the game limping along.
-                        // To prevent deadlock, we must release gamelist's monitor for
-                        // this game before calling endGameTurn.
+                        /**
+                         * Rare condition:
+                         * No robot was found, but it was this player's turn.
+                         * End their turn just to keep the game limping along.
+                         * To prevent deadlock, we must release gamelist's monitor for
+                         * this game before calling endGameTurn.
+                         */
                         if (cg.canEndTurn(playerNumber))
                         {
                             gameList.releaseMonitorForGame(gm);
@@ -715,8 +723,15 @@ public class SOCServer extends Server
                             cg.releaseMonitor();
                             gameList.takeMonitorForGame(gm);
                         } else {
-                            // Cannot end turn.
-                            // TODO... error message? Force?
+                            // Cannot easily end turn.
+                            // Must back out something in progress.
+                            // May or may not end turn; see javadocs
+                            // of forceEndGameTurn and game.forceEndTurn
+                            gameList.releaseMonitorForGame(gm);
+                            cg.takeMonitor();
+                            forceEndGameTurn(cg, plName);
+                            cg.releaseMonitor();
+                            gameList.takeMonitorForGame(gm);
                         }
                     }
                 }
@@ -1179,7 +1194,7 @@ public class SOCServer extends Server
      * excluding one.
      *
      * @param gn  the name of the game
-     * @param ex  the exception
+     * @param ex  the excluded connection, or null
      * @param mes the message
      */
     public void messageToGameExcept(String gn, StringConnection ex, SOCMessage mes)
@@ -3196,7 +3211,7 @@ public class SOCServer extends Server
                                         gainsText.append(" gets ");
                                         // Send SOCPlayerElement messages,
                                         // build resource-text in gainsText.
-                                        reportRolledResources(gn, rsrcs, i, gainsText);
+                                        reportRsrcGainLoss(gn, rsrcs, false, i, -1, gainsText, null);
                                         gainsText.append(".");
                                     }
 
@@ -3316,59 +3331,39 @@ public class SOCServer extends Server
 
             if (ga != null)
             {
-                ga.takeMonitor();
+                final SOCPlayer player = ga.getPlayer((String) c.getData());
+                final int pn;
+                if (player != null)
+                    pn = player.getPlayerNumber();
+                else
+                    pn = -1;
 
+                ga.takeMonitor();
                 try
                 {
-                    SOCPlayer player = ga.getPlayer((String) c.getData());
-
-                    if (ga.canDiscard(player.getPlayerNumber(), mes.getResources()))
+                    if (player == null)
                     {
-                        ga.discard(player.getPlayerNumber(), mes.getResources());
+                        // The catch block will print this out semi-nicely
+                        throw new IllegalArgumentException("player not found in game");
+                    }
+
+                    if (ga.canDiscard(pn, mes.getResources()))
+                    {
+                        ga.discard(pn, mes.getResources());
 
                         /**
                          * tell the player client that the player discarded the resources
                          */
-                        int cl, or, sh, wh, wo;
-                        cl = mes.getResources().getAmount(SOCResourceConstants.CLAY);
-                        or = mes.getResources().getAmount(SOCResourceConstants.ORE);
-                        sh = mes.getResources().getAmount(SOCResourceConstants.SHEEP);
-                        wh = mes.getResources().getAmount(SOCResourceConstants.WHEAT);
-                        wo = mes.getResources().getAmount(SOCResourceConstants.WOOD);
-
-                        if (cl > 0)
-                        {
-                            messageToPlayer(c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.CLAY, cl));
-                        }
-
-                        if (or > 0)
-                        {
-                            messageToPlayer(c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.ORE, or));
-                        }
-
-                        if (sh > 0)
-                        {
-                            messageToPlayer(c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.SHEEP, sh));
-                        }
-
-                        if (wh > 0)
-                        {
-                            messageToPlayer(c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WHEAT, wh));
-                        }
-
-                        if (wo > 0)
-                        {
-                            messageToPlayer(c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WOOD, wo));
-                        }
+                        reportRsrcGainLoss(gn, mes.getResources(), true, pn, -1, null, c);
 
                         /**
                          * tell everyone else that the player discarded unknown resources
                          */
-                        messageToGameExcept(gn, c, new SOCPlayerElement(gn, player.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()));
+                        messageToGameExcept(gn, c, new SOCPlayerElement(gn, pn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()));
                         messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " discarded " + mes.getResources().getTotal() + " resources."));
 
                         /**
-                         * send the new state, or end turn if forced
+                         * send the new state, or end turn if was marked earlier as forced
                          */
                         if ((ga.getGameState() != SOCGame.PLAY1) || ! ga.isForcingEndTurn())
                         {
@@ -3385,7 +3380,7 @@ public class SOCServer extends Server
                         c.put(SOCGameTextMsg.toCmd(gn, SERVERNAME, "You can't discard that many cards."));
                     }
                 }
-                catch (Exception e)
+                catch (Throwable e)
                 {
                     D.ebugPrintln("Exception caught - " + e);
                     e.printStackTrace();
@@ -3454,6 +3449,7 @@ public class SOCServer extends Server
 
     /**
      * Pre-checking already done, end the current player's turn in this game.
+     * Alter game state and send messages to players.
      *<P>
      * Assumes:
      * <UL>
@@ -3462,7 +3458,6 @@ public class SOCServer extends Server
      * <LI> gamelist.takeMonitorForGame is NOT called, we do NOT have that monitor
      * </UL> 
      * @param ga Game to end turn
-     * @param hasListGameMon Do we have this game's monitor in SOCGameList?
      */
     private void endGameTurn(SOCGame ga)
     {
@@ -3496,6 +3491,65 @@ public class SOCServer extends Server
          * send whose turn it is
          */
         sendTurn(ga, wantsRollPrompt);
+    }
+
+    /**
+     * Try to force-end the current player's turn in this game.
+     * Alter game state and send messages to players.
+     * Will call {@link #endGameTurn(SOCGame)} if possible.
+     *<P>
+     * Assumes, as {@link #endGameTurn(SOCGame)} does:
+     * <UL>
+     * <LI> ga.canEndTurn already called, returned false
+     * <LI> ga.takeMonitor already called (not the same as {@link SOCGameList#takeMonitorForGame(String)})
+     * <LI> gamelist.takeMonitorForGame is NOT called, we do NOT have that monitor
+     * </UL> 
+     * @param ga Game to force end turn
+     * @param plName Current player's name. Needed because if they have been disconnected by
+     *               {@link #leaveGame(StringConnection, String, boolean)},
+     *               their name within game object is already null.
+     *
+     * @see SOCGame#forceEndTurn()
+     */
+    private void forceEndGameTurn(SOCGame ga, final String plName)
+    {
+        final String gaName = ga.getName();        
+        final SOCForceEndTurnResult res = ga.forceEndTurn();  // State now hopefully PLAY1
+        final int cpn = ga.getCurrentPlayerNumber();
+
+        /**
+         * report any resources lost, gained
+         */
+        SOCResourceSet resGainLoss = res.getResourcesGainedLost();
+        if (resGainLoss != null)
+        {
+            /**
+             * If returning resources to player (not discarding), report actual types/amounts.
+             * For discard, tell the discarding player's client that they discarded the resources,
+             * tell everyone else that the player discarded unknown resources.
+             */
+            if (! res.isLoss())
+                reportRsrcGainLoss(gaName, resGainLoss, false, cpn, -1, null, null);
+            else
+            {
+                StringConnection c = getConnection(plName);
+                if ((c != null) && c.isConnected())
+                    reportRsrcGainLoss(gaName, resGainLoss, true, cpn, -1, null, c);
+                int totalRes = resGainLoss.getTotal();
+                messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes));
+                messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + " discarded " + totalRes + " resources."));
+            }
+        }
+
+        /**
+         * If the turn can now end, proceed as if player requested it.
+         * Otherwise, send current gamestate.  We'll all wait for other
+         * players to send discard messages, and this turn can end.
+         */
+        if (ga.canEndTurn(cpn))
+            endGameTurn(ga);
+        else
+            sendGameState(ga, false);
     }
 
     /**
@@ -3571,12 +3625,26 @@ public class SOCServer extends Server
                      */
                     SOCPlayer player = ga.getPlayer((String) c.getData());
 
+                    /**
+                     * announce the offer, including text message similar to bank/port trade.
+                     */
                     if (player != null)
                     {
                         final String gaName = ga.getName();
-                        SOCTradeOffer remadeOffer = new SOCTradeOffer(gaName, player.getPlayerNumber(), offer.getTo(), offer.getGiveSet(), offer.getGetSet());
-                        player.setCurrentOffer(remadeOffer);
-                        messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, (String) c.getData() + " made an offer to trade."));
+                        SOCTradeOffer remadeOffer;
+                        {
+                            SOCResourceSet offGive = offer.getGiveSet(),
+                                           offGet  = offer.getGetSet();
+                            remadeOffer = new SOCTradeOffer(gaName, player.getPlayerNumber(), offer.getTo(), offGive, offGet);
+                            player.setCurrentOffer(remadeOffer);
+                            StringBuffer offMsgText = new StringBuffer((String) c.getData());
+                            offMsgText.append(" made an offer to trade ");
+                            offGive.toFriendlyString(offMsgText);
+                            offMsgText.append(" for ");
+                            offGet.toFriendlyString(offMsgText);
+                            offMsgText.append('.');
+                            messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, offMsgText.toString() ));
+                        }
 
                         SOCMakeOffer makeOfferMessage = new SOCMakeOffer(gaName, remadeOffer);
                         messageToGame(gaName, makeOfferMessage);
@@ -4233,66 +4301,11 @@ public class SOCServer extends Server
                         {
                             ga.doDiscoveryAction(mes.getResources());
 
-                            String message = (String) c.getData() + " received ";
-                            int cl, or, sh, wh, wo;
-                            cl = mes.getResources().getAmount(SOCResourceConstants.CLAY);
-                            or = mes.getResources().getAmount(SOCResourceConstants.ORE);
-                            sh = mes.getResources().getAmount(SOCResourceConstants.SHEEP);
-                            wh = mes.getResources().getAmount(SOCResourceConstants.WHEAT);
-                            wo = mes.getResources().getAmount(SOCResourceConstants.WOOD);
-
-                            if (cl > 0)
-                            {
-                                messageToGame(gaName, new SOCPlayerElement(gaName, player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, cl));
-                                message += (cl + " clay");
-
-                                if ((or + sh + wh + wo) > 0)
-                                {
-                                    message += " and ";
-                                }
-                            }
-
-                            if (or > 0)
-                            {
-                                messageToGame(gaName, new SOCPlayerElement(gaName, player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.ORE, or));
-                                message += (or + " ore");
-
-                                if ((sh + wh + wo) > 0)
-                                {
-                                    message += " and ";
-                                }
-                            }
-
-                            if (sh > 0)
-                            {
-                                messageToGame(gaName, new SOCPlayerElement(gaName, player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, sh));
-                                message += (sh + " sheep");
-
-                                if ((wh + wo) > 0)
-                                {
-                                    message += " and ";
-                                }
-                            }
-
-                            if (wh > 0)
-                            {
-                                messageToGame(gaName, new SOCPlayerElement(gaName, player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, wh));
-                                message += (wh + " wheat");
-
-                                if (wo > 0)
-                                {
-                                    message += " and ";
-                                }
-                            }
-
-                            if (wo > 0)
-                            {
-                                messageToGame(gaName, new SOCPlayerElement(gaName, player.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, wo));
-                                message += (wo + " wood");
-                            }
-
-                            message += " from the bank.";
-                            messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, message));
+                            StringBuffer message = new StringBuffer((String) c.getData());
+                            message.append(" received ");
+                            reportRsrcGainLoss(gaName, mes.getResources(), false, player.getPlayerNumber(), -1, message, null);
+                            message.append(" from the bank.");
+                            messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, message.toString()));
                             sendGameState(ga);
                         }
                         else
@@ -4787,7 +4800,7 @@ public class SOCServer extends Server
             c.put(SOCDiceResult.toCmd(gameName, gameData.getCurrentDice()));
         }
 
-        /// 
+        ///
         /// send who has longest road
         ///
         SOCPlayer lrPlayer = gameData.getPlayerWithLongestRoad();
@@ -5096,6 +5109,7 @@ public class SOCServer extends Server
     {
         if (ga != null)
         {
+            final String gaName = ga.getName();
             String mes1 = "You stole ";
             String mes2 = pe.getName() + " stole ";
             SOCPlayerElement gainRsrc = null;
@@ -5108,40 +5122,40 @@ public class SOCServer extends Server
             case SOCResourceConstants.CLAY:
                 mes1 += "a clay ";
                 mes2 += "a clay ";
-                gainRsrc = new SOCPlayerElement(ga.getName(), pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, 1);
-                loseRsrc = new SOCPlayerElement(ga.getName(), vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.CLAY, 1);
+                gainRsrc = new SOCPlayerElement(gaName, pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.CLAY, 1);
+                loseRsrc = new SOCPlayerElement(gaName, vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.CLAY, 1);
 
                 break;
 
             case SOCResourceConstants.ORE:
                 mes1 += "an ore ";
                 mes2 += "an ore ";
-                gainRsrc = new SOCPlayerElement(ga.getName(), pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.ORE, 1);
-                loseRsrc = new SOCPlayerElement(ga.getName(), vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.ORE, 1);
+                gainRsrc = new SOCPlayerElement(gaName, pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.ORE, 1);
+                loseRsrc = new SOCPlayerElement(gaName, vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.ORE, 1);
 
                 break;
 
             case SOCResourceConstants.SHEEP:
                 mes1 += "a sheep ";
                 mes2 += "a sheep ";
-                gainRsrc = new SOCPlayerElement(ga.getName(), pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, 1);
-                loseRsrc = new SOCPlayerElement(ga.getName(), vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.SHEEP, 1);
+                gainRsrc = new SOCPlayerElement(gaName, pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.SHEEP, 1);
+                loseRsrc = new SOCPlayerElement(gaName, vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.SHEEP, 1);
 
                 break;
 
             case SOCResourceConstants.WHEAT:
                 mes1 += "a wheat ";
                 mes2 += "a wheat ";
-                gainRsrc = new SOCPlayerElement(ga.getName(), pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, 1);
-                loseRsrc = new SOCPlayerElement(ga.getName(), vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WHEAT, 1);
+                gainRsrc = new SOCPlayerElement(gaName, pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WHEAT, 1);
+                loseRsrc = new SOCPlayerElement(gaName, vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WHEAT, 1);
 
                 break;
 
             case SOCResourceConstants.WOOD:
                 mes1 += "a wood ";
                 mes2 += "a wood ";
-                gainRsrc = new SOCPlayerElement(ga.getName(), pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, 1);
-                loseRsrc = new SOCPlayerElement(ga.getName(), vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WOOD, 1);
+                gainRsrc = new SOCPlayerElement(gaName, pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.WOOD, 1);
+                loseRsrc = new SOCPlayerElement(gaName, vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.WOOD, 1);
 
                 break;
             }
@@ -5178,17 +5192,17 @@ public class SOCServer extends Server
             messageToPlayer(peCon, loseRsrc);
             messageToPlayer(viCon, gainRsrc);
             messageToPlayer(viCon, loseRsrc);
-            gainUnknown = new SOCPlayerElement(ga.getName(), pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.UNKNOWN, 1);
-            loseUnknown = new SOCPlayerElement(ga.getName(), vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, 1);
-            messageToGameExcept(ga.getName(), exceptions, gainUnknown);
-            messageToGameExcept(ga.getName(), exceptions, loseUnknown);
+            gainUnknown = new SOCPlayerElement(gaName, pe.getPlayerNumber(), SOCPlayerElement.GAIN, SOCPlayerElement.UNKNOWN, 1);
+            loseUnknown = new SOCPlayerElement(gaName, vi.getPlayerNumber(), SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, 1);
+            messageToGameExcept(gaName, exceptions, gainUnknown);
+            messageToGameExcept(gaName, exceptions, loseUnknown);
 
             /**
              * send the text messages
              */
-            messageToPlayer(peCon, new SOCGameTextMsg(ga.getName(), SERVERNAME, mes1));
-            messageToPlayer(viCon, new SOCGameTextMsg(ga.getName(), SERVERNAME, mes2));
-            messageToGameExcept(ga.getName(), exceptions, new SOCGameTextMsg(ga.getName(), SERVERNAME, pe.getName() + " stole a resource from " + vi.getName()));
+            messageToPlayer(peCon, new SOCGameTextMsg(gaName, SERVERNAME, mes1));
+            messageToPlayer(viCon, new SOCGameTextMsg(gaName, SERVERNAME, mes2));
+            messageToGameExcept(gaName, exceptions, new SOCGameTextMsg(gaName, SERVERNAME, pe.getName() + " stole a resource from " + vi.getName()));
         }
     }
 
@@ -5553,9 +5567,9 @@ public class SOCServer extends Server
 
             StringBuffer message = new StringBuffer(ga.getPlayer(offering).getName());
             message.append(" traded ");
-            reportTradeHalf(gaName, offer.getGiveSet(), true, offering, accepting, message);
+            reportRsrcGainLoss(gaName, offer.getGiveSet(), true, offering, accepting, message, null);
             message.append(" for ");
-            reportTradeHalf(gaName, offer.getGetSet(), false, offering, accepting, message);
+            reportRsrcGainLoss(gaName, offer.getGetSet(), false, offering, accepting, message, null);
             message.append(" from ");
             message.append(ga.getPlayer(accepting).getName());
             message.append('.');
@@ -5581,9 +5595,9 @@ public class SOCServer extends Server
             final int    cpn    = ga.getCurrentPlayerNumber();
             StringBuffer message = new StringBuffer (ga.getPlayer(cpn).getName());
             message.append(" traded ");
-            reportTradeHalf(gaName, give, true, cpn, -1, message);
+            reportRsrcGainLoss(gaName, give, true, cpn, -1, message, null);
             message.append(" for ");
-            reportTradeHalf(gaName, get, false, cpn, -1, message);
+            reportRsrcGainLoss(gaName, get, false, cpn, -1, message, null);
 
             if ((give.getTotal() / get.getTotal()) == 4)
             {
@@ -5599,113 +5613,138 @@ public class SOCServer extends Server
     }
 
     /**
-     * Report the player's resources gained from a roll, via
-     * messageToGame(PLAYERELEMENT) messages,
-     * and build the resource-amount string used to report the trade as text.
+     * Report the resources gained/lost by a player, and optionally (for trading)
+     * lost/gained by a second player.
+     * Sends PLAYERELEMENT messages, either to entire game, or to player only.
+     * Builds the resource-amount string used to report the trade as text.
+     * Takes and releases the gameList monitor for this game.
+     *<P>
+     * Used to report the resources gained from a roll, discard, or discovery (year-of-plenty) pick.
+     * Also used to report the "give" or "get" half of a resource trade.
      *
      * @param gaName  Game name
-     * @param rset    Resources set ("give" or "get" side of trade)
-     * @param pnA     Player number getting resources
+     * @param rset    Resource set (from a roll, or the "give" or "get" side of a trade).
+     *                Resource type {@link SOCResourceConstants#UNKNOWN} is ignored.
+     *                Only positive resource amounts are sent (negative is ignored).
+     * @param isLoss  If true, "give" ({@link SOCPlayerElement#LOSE}), otherwise "get" ({@link SOCPlayerElement#GAIN})
+     * @param mainPlayer     Player number "giving" if isLose==true, otherwise "getting".
+     *                For each nonzero resource involved, PLAYERELEMENT messages will be sent about this player.
+     * @param tradingPlayer  Player number on other side of trade, or -1 if no second player is involved.
+     *                If not -1, PLAYERELEMENT messages will also be sent about this player.
      * @param message Append resource numbers/types to this stringbuffer,
-     *                format like "3 clay,3 wood"
-     *
-     * @see #reportTradeHalf(String, SOCResourceSet, boolean, int, int, StringBuffer)
-     */
-    private void reportRolledResources
-        (String gaName, SOCResourceSet rset, int pn, StringBuffer message)
-    {
-        reportTradeHalf(gaName, rset, false, pn, -1, message);
-    }
-
-    /**
-     * Report the "give" or "get" half of a resource trade, via
-     * messageToGame(PLAYERELEMENT) messages,
-     * and build the resource-amount string used to report the trade as text.
-     * Also used to report the resources gained from a roll.
-     *
-     * @param gaName  Game name
-     * @param rset    Resources set ("give" or "get" side of trade)
-     * @param isGive  If true, "give" ({@link SOCPlayerElement#LOSE}), otherwise "get" ({@link SOCPlayerElement#GAIN})
-     * @param pnA     Player number "giving" if isGive==true, otherwise "getting".
-     * @param pnB     Player number on other side of trade, or -1 if bank.    
-     * @param message Append resource numbers/types to this stringbuffer,
-     *                format like "3 clay,3 wood"
+     *                format like "3 clay,3 wood"; can be null.
+     * @param playerConn     Null or mainPlayer's connection; send messages here instead of
+     *                sending to all players in game.  Because trades are public, there is no
+     *                such parameter for tradingPlayer.
      *
      * @see #reportTrade(SOCGame, int, int)
      * @see #reportBankTrade(SOCGame, SOCResourceSet, SOCResourceSet)
-     * @see #reportRolledResources(String, SOCResourceSet, int, StringBuffer)
+     * @see #handleDISCARD(StringConnection, SOCDiscard)
+     * @see #handleDISCOVERYPICK(StringConnection, SOCDiscoveryPick)
+     * @see #handleROLLDICE(StringConnection, SOCRollDice)
      */
-    private void reportTradeHalf
-        (String gaName, SOCResourceSet rset, boolean isGive, int pnA, int pnB, StringBuffer message)
+    private void reportRsrcGainLoss
+        (final String gaName, final SOCResourceSet rset, final boolean isLoss, final int mainPlayer, final int tradingPlayer,
+         StringBuffer message, StringConnection playerConn)
     {
-        final int losegain  = isGive ? SOCPlayerElement.LOSE : SOCPlayerElement.GAIN;  // for pnA
-        final int gainlose  = isGive ? SOCPlayerElement.GAIN : SOCPlayerElement.LOSE;  // for pnB
+        final int losegain  = isLoss ? SOCPlayerElement.LOSE : SOCPlayerElement.GAIN;  // for pnA
+        final int gainlose  = isLoss ? SOCPlayerElement.GAIN : SOCPlayerElement.LOSE;  // for pnB
 
         final int cl = rset.getAmount(SOCResourceConstants.CLAY);
         final int or = rset.getAmount(SOCResourceConstants.ORE);
         final int sh = rset.getAmount(SOCResourceConstants.SHEEP);
         final int wh = rset.getAmount(SOCResourceConstants.WHEAT);
         final int wo = rset.getAmount(SOCResourceConstants.WOOD);
-        
+
         boolean needComma = false;  // Has a resource already been appended to message?
 
         gameList.takeMonitorForGame(gaName);
 
         if (cl > 0)
         {
-            messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.CLAY, cl));
-            if (pnB != -1)
-                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.CLAY, cl));
-            message.append(cl);
-            message.append(" clay");
-            needComma = true;
+            if (playerConn != null)
+                messageToPlayer(playerConn, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.CLAY, cl));
+            else
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.CLAY, cl));
+            if (tradingPlayer != -1)
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, tradingPlayer, gainlose, SOCPlayerElement.CLAY, cl));
+            if (message != null)
+            {
+                message.append(cl);
+                message.append(" clay");
+                needComma = true;
+            }
         }
 
         if (or > 0)
         {
-            messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.ORE, or));
-            if (pnB != -1)
-                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.ORE, or));
-            if (needComma)
-                message.append(',');
-            message.append(or);
-            message.append(" ore");
-            needComma = true;
+            if (playerConn != null)
+                messageToPlayer(playerConn, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.ORE, or));
+            else
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.ORE, or));
+            if (tradingPlayer != -1)
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, tradingPlayer, gainlose, SOCPlayerElement.ORE, or));
+            if (message != null)
+            {
+                if (needComma)
+                    message.append(',');
+                message.append(or);
+                message.append(" ore");
+                needComma = true;
+            }
         }
 
         if (sh > 0)
         {
-            messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.SHEEP, sh));
-            if (pnB != -1)
-                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.SHEEP, sh));
-            if (needComma)
-                message.append(',');
-            message.append(sh);
-            message.append(" sheep");
-            needComma = true;
+            if (playerConn != null)
+                messageToPlayer(playerConn, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.SHEEP, sh));
+            else
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.SHEEP, sh));
+            if (tradingPlayer != -1)
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, tradingPlayer, gainlose, SOCPlayerElement.SHEEP, sh));
+            if (message != null)
+            {
+                if (needComma)
+                    message.append(',');
+                message.append(sh);
+                message.append(" sheep");
+                needComma = true;
+            }
         }
 
         if (wh > 0)
         {
-            messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.WHEAT, wh));
-            if (pnB != -1)
-                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.WHEAT, wh));
-            if (needComma)
-                message.append(',');
-            message.append(wh);
-            message.append(" wheat");
-            needComma = true;
+            if (playerConn != null)
+                messageToPlayer(playerConn, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.WHEAT, wh));
+            else
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.WHEAT, wh));
+            if (tradingPlayer != -1)
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, tradingPlayer, gainlose, SOCPlayerElement.WHEAT, wh));
+            if (message != null)
+            {
+                if (needComma)
+                    message.append(',');
+                message.append(wh);
+                message.append(" wheat");
+                needComma = true;
+            }
         }
 
         if (wo > 0)
         {
-            messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnA, losegain, SOCPlayerElement.WOOD, wo));
-            if (pnB != -1)
-                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, pnB, gainlose, SOCPlayerElement.WOOD, wo));
-            if (needComma)
-                message.append(',');
-            message.append(wo);
-            message.append(" wood");
+            if (playerConn != null)
+                messageToPlayer(playerConn, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.WOOD, wo));
+            else
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, mainPlayer, losegain, SOCPlayerElement.WOOD, wo));
+            if (tradingPlayer != -1)
+                messageToGameWithMon(gaName, new SOCPlayerElement(gaName, tradingPlayer, gainlose, SOCPlayerElement.WOOD, wo));
+            if (message != null)
+            {
+                if (needComma)
+                    message.append(',');
+                message.append(wo);
+                message.append(" wood");
+            }
         }
 
         gameList.releaseMonitorForGame(gaName);

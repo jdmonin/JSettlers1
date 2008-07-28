@@ -25,7 +25,7 @@ package soc.game;
 /**
  * This class holds the results of a call to {@link SOCGame#forceEndTurn()}.
  * Specifically, the resulting action type, and possibly list of discarded
- * resources.
+ * or returned resources.
  */
 public class SOCForceEndTurnResult
 {
@@ -39,30 +39,49 @@ public class SOCForceEndTurnResult
     private SOCResourceSet gainLoss;
 
     /**
+     * If true, player's resources are lost (discarded), not gained (returned).
+     */
+    private boolean rsrcLoss;
+
+    /**
      * {@link SOCGame#forceEndTurn()} return values
      */
     public static final int FORCE_ENDTURN_MIN              = 1;  // Lowest possible
-    /** Cannot end turn yet; Gamestate is WAITING_FOR_OTHER_DISCARDS_ENDTURN */
-    public static final int FORCE_ENDTURN_NOTYET_WAITING   = 1;
-    public static final int FORCE_ENDTURN_NONE             = 2;
-    public static final int FORCE_ENDTURN_RSRC_RET_UNPLACE = 3;
-    public static final int FORCE_ENDTURN_UNPLACE_ROBBER   = 4;
-    public static final int FORCE_ENDTURN_RSRC_DISCARD     = 5;
-    public static final int FORCE_ENDTURN_RSRC_DISCARD_WAIT = 6;
-    public static final int FORCE_ENDTURN_LOST_CHOICE      = 7;
-    public static final int FORCE_ENDTURN_MAX              = 7;  // Highest possible
+    public static final int FORCE_ENDTURN_NONE             = 1;
+    public static final int FORCE_ENDTURN_RSRC_RET_UNPLACE = 2;
+    public static final int FORCE_ENDTURN_UNPLACE_ROBBER   = 3;
+    public static final int FORCE_ENDTURN_RSRC_DISCARD     = 4;
+    /** Cannot end turn yet; other players must discard. {@link SOCGame#isForcingEndTurn()} is set. */
+    public static final int FORCE_ENDTURN_RSRC_DISCARD_WAIT = 5;
+    public static final int FORCE_ENDTURN_LOST_CHOICE      = 6;
+    public static final int FORCE_ENDTURN_MAX              = 6;  // Highest possible
 
     /**
      * Creates a new SOCForceEndTurnResult object, no resources gained/lost.
      *
      * @param res Result type, from constants in this class
-     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER}, etc.)
      * @throws IllegalArgumentException If res is not in the range
      *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX}.
      */
     public SOCForceEndTurnResult(int res)
     {
-        this(res, null);
+        this(res, null, false);
+    }
+
+    /**
+     * Creates a new SOCForceEndTurnResult object, with resources gained.
+     *
+     * @param res Result type, from constants in this class
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
+     * @param gainedLost Resources gained (returned to cancel piece
+     *            placement), or null.
+     * @throws IllegalArgumentException If res is not in the range
+     *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX}.
+     */
+    public SOCForceEndTurnResult(int res, SOCResourceSet gained)
+    {
+        this(res, gained, false);
     }
 
     /**
@@ -72,36 +91,18 @@ public class SOCForceEndTurnResult
      *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
      * @param gainedLost Resources gained (returned to cancel piece
      *            placement) or lost (discarded), or null.
-     *            Lost resources are negative values in this set.
+     * @param isLoss     Resources are lost (discarded), not gained (returned to player).
      * @throws IllegalArgumentException If res is not in the range
      *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX}.
      */
-    public SOCForceEndTurnResult(int res, SOCResourceSet gainedLost)
+    public SOCForceEndTurnResult(int res, SOCResourceSet gainedLost, boolean isLoss)
     {
         if ((res < FORCE_ENDTURN_MIN) || (res > FORCE_ENDTURN_MAX))
             throw new IllegalArgumentException("res out of range: " + res);
 
         result = res;
         gainLoss = gainedLost;
-    }
-
-    /**
-     * Creates a new SOCForceEndTurnResult object, with resources gained/lost.
-     * If all resource amounts are zero, an empty {@link SOCResourceSet} is created.
-     *
-     * @param res Result type, from constants in this class
-     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
-     * @param cl  amount of clay resources gained (positive)/lost (negative)
-     * @param or  amount of ore resources
-     * @param sh  amount of sheep resources
-     * @param wh  amount of wheat resources
-     * @param wo  amount of wood resources
-     * @throws IllegalArgumentException If res is not in the range
-     *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX}.
-     */
-    public SOCForceEndTurnResult(int res, int cl, int or, int sh, int wh, int wo)
-    {
-        this (res, new SOCResourceSet (cl, or, sh, wh, wo, 0));
+        rsrcLoss = isLoss;
     }
 
     /**
@@ -117,12 +118,24 @@ public class SOCForceEndTurnResult
     /**
      * Get the resources gained (returned to cancel piece
      * placement) or lost (discarded), if any.
-     * Lost resources are negative values in this set.
+     * Lost resources are signaled by {@link #isLoss()}.
+     *
      * @return gained or lost resources, or null
      */
     public SOCResourceSet getResourcesGainedLost()
     {
         return gainLoss;
+    }
+
+    /**
+     * Is player losing, or gaining, the resources of
+     * {@link #getResourcesGainedLost()}?
+     *
+     * @return true if resource loss, false if gain, for the player
+     */
+    public boolean isLoss()
+    {
+        return rsrcLoss; 
     }
 
 }

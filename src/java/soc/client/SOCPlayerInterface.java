@@ -20,12 +20,10 @@
  **/
 package soc.client;
 
-import soc.client.SOCBoardPanel.BoardPanelSendBuildTask;
 import soc.debug.D;  // JM
 
 import soc.game.SOCGame;
 import soc.game.SOCPlayer;
-import soc.message.SOCGameState;
 
 import java.awt.Color;
 import java.awt.Cursor;
@@ -546,13 +544,15 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
             if (newp != null)
             {
-                msgbuf.append("taken by ");
-                msgbuf.append(newp.getName());
                 if (oldp != null)
                 {
-                    msgbuf.append(" from ");
+                    msgbuf.append(" taken from ");
                     msgbuf.append(oldp.getName());
+                    msgbuf.append(" by ");
+                } else {
+                    msgbuf.append(" taken by ");                    
                 }
+                msgbuf.append(newp.getName());
             } else {
                 msgbuf.append("lost by ");
                 msgbuf.append(oldp.getName());
@@ -596,7 +596,10 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             clientHandPlayerNum = -1;
     }
     
-    /** Is the client player active in this game, and the current player? */
+    /**
+     * Is the client player active in this game, and the current player?
+     * @see #getClientPlayerNumber()
+     */
     public boolean clientIsCurrentPlayer()
     {
         if (clientHand == null)
@@ -605,9 +608,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             return clientHand.isClientAndCurrentPlayer();
     }
 
-    /** If client player is active in game, their player number.
+    /**
+     * If client player is active in game, their player number.
      * 
      * @return client's player ID, or -1.
+     * @see #clientIsCurrentPlayer()
      */
     public int getClientPlayerNumber()
     {
@@ -1177,7 +1182,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         getBuildingPanel().updateButtonStatus();
         getBoardPanel().repaint();
 
-        // Check for placement states (board panel popup)
+        // Check for placement states (board panel popup, build via right-click)
         if ((gs == SOCGame.PLACING_ROAD) || (gs == SOCGame.PLACING_SETTLEMENT)
             || (gs == SOCGame.PLACING_CITY))
         {
@@ -1200,12 +1205,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         if (gs == SOCGame.WAITING_FOR_DISCARDS)
         {
             // Set timer.  If still waiting for discards after 2 seconds,
-            // show on-screen. (hands[i].setDiscardMsg)
+            // show balloons on-screen. (hands[i].setDiscardMsg)
             discardTimerSet();
-        } else if (gs == SOCGame.PLAY1)
+        } else if ((gs == SOCGame.PLAY1) && showingPlayerDiscards)
         {
-            // Not all discards were cleared by players.
-            // Clean up.
+            // If not all players' discard status balloons were cleared by
+            // PLAYERELEMENT messages, clean up now.
             discardTimerClear();
         }
 
@@ -1233,7 +1238,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
     /**
      * Gamestate just became {@link SOCGame#WAITING_FOR_DISCARDS}.
-     * Set up a timer to wait 1 second and show "Discarding..." in players.
+     * Set up a timer to wait 1 second before showing "Discarding..."
+     * balloons in players' handpanels.
      */
     private void discardTimerSet()
     {

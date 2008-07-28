@@ -30,7 +30,7 @@ public interface SOCResourceConstants
     /**
      * Warning: Don't mess with these constants, other pieces
      *          of code depend on these numbers staying like this.
-     *          Clay is first, Wood is last.
+     *          Clay is first, Wood is last, Unknown is after wood.
      */
     public static final int CLAY = 1;
     public static final int ORE = 2;

@@ -269,7 +269,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * If true, this turn is being ended. Controller of game should call {@link #endTurn()}
-     * whenever possible.  Usually set if we have called {@link #forceEndTurn()}, and
+     * whenever possible.  Usually set when we have called {@link #forceEndTurn()}, and
      * forced the current player to discard randomly, and are waiting for other players
      * to discard in gamestate {@link #WAITING_FOR_DISCARDS}.  Once all players have
      * discarded, the turn should be ended.
@@ -1535,7 +1535,7 @@ public class SOCGame implements Serializable, Cloneable
      * Since only the server calls {@link #endTurn()}, this method does not do so.
      * After calling forceEndTurn, the gamestate will usually be {@link #PLAY1},
      * or {@link #WAITING_FOR_DISCARDS} if the result is
-     * {@link SOCForceEndTurnResult#FORCE_ENDTURN_NOTYET_WAITING}.
+     * {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}.
      * (If WAITING_FOR_DISCARDS, the {@link #isForcingEndTurn()} flag will also be set.)
      *
      * @return Type of action performed, one of these values:
@@ -1546,7 +1546,6 @@ public class SOCGame implements Serializable, Cloneable
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_LOST_CHOICE}
-     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_NOTYET_WAITING}
      *     </UL>
      * @throws IllegalStateException if game is not active
      *     (gamestate < {@link #PLAY} or >= {@link #OVER}); if the game is still
@@ -1571,24 +1570,24 @@ public class SOCGame implements Serializable, Cloneable
                 (SOCForceEndTurnResult.FORCE_ENDTURN_NONE);
 
         case PLAY1:
-            // already good to go
+            // already can end it
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_NONE);
 
         case PLACING_ROAD:
             cancelBuildRoad(currentPlayerNumber);
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, 1, 0, 0, 0, 1);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, ROAD_SET);
 
         case PLACING_SETTLEMENT:
             cancelBuildSettlement(currentPlayerNumber);
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, 1, 0, 1, 1, 1);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, SETTLEMENT_SET);
 
         case PLACING_CITY:
             cancelBuildCity(currentPlayerNumber);
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, 0, 3, 0, 2, 0);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, CITY_SET);
 
         case PLACING_ROBBER:
             gameState = PLAY1;
@@ -1602,7 +1601,7 @@ public class SOCGame implements Serializable, Cloneable
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
 
         case WAITING_FOR_DISCARDS:
-            return forceEndTurnChkDiscards();
+            return forceEndTurnChkDiscards();  // sets gameState
 
         case WAITING_FOR_CHOICE:
         case WAITING_FOR_DISCOVERY:
@@ -1612,7 +1611,7 @@ public class SOCGame implements Serializable, Cloneable
                 (SOCForceEndTurnResult.FORCE_ENDTURN_LOST_CHOICE);
 
         default:
-            throw new IllegalStateException("Internal error, force un-handled gamestate: "
+            throw new IllegalStateException("Internal error in force, un-handled gamestate: "
                     + gameState);
         }
 
@@ -1624,7 +1623,9 @@ public class SOCGame implements Serializable, Cloneable
      * Look at other players' hand size. If no one else must discard,
      * ready to end turn. Otherwise, must wait for them; if so,
      * set game state to {@link #WAITING_FOR_DISCARDS} with {@link #isForcingEndTurn()} flag.
-     * @return
+     * @return The force result, including any discarded resources.
+     *         Type will be {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD}
+     *         or {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}.
      */
     private SOCForceEndTurnResult forceEndTurnChkDiscards()
     {
@@ -1648,13 +1649,12 @@ public class SOCGame implements Serializable, Cloneable
         if (otherDiscarders)
         {
             gameState = WAITING_FOR_DISCARDS;
-            forcingEndTurn = true;
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD_WAIT, discards);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD_WAIT, discards, true);
         } else {
             gameState = PLAY1;
             return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD, discards);
+                (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD, discards, true);
         }
     }
 
@@ -2667,7 +2667,7 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * a player is UNbuying a road
+     * a player is UNbuying a road; return resources, set gameState PLAY1
      *
      * @param pn  the number of the player
      */
@@ -2680,7 +2680,7 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * a player is UNbuying a settlement
+     * a player is UNbuying a settlement; return resources, set gameState PLAY1
      *
      * @param pn  the number of the player
      */
@@ -2695,7 +2695,7 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * a player is UNbuying a city
+     * a player is UNbuying a city; return resources, set gameState PLAY1
      *
      * @param pn  the number of the player
      */

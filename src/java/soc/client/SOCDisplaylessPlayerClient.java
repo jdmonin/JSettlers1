@@ -1168,22 +1168,10 @@ public class SOCDisplaylessPlayerClient implements Runnable
                 SOCResourceSet rs = pl.getResources();
 
                 /**
-                 * first convert player's known resources to unknown resources
-                 */
-                rs.add(rs.getAmount(SOCResourceConstants.CLAY), SOCResourceConstants.UNKNOWN);
-                rs.setAmount(0, SOCResourceConstants.CLAY);
-                rs.add(rs.getAmount(SOCResourceConstants.ORE), SOCResourceConstants.UNKNOWN);
-                rs.setAmount(0, SOCResourceConstants.ORE);
-                rs.add(rs.getAmount(SOCResourceConstants.SHEEP), SOCResourceConstants.UNKNOWN);
-                rs.setAmount(0, SOCResourceConstants.SHEEP);
-                rs.add(rs.getAmount(SOCResourceConstants.WHEAT), SOCResourceConstants.UNKNOWN);
-                rs.setAmount(0, SOCResourceConstants.WHEAT);
-                rs.add(rs.getAmount(SOCResourceConstants.WOOD), SOCResourceConstants.UNKNOWN);
-                rs.setAmount(0, SOCResourceConstants.WOOD);
-
-                /**
+                 * first convert player's known resources to unknown resources,
                  * then remove mes's unknown resources from player
                  */
+                rs.convertToUnknown();
                 pl.getResources().subtract(mes.getValue(), SOCResourceConstants.UNKNOWN);
             }
 

@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2008 Jeremy Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -62,11 +63,11 @@ public class SOCResourceSet implements Serializable, Cloneable
     {
         resources = new int[SOCResourceConstants.MAXPLUSONE];
 
-        resources[SOCResourceConstants.CLAY] = cl;
-        resources[SOCResourceConstants.ORE] = or;
-        resources[SOCResourceConstants.SHEEP] = sh;
-        resources[SOCResourceConstants.WHEAT] = wh;
-        resources[SOCResourceConstants.WOOD] = wo;
+        resources[SOCResourceConstants.CLAY]    = cl;
+        resources[SOCResourceConstants.ORE]     = or;
+        resources[SOCResourceConstants.SHEEP]   = sh;
+        resources[SOCResourceConstants.WHEAT]   = wh;
+        resources[SOCResourceConstants.WOOD]    = wo;
         resources[SOCResourceConstants.UNKNOWN] = uk;
     }
 
@@ -123,7 +124,9 @@ public class SOCResourceSet implements Serializable, Cloneable
      * add an amount to a resource
      *
      * @param rtype the type of resource, like {@link SOCResourceConstants#CLAY}
-     * @param amt   the amount
+     * @param amt   the amount; if below 0 (thus subtracting resources),
+     *              the subtraction occurs and no special action is taken.
+     *              {@link #subtract(int, int)} takes special action in some cases.
      */
     public void add(int amt, int rtype)
     {
@@ -138,7 +141,8 @@ public class SOCResourceSet implements Serializable, Cloneable
      * As a result, UNKNOWN may be less than zero afterwards.
      *
      * @param rtype the type of resource, like {@link SOCResourceConstants#CLAY}
-     * @param amt   the amount
+     * @param amt   the amount; unlike in {@link #add(int, int)}, any amount that
+     *              takes the resource below 0 is treated specially.
      */
     public void subtract(int amt, int rtype)
     {
@@ -171,11 +175,11 @@ public class SOCResourceSet implements Serializable, Cloneable
      */
     public void add(SOCResourceSet rs)
     {
-        resources[SOCResourceConstants.CLAY] += rs.getAmount(SOCResourceConstants.CLAY);
-        resources[SOCResourceConstants.ORE] += rs.getAmount(SOCResourceConstants.ORE);
-        resources[SOCResourceConstants.SHEEP] += rs.getAmount(SOCResourceConstants.SHEEP);
-        resources[SOCResourceConstants.WHEAT] += rs.getAmount(SOCResourceConstants.WHEAT);
-        resources[SOCResourceConstants.WOOD] += rs.getAmount(SOCResourceConstants.WOOD);
+        resources[SOCResourceConstants.CLAY]    += rs.getAmount(SOCResourceConstants.CLAY);
+        resources[SOCResourceConstants.ORE]     += rs.getAmount(SOCResourceConstants.ORE);
+        resources[SOCResourceConstants.SHEEP]   += rs.getAmount(SOCResourceConstants.SHEEP);
+        resources[SOCResourceConstants.WHEAT]   += rs.getAmount(SOCResourceConstants.WHEAT);
+        resources[SOCResourceConstants.WOOD]    += rs.getAmount(SOCResourceConstants.WOOD);
         resources[SOCResourceConstants.UNKNOWN] += rs.getAmount(SOCResourceConstants.UNKNOWN);
     }
 
@@ -254,7 +258,12 @@ public class SOCResourceSet implements Serializable, Cloneable
      */
     static public boolean gte(SOCResourceSet a, SOCResourceSet b)
     {
-        return ((a.getAmount(SOCResourceConstants.CLAY) >= b.getAmount(SOCResourceConstants.CLAY)) && (a.getAmount(SOCResourceConstants.ORE) >= b.getAmount(SOCResourceConstants.ORE)) && (a.getAmount(SOCResourceConstants.SHEEP) >= b.getAmount(SOCResourceConstants.SHEEP)) && (a.getAmount(SOCResourceConstants.WHEAT) >= b.getAmount(SOCResourceConstants.WHEAT)) && (a.getAmount(SOCResourceConstants.WOOD) >= b.getAmount(SOCResourceConstants.WOOD)) && (a.getAmount(SOCResourceConstants.UNKNOWN) >= b.getAmount(SOCResourceConstants.UNKNOWN)));
+        return (   (a.getAmount(SOCResourceConstants.CLAY)    >= b.getAmount(SOCResourceConstants.CLAY))
+                && (a.getAmount(SOCResourceConstants.ORE)     >= b.getAmount(SOCResourceConstants.ORE))
+                && (a.getAmount(SOCResourceConstants.SHEEP)   >= b.getAmount(SOCResourceConstants.SHEEP))
+                && (a.getAmount(SOCResourceConstants.WHEAT)   >= b.getAmount(SOCResourceConstants.WHEAT))
+                && (a.getAmount(SOCResourceConstants.WOOD)    >= b.getAmount(SOCResourceConstants.WOOD))
+                && (a.getAmount(SOCResourceConstants.UNKNOWN) >= b.getAmount(SOCResourceConstants.UNKNOWN)));
     }
 
     /**
@@ -265,17 +274,28 @@ public class SOCResourceSet implements Serializable, Cloneable
      */
     static public boolean lte(SOCResourceSet a, SOCResourceSet b)
     {
-        return ((a.getAmount(SOCResourceConstants.CLAY) <= b.getAmount(SOCResourceConstants.CLAY)) && (a.getAmount(SOCResourceConstants.ORE) <= b.getAmount(SOCResourceConstants.ORE)) && (a.getAmount(SOCResourceConstants.SHEEP) <= b.getAmount(SOCResourceConstants.SHEEP)) && (a.getAmount(SOCResourceConstants.WHEAT) <= b.getAmount(SOCResourceConstants.WHEAT)) && (a.getAmount(SOCResourceConstants.WOOD) <= b.getAmount(SOCResourceConstants.WOOD)) && (a.getAmount(SOCResourceConstants.UNKNOWN) <= b.getAmount(SOCResourceConstants.UNKNOWN)));
+        return (   (a.getAmount(SOCResourceConstants.CLAY)    <= b.getAmount(SOCResourceConstants.CLAY))
+                && (a.getAmount(SOCResourceConstants.ORE)     <= b.getAmount(SOCResourceConstants.ORE))
+                && (a.getAmount(SOCResourceConstants.SHEEP)   <= b.getAmount(SOCResourceConstants.SHEEP))
+                && (a.getAmount(SOCResourceConstants.WHEAT)   <= b.getAmount(SOCResourceConstants.WHEAT))
+                && (a.getAmount(SOCResourceConstants.WOOD)    <= b.getAmount(SOCResourceConstants.WOOD))
+                && (a.getAmount(SOCResourceConstants.UNKNOWN) <= b.getAmount(SOCResourceConstants.UNKNOWN)));
     }
 
     /**
      * Human-readable form of the set, with format "clay=5|ore=1|sheep=0|wheat=0|wood=3|unknown=0"
      * @return a human readable longer form of the set
      * @see #toShortString()
+     * @see #toFriendlyString()
      */
     public String toString()
     {
-        String s = "clay=" + resources[SOCResourceConstants.CLAY] + "|ore=" + resources[SOCResourceConstants.ORE] + "|sheep=" + resources[SOCResourceConstants.SHEEP] + "|wheat=" + resources[SOCResourceConstants.WHEAT] + "|wood=" + resources[SOCResourceConstants.WOOD] + "|unknown=" + resources[SOCResourceConstants.UNKNOWN];
+        String s = "clay=" + resources[SOCResourceConstants.CLAY]
+            + "|ore=" + resources[SOCResourceConstants.ORE]
+            + "|sheep=" + resources[SOCResourceConstants.SHEEP]
+            + "|wheat=" + resources[SOCResourceConstants.WHEAT]
+            + "|wood=" + resources[SOCResourceConstants.WOOD]
+            + "|unknown=" + resources[SOCResourceConstants.UNKNOWN];
 
         return s;
     }
@@ -284,12 +304,95 @@ public class SOCResourceSet implements Serializable, Cloneable
      * Human-readable form of the set, with format "Resources: 5 1 0 0 3 0".
      * Order of types is Clay, ore, sheep, wheat, wood, unknown.
      * @return a human readable short form of the set
+     * @see #toFriendlyString()
      */
     public String toShortString()
     {
-        String s = "Resources: " + resources[SOCResourceConstants.CLAY] + " " + resources[SOCResourceConstants.ORE] + " " + resources[SOCResourceConstants.SHEEP] + " " + resources[SOCResourceConstants.WHEAT] + " " + resources[SOCResourceConstants.WOOD] + " " + resources[SOCResourceConstants.UNKNOWN];
+        String s = "Resources: " + resources[SOCResourceConstants.CLAY] + " "
+            + resources[SOCResourceConstants.ORE] + " "
+            + resources[SOCResourceConstants.SHEEP] + " "
+            + resources[SOCResourceConstants.WHEAT] + " "
+            + resources[SOCResourceConstants.WOOD] + " "
+            + resources[SOCResourceConstants.UNKNOWN];
 
         return s;
+    }
+
+    /**
+     * Human-readable form of the set, with format "5 clay,1 ore,3 wood"
+     * @return a human readable longer form of the set;
+     *         if the set is empty, return the string "nothing".
+     * @see #toShortString()
+     */
+    public String toFriendlyString()
+    {
+        StringBuffer sb = new StringBuffer();
+        if (toFriendlyString(sb))
+            return sb.toString();
+        else
+            return "nothing";
+    }
+
+    /**
+     * Human-readable form of the set, with format "5 clay, 1 ore, 3 wood"
+     * @param sb Append into this buffer.
+     * @return true if anything was appended, false if sb unchanged (this resource set is empty).
+     * @see #toFriendlyString()
+     */
+    public boolean toFriendlyString(StringBuffer sb)
+    {
+        boolean needComma = false;  // Has a resource already been appended to sb?
+        int amt;
+        
+        amt = resources[SOCResourceConstants.CLAY];
+        if (amt > 0)
+        {
+            sb.append(amt);
+            sb.append(" clay");
+            needComma = true;
+        }
+
+        amt = resources[SOCResourceConstants.ORE];
+        if (amt > 0)
+        {
+            if (needComma)
+                sb.append(", ");
+            sb.append(amt);
+            sb.append(" ore");
+            needComma = true;
+        }
+
+        amt = resources[SOCResourceConstants.SHEEP];
+        if (amt > 0)
+        {
+            if (needComma)
+                sb.append(", ");
+            sb.append(amt);
+            sb.append(" sheep");
+            needComma = true;
+        }
+
+        amt = resources[SOCResourceConstants.WHEAT];
+        if (amt > 0)
+        {
+            if (needComma)
+                sb.append(", ");
+            sb.append(amt);
+            sb.append(" wheat");
+            needComma = true;
+        }
+
+        amt = resources[SOCResourceConstants.WOOD];
+        if (amt > 0)
+        {
+            if (needComma)
+                sb.append(", ");
+            sb.append(amt);
+            sb.append(" wood");
+            needComma = true;  // signal for return code
+        }
+
+        return needComma;  // Did we append anything?
     }
 
     /**
@@ -309,7 +412,13 @@ public class SOCResourceSet implements Serializable, Cloneable
      */
     public boolean equals(Object anObject)
     {
-        if ((anObject instanceof SOCResourceSet) && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.CLAY) == resources[SOCResourceConstants.CLAY]) && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.ORE) == resources[SOCResourceConstants.ORE]) && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.SHEEP) == resources[SOCResourceConstants.SHEEP]) && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.WHEAT) == resources[SOCResourceConstants.WHEAT]) && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.WOOD) == resources[SOCResourceConstants.WOOD]) && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.UNKNOWN) == resources[SOCResourceConstants.UNKNOWN]))
+        if ((anObject instanceof SOCResourceSet)
+                && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.CLAY)    == resources[SOCResourceConstants.CLAY])
+                && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.ORE)     == resources[SOCResourceConstants.ORE])
+                && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.SHEEP)   == resources[SOCResourceConstants.SHEEP])
+                && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.WHEAT)   == resources[SOCResourceConstants.WHEAT])
+                && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.WOOD)    == resources[SOCResourceConstants.WOOD])
+                && (((SOCResourceSet) anObject).getAmount(SOCResourceConstants.UNKNOWN) == resources[SOCResourceConstants.UNKNOWN]))
         {
             return true;
         }
@@ -345,11 +454,11 @@ public class SOCResourceSet implements Serializable, Cloneable
      */
     public void setAmounts(SOCResourceSet set)
     {
-        resources[SOCResourceConstants.CLAY] = set.getAmount(SOCResourceConstants.CLAY);
-        resources[SOCResourceConstants.ORE] = set.getAmount(SOCResourceConstants.ORE);
-        resources[SOCResourceConstants.SHEEP] = set.getAmount(SOCResourceConstants.SHEEP);
-        resources[SOCResourceConstants.WHEAT] = set.getAmount(SOCResourceConstants.WHEAT);
-        resources[SOCResourceConstants.WOOD] = set.getAmount(SOCResourceConstants.WOOD);
+        resources[SOCResourceConstants.CLAY]    = set.getAmount(SOCResourceConstants.CLAY);
+        resources[SOCResourceConstants.ORE]     = set.getAmount(SOCResourceConstants.ORE);
+        resources[SOCResourceConstants.SHEEP]   = set.getAmount(SOCResourceConstants.SHEEP);
+        resources[SOCResourceConstants.WHEAT]   = set.getAmount(SOCResourceConstants.WHEAT);
+        resources[SOCResourceConstants.WOOD]    = set.getAmount(SOCResourceConstants.WOOD);
         resources[SOCResourceConstants.UNKNOWN] = set.getAmount(SOCResourceConstants.UNKNOWN);
     }
 }

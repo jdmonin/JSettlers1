@@ -232,7 +232,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     protected void newConnection2(StringConnection c) {}
 
     /** placeholder for doing things when a connection is closed.
-     *  called after connection is removed from conns collection.
+     *  called after connection is removed from conns collection,
+     *  and after c.disconnect() has been called.
      */
     protected void leaveConnection(StringConnection c) {}
 
@@ -255,7 +256,14 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         conns.clear();
     }
 
-    /** remove a connection from the system; synchronized on list of connections */
+    /**
+     * remove a connection from the system; synchronized on list of connections.
+     * The callback {@link #leaveConnection(StringConnection)} will be called,
+     * after calling {@link StringConnection#disconnect()} on c.
+     *
+     * @param c Connection to remove; will call its disconnect() method
+     *          and remove it from the server state.
+     */
     public void removeConnection(StringConnection c)
     {
         Object cKey = c.getData();

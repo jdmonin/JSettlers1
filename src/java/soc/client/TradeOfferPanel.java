@@ -249,12 +249,12 @@ public class TradeOfferPanel extends Panel
             offerSquares.setVisible(false);
             add(offerSquares);
 
-            giveLab2 = new Label("You Give: ");
+            giveLab2 = new Label("Give You: ");
             giveLab2.setVisible(false);
             add(giveLab2);
-            new AWTToolTip("You give to opponent", giveLab2);
+            new AWTToolTip("Give to opponent", giveLab2);
 
-            getLab2 = new Label("You Get: ");
+            getLab2 = new Label("You Give: ");
             getLab2.setVisible(false);
             add(getLab2);
             new AWTToolTip("Opponent gives to you", getLab2);

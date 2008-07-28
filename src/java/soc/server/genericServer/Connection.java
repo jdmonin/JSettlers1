@@ -158,7 +158,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     }
 
     /**
-     * Send data over the connection.
+     * Send this data over the connection.  Adds it to the {@link #outQueue}
+     * to be sent by the Putter thread.
      *
      * @param str Data to send
      */
@@ -173,11 +174,14 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     }
 
     /**
-     * DOCUMENT ME!
+     * Data is added aynchronously (sitting in {@link #outQueue}).
+     * This method is called when it's dequeued and sent over
+     * the connection to the remote end.
      *
-     * @param str DOCUMENT ME!
+     * @param str Data to send
      *
-     * @return DOCUMENT ME!
+     * @return True if sent, false if error 
+     *         (and sets {@link #error})
      */
     public boolean putForReal(String str)
     {
@@ -203,7 +207,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     }
 
     /** put a message on the net
-     * @return success, disconnects on failure
+     * @return true for success, false and disconnects on failure
+     *         (and sets {@link #error})
      */
     public final boolean putAux(String str)
     {
@@ -282,6 +287,9 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     /** close the socket, stop the reader */
     public void disconnect()
     {
+        if (! connected)
+            return;  // <--- Early return: Already disconnected ---
+
         D.ebugPrintln("DISCONNECTING " + data);
         connected = false;
 
@@ -289,7 +297,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
            reader.stop();*/
         try
         {
-            s.close();
+            if (s != null)
+                s.close();
         }
         catch (IOException e)
         {
