@@ -24,10 +24,13 @@ package soc.game;
 /**
  * This is a list of constants for representing
  * types of development cards in Settlers of Catan.
+ * {@link #MIN} is the lowest value, {@link #MAX_KNOWN} is highest "known",
+ * and {@link #UNKNOWN} is higher than MAX_KNOWN.
  */
 public interface SOCDevCardConstants
 {
-    public static final int KNIGHT = 0; // kight card
+    public static final int MIN = 0;
+    public static final int KNIGHT = 0; // knight card
     public static final int ROADS = 1; // road building card
     public static final int DISC = 2; // discovery card
     public static final int MONO = 3; // monopoly card
@@ -36,7 +39,8 @@ public interface SOCDevCardConstants
     public static final int UNIV = 6; // university VP card
     public static final int TEMP = 7; // temple VP card
     public static final int TOW = 8; // tower VP card
-    public static final int UNKNOWN = 9; // unkown card
-    public static final int MIN = 0;
+    public static final int MAX_KNOWN = 8;
+    /** Dev-card of unknown type, for reporting to other players */ 
+    public static final int UNKNOWN = 9; // unknown card
     public static final int MAXPLUSONE = 10;
 }

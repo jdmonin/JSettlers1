@@ -268,6 +268,15 @@ public class SOCGame implements Serializable, Cloneable
     private int oldGameState;
 
     /**
+     * If true, and if state is {@link #PLACING_ROBBER},
+     * the robber is being moved because a knight card
+     * has just been played.  This, if {@link #forceEndTurn()}
+     * is called, the knight card should be returned to
+     * the player's hand. 
+     */
+    private boolean placingRobberForKnightCard;
+
+    /**
      * If true, this turn is being ended. Controller of game should call {@link #endTurn()}
      * whenever possible.  Usually set when we have called {@link #forceEndTurn()}, and
      * forced the current player to discard randomly, and are waiting for other players
@@ -361,6 +370,7 @@ public class SOCGame implements Serializable, Cloneable
         numDevCards = 25;
         gameState = NEW;
         forcingEndTurn = false;
+        placingRobberForKnightCard = false;
         oldPlayerWithLongestRoad = new Stack();
         startTime = new Date();
     }
@@ -1073,106 +1083,117 @@ public class SOCGame implements Serializable, Cloneable
         checkForWinner();
 
         /**
-         * update the state of the game
+         * update the state of the game, and possibly current player
          */
         if (active)
         {
-            //D.ebugPrintln("CHANGING GAME STATE FROM "+gameState);
-            switch (gameState)
+            putPieceAdvanceTurnState();
+        }
+    }
+
+    /**
+     * After placing a piece on the board, update the state of
+     * the game, and possibly current player, for play to continue.
+     * Also used in {@link #forceEndTurn()} to continue the game
+     * after a cancelled piece placement in {@link #START1A}..{@link #START2B} .
+     */
+    private void putPieceAdvanceTurnState()
+    {
+        //D.ebugPrintln("CHANGING GAME STATE FROM "+gameState);
+        switch (gameState)
+        {
+        case START1A:
+            gameState = START1B;
+
+            break;
+
+        case START1B:
+        {
+            int tmpCPN = currentPlayerNumber + 1;
+
+            if (tmpCPN >= MAXPLAYERS)
             {
-            case START1A:
-                gameState = START1B;
-
-                break;
-
-            case START1B:
+                tmpCPN = 0;
+            }
+            while (isSeatVacant (tmpCPN))
             {
-                int tmpCPN = currentPlayerNumber + 1;
-
+                ++tmpCPN;
                 if (tmpCPN >= MAXPLAYERS)
                 {
                     tmpCPN = 0;
                 }
-                while (isSeatVacant (tmpCPN))
-                {
-                    ++tmpCPN;
-                    if (tmpCPN >= MAXPLAYERS)
-                    {
-                        tmpCPN = 0;
-                    }
-                }
-
-                if (tmpCPN == firstPlayerNumber)
-                {
-                    gameState = START2A;
-                }
-                else
-                {
-                    advanceTurn();
-                    gameState = START1A;
-                }
             }
+
+            if (tmpCPN == firstPlayerNumber)
+            {
+                gameState = START2A;
+            }
+            else
+            {
+                advanceTurn();
+                gameState = START1A;
+            }
+        }
+
+        break;
+
+        case START2A:
+            gameState = START2B;
 
             break;
 
-            case START2A:
-                gameState = START2B;
+        case START2B:
+        {
+            int tmpCPN = currentPlayerNumber - 1;
 
-                break;
-
-            case START2B:
+            if (tmpCPN < 0)
             {
-                int tmpCPN = currentPlayerNumber - 1;
-
+                tmpCPN = MAXPLAYERS - 1;
+            }
+            while (isSeatVacant (tmpCPN))
+            {
+                --tmpCPN;
                 if (tmpCPN < 0)
                 {
                     tmpCPN = MAXPLAYERS - 1;
                 }
-                while (isSeatVacant (tmpCPN))
-                {
-                    --tmpCPN;
-                    if (tmpCPN < 0)
-                    {
-                        tmpCPN = MAXPLAYERS - 1;
-                    }
-                }
-
-                if (tmpCPN == lastPlayerNumber)
-                {
-                    // player number is unchanged.
-                    // "virtual" endTurn here.                    
-                    gameState = PLAY;
-                    forcingEndTurn = false;
-                }
-                else
-                {
-                    advanceTurnBackwards();
-                    gameState = START2A;
-                }
             }
+
+            if (tmpCPN == lastPlayerNumber)
+            {
+                // player number is unchanged.
+                // "virtual" endTurn here.                    
+                gameState = PLAY;
+                forcingEndTurn = false;
+            }
+            else
+            {
+                advanceTurnBackwards();
+                gameState = START2A;
+            }
+        }
+
+        break;
+
+        case PLACING_ROAD:
+        case PLACING_SETTLEMENT:
+        case PLACING_CITY:
+            gameState = PLAY1;
 
             break;
 
-            case PLACING_ROAD:
-            case PLACING_SETTLEMENT:
-            case PLACING_CITY:
-                gameState = PLAY1;
+        case PLACING_FREE_ROAD1:
+            gameState = PLACING_FREE_ROAD2;
 
-                break;
+            break;
 
-            case PLACING_FREE_ROAD1:
-                gameState = PLACING_FREE_ROAD2;
+        case PLACING_FREE_ROAD2:
+            gameState = oldGameState;
 
-                break;
-
-            case PLACING_FREE_ROAD2:
-                gameState = oldGameState;
-
-                break;
-            }
-
-            //D.ebugPrintln("  TO "+gameState);
+            break;
         }
+
+        //D.ebugPrintln("  TO "+gameState);
     }
 
     /**
@@ -1541,6 +1562,7 @@ public class SOCGame implements Serializable, Cloneable
      * @return Type of action performed, one of these values:
      *     <UL>
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_NONE}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_RET_UNPLACE}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_ROBBER}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD}
@@ -1548,22 +1570,34 @@ public class SOCGame implements Serializable, Cloneable
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_LOST_CHOICE}
      *     </UL>
      * @throws IllegalStateException if game is not active
-     *     (gamestate < {@link #PLAY} or >= {@link #OVER}); if the game is still
-     *     being started ({@link #START2B} or earlier), you'll probably have to
-     *     tell the players to start a new game.
+     *     (gamestate < {@link #START1A} or >= {@link #OVER})
      * @see #canEndTurn(int)
      * @see #endTurn()
      */
     public SOCForceEndTurnResult forceEndTurn()
         throws IllegalStateException
     {
-        if ((gameState < PLAY) || (gameState >= OVER))
+        if ((gameState < START1A) || (gameState >= OVER))
             throw new IllegalStateException("Game not active: state " + gameState);
 
         forcingEndTurn = true;
 
         switch (gameState)
         {
+            case START1A:
+            case START1B:
+            case START2A:
+            case START2B:
+            {
+                int cpn = currentPlayerNumber;
+                putPieceAdvanceTurnState();
+                // STATE STATE STATE here...
+                // Must think this through properly.
+                // chk new state, new playernumber vs old, forcingEndTurn flag
+            }
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_START);    
+
         case PLAY:
             gameState = PLAY1;
             return new SOCForceEndTurnResult
@@ -1590,9 +1624,18 @@ public class SOCGame implements Serializable, Cloneable
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE, CITY_SET);
 
         case PLACING_ROBBER:
-            gameState = PLAY1;
-            return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_ROBBER);
+            {
+                boolean isFromDevCard = placingRobberForKnightCard;
+                gameState = PLAY1;
+                if (isFromDevCard)
+                {
+                    placingRobberForKnightCard = false;
+                    players[currentPlayerNumber].getDevCards().add(1, SOCDevCardSet.OLD, SOCDevCardConstants.KNIGHT);
+                }
+                return new SOCForceEndTurnResult
+                    (SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_ROBBER,
+                     isFromDevCard ? SOCDevCardConstants.KNIGHT : -1);
+            }
 
         case PLACING_FREE_ROAD1:
         case PLACING_FREE_ROAD2:
@@ -1604,11 +1647,23 @@ public class SOCGame implements Serializable, Cloneable
             return forceEndTurnChkDiscards();  // sets gameState
 
         case WAITING_FOR_CHOICE:
-        case WAITING_FOR_DISCOVERY:
-        case WAITING_FOR_MONOPOLY:
             gameState = PLAY1;
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_LOST_CHOICE);
+
+        case WAITING_FOR_DISCOVERY:
+            gameState = PLAY1;
+            players[currentPlayerNumber].getDevCards().add(1, SOCDevCardSet.OLD, SOCDevCardConstants.DISC);
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_LOST_CHOICE,
+                 SOCDevCardConstants.DISC);
+
+        case WAITING_FOR_MONOPOLY:
+            gameState = PLAY1;
+            players[currentPlayerNumber].getDevCards().add(1, SOCDevCardSet.OLD, SOCDevCardConstants.MONO);
+            return new SOCForceEndTurnResult
+                (SOCForceEndTurnResult.FORCE_ENDTURN_LOST_CHOICE,
+                 SOCDevCardConstants.MONO);
 
         default:
             throw new IllegalStateException("Internal error in force, un-handled gamestate: "
@@ -1751,6 +1806,7 @@ public class SOCGame implements Serializable, Cloneable
              */
             if (gameState != WAITING_FOR_DISCARDS)
             {
+                placingRobberForKnightCard = false;
                 oldGameState = PLAY1;
                 gameState = PLACING_ROBBER;
             }
@@ -1938,7 +1994,8 @@ public class SOCGame implements Serializable, Cloneable
         /**
          * check if we're still waiting for players to discard
          */
-        gameState = PLACING_ROBBER;
+        gameState = PLACING_ROBBER;  // assumes oldGameState set already
+        placingRobberForKnightCard = false;
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
@@ -2849,6 +2906,7 @@ public class SOCGame implements Serializable, Cloneable
         players[currentPlayerNumber].incrementNumKnights();
         updateLargestArmy();
         checkForWinner();
+        placingRobberForKnightCard = true;
         oldGameState = gameState;
         gameState = PLACING_ROBBER;
     }

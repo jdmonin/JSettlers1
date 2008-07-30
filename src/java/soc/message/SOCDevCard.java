@@ -31,12 +31,13 @@ import java.util.StringTokenizer;
  */
 public class SOCDevCard extends SOCMessage
 {
-    /**
-     * dev card actions
-     */
+    /** dev card action DRAW: Add as new to player's hand */
     public static final int DRAW = 0;
+    /** dev card action PLAY: remove as old from player's hand */
     public static final int PLAY = 1;
+    /** dev card action ADDNEW: Add as new to player's hand */
     public static final int ADDNEW = 2;
+    /** dev card action ADDOLD: Add as old to player's hand */
     public static final int ADDOLD = 3;
 
     /**
@@ -50,7 +51,7 @@ public class SOCDevCard extends SOCMessage
     private int playerNumber;
 
     /**
-     * The type of development card
+     * The type of development card, like {@link SOCDevCardConstants#ROADS}
      */
     private int cardType;
 
@@ -65,7 +66,7 @@ public class SOCDevCard extends SOCMessage
      * @param ga  name of the game
      * @param pn  the player number
      * @param ac  the type of action
-     * @param ct  the type of card
+     * @param ct  the type of card, like {@link SOCDevCardConstants#ROADS}
      */
     public SOCDevCard(String ga, int pn, int ac, int ct)
     {
@@ -93,7 +94,7 @@ public class SOCDevCard extends SOCMessage
     }
 
     /**
-     * @return the action type
+     * @return the action type, like {@link #DRAW}
      */
     public int getAction()
     {
@@ -101,7 +102,7 @@ public class SOCDevCard extends SOCMessage
     }
 
     /**
-     * @return the card type
+     * @return the card type, like {@link SOCDevCardConstants#ROADS}
      */
     public int getCardType()
     {

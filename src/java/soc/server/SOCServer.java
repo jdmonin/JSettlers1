@@ -2713,7 +2713,7 @@ public class SOCServer extends Server
                                     broadcastGameStats(ga);
 
                                     if (!checkTurn(c, ga))
-                                    {                                        
+                                    {
                                         // Player changed (or play started), announce new player.
                                         sendTurn(ga, true);
                                     }
@@ -3539,6 +3539,29 @@ public class SOCServer extends Server
                 messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes));
                 messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + " discarded " + totalRes + " resources."));
             }
+        }
+
+        /**
+         * report any dev-card returned to player's hand
+         */
+        int card = res.getDevCardType();
+        if (card != -1)
+        {
+            StringConnection c = getConnection(plName);
+            if ((c != null) && c.isConnected())
+                messageToPlayer(c, new SOCDevCard(gaName, cpn, SOCDevCard.ADDOLD, card));
+            messageToGameExcept(gaName, c, new SOCDevCard(gaName, cpn, SOCDevCard.ADDOLD, SOCDevCardConstants.UNKNOWN));                       
+            messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + "'s just-played development card was returned."));            
+        }
+
+        /**
+         * (TODO) For initial placements, we don't end turns as normal.
+         */
+        if (res.getResult() == SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_START)
+        {
+            // (TODO) sendGameState, broadcastGameStats
+            // Maybe we do have to tell the clients?
+            return;  // <--- Early return ---
         }
 
         /**

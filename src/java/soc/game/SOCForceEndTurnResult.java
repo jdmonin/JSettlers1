@@ -44,17 +44,31 @@ public class SOCForceEndTurnResult
     private boolean rsrcLoss;
 
     /**
+     * Development card type re-gained, or -1;
+     * from constants such as {@link SOCDevCardConstants#DISC}.
+     */
+    private int devCardType;
+
+    /**
      * {@link SOCGame#forceEndTurn()} return values
      */
     public static final int FORCE_ENDTURN_MIN              = 1;  // Lowest possible
     public static final int FORCE_ENDTURN_NONE             = 1;
-    public static final int FORCE_ENDTURN_RSRC_RET_UNPLACE = 2;
-    public static final int FORCE_ENDTURN_UNPLACE_ROBBER   = 3;
-    public static final int FORCE_ENDTURN_RSRC_DISCARD     = 4;
+
+    /** Unplace an initial road or settlement; current player changes, and state changes (not to {@link SOCGame#PLAY1}). */ 
+    public static final int FORCE_ENDTURN_UNPLACE_START    = 2;
+
+    /** sent both for placement of bought pieces, and for "free" pieces from road-building cards */
+    public static final int FORCE_ENDTURN_RSRC_RET_UNPLACE = 3;
+    public static final int FORCE_ENDTURN_UNPLACE_ROBBER   = 4;
+    public static final int FORCE_ENDTURN_RSRC_DISCARD     = 5;
+
     /** Cannot end turn yet; other players must discard. {@link SOCGame#isForcingEndTurn()} is set. */
-    public static final int FORCE_ENDTURN_RSRC_DISCARD_WAIT = 5;
-    public static final int FORCE_ENDTURN_LOST_CHOICE      = 6;
-    public static final int FORCE_ENDTURN_MAX              = 6;  // Highest possible
+    public static final int FORCE_ENDTURN_RSRC_DISCARD_WAIT = 6;
+
+    /** Choice lost; a development card may be returned to hand, see {@link #getDevCardType()}. */
+    public static final int FORCE_ENDTURN_LOST_CHOICE      = 7;
+    public static final int FORCE_ENDTURN_MAX              = 7;  // Highest possible
 
     /**
      * Creates a new SOCForceEndTurnResult object, no resources gained/lost.
@@ -67,6 +81,26 @@ public class SOCForceEndTurnResult
     public SOCForceEndTurnResult(int res)
     {
         this(res, null, false);
+    }
+
+    /**
+     * Creates a new SOCForceEndTurnResult object, with a development card regained.
+     *
+     * @param res Result type, from constants in this class
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER}, etc.)
+     * @param dtype Development card type, like {@link SOCDevCardConstants#DISC}, or -1 for none.
+     * @throws IllegalArgumentException If res is not in the range
+     *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX},
+     *            or if dtype is not -1 and not in the range
+     *            {@link SOCDevCardConstants#MIN} to {@link SOCDevCardConstants#MAX_KNOWN}.
+     */
+    public SOCForceEndTurnResult(int res, int dtype)
+    {
+        this(res);
+        if ( ((dtype < SOCDevCardConstants.MIN) || (dtype > SOCDevCardConstants.MAX_KNOWN))
+            && (dtype != -1) )
+            throw new IllegalArgumentException("dtype out of range: " + dtype);
+        devCardType = dtype;
     }
 
     /**
@@ -103,6 +137,7 @@ public class SOCForceEndTurnResult
         result = res;
         gainLoss = gainedLost;
         rsrcLoss = isLoss;
+        devCardType = -1;
     }
 
     /**
@@ -138,4 +173,14 @@ public class SOCForceEndTurnResult
         return rsrcLoss; 
     }
 
+    /**
+     * Is a development card being returned to the player's hand?
+     *
+     * @return Development card to return, or -1; type constants
+     *         like {@link SOCDevCardConstants#DISC}.
+     */
+    public int getDevCardType()
+    {
+        return devCardType;
+    }
 }
