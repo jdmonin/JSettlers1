@@ -62,6 +62,14 @@ public class D
     public static final void ebugPrintln() {}
 
     /**
+     * If debug is enabled, print the stack trace of this exception
+     * @param ex Exception or other Throwable
+     * @param prefixMsg Message for {@link #ebugPrintln(String)} above the exception,
+     *                  or null
+     */
+    public static final void ebugPrintStackTrace(Throwable ex, String prefixMsg) {}
+
+    /**
      * DOCUMENT ME!
      *
      * @param text DOCUMENT ME!

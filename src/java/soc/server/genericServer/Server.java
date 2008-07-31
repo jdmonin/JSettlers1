@@ -99,12 +99,15 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /**
      * Given a key data, return the connected client.
-     * @param connKey Object key data, as in {@link StringConnection#getData()}
+     * @param connKey Object key data, as in {@link StringConnection#getData()}; if null, returns null
      * @return The connection with this key, or null if none
      */
     protected StringConnection getConnection(Object connKey)
     {
-        return (StringConnection) conns.get(connKey);
+        if (connKey != null)
+            return (StringConnection) conns.get(connKey);
+        else
+            return null;
     }
 
     protected Enumeration getConnections()

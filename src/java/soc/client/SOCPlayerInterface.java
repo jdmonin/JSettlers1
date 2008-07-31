@@ -1373,10 +1373,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         th.printStackTrace(pw);
         pw.flush();
         chatPrint (backstack.getBuffer().toString());
-        if (th.getCause() != null)  // NOTE: getCause is 1.4+
+        Throwable cause = th.getCause();
+        if ((cause != null) && (cause != th)) // NOTE: getCause is 1.4+
         {
             chatDisplay.append("** --> Nested Cause Exception: **\n");
-            chatPrintStackTrace (th.getCause(), true);
+            chatPrintStackTrace (cause, true);
         }        
         if (! isNested)
             chatDisplay.append("-- Exception ends: " + excepName + " --\n\n");

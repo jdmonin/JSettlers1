@@ -2599,7 +2599,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (ga != null)
         {
-            SOCPlayer player = ga.getPlayer(mes.getPlayerNumber());
+            final int mesPN = mes.getPlayerNumber();
+            SOCPlayer player = ga.getPlayer(mesPN);
             SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
 
             switch (mes.getAction())
@@ -2630,7 +2631,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             if (ourPlayerData != null)
             {
                 //if (true) {
-                if (mes.getPlayerNumber() == ourPlayerData.getPlayerNumber())
+                if (mesPN == ourPlayerData.getPlayerNumber())
                 {
                     SOCHandPanel hp = pi.getClientHand();
                     hp.updateDevCards();
@@ -2638,12 +2639,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 }
                 else
                 {
-                    pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMDEVCARDS);
+                    pi.getPlayerHandPanel(mesPN).updateValue(SOCHandPanel.NUMDEVCARDS);
                 }
             }
             else
             {
-                pi.getPlayerHandPanel(mes.getPlayerNumber()).updateValue(SOCHandPanel.NUMDEVCARDS);
+                pi.getPlayerHandPanel(mesPN).updateValue(SOCHandPanel.NUMDEVCARDS);
             }
         }
     }

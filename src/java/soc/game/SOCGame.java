@@ -826,11 +826,9 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * Find the player who was declared winner at end of game.
-     * This is determined in checkForWinner; there is no corresponding setter.
+     * This is determined in {@link #checkForWinner()}; there is no corresponding setter.
      *
      * @return the winning player, or null if none, or if game is not yet over.
-     *
-     * @see #checkForWinner()
      */
     public SOCPlayer getPlayerWithWin()
     {
@@ -3161,6 +3159,7 @@ public class SOCGame implements Serializable, Cloneable
         {
             gameState = OVER;
             playerWithWin = pn;
+            System.err.println("DEBUG: Set playerWithWin = " + pn);
         }
     }
 

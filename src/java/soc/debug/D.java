@@ -80,6 +80,39 @@ public class D
     }
 
     /**
+     * If debug is enabled, print the stack trace of this exception
+     * @param ex Exception or other Throwable
+     * @param prefixMsg Message for {@link #ebugPrintln(String)} above the exception,
+     *                  or null; will print as:
+     *                  prefixMsg + " - " + ex.toString
+     */
+    public static final void ebugPrintStackTrace(Throwable ex, String prefixMsg)
+    {
+        if (! enabled)
+        {
+            return;
+        }
+
+        if (prefixMsg != null)
+            ebugPrintln(prefixMsg + " - " + ex.toString());
+        System.out.println("-- Exception stack trace begins --");
+        ex.printStackTrace(System.out);
+
+        /**
+         * Look for cause(s) of exception
+         */
+        Throwable prev = ex;
+        for ( Throwable cause = prev.getCause();    // NOTE: getCause is 1.4+
+              ((cause != null) && (cause != prev));
+               prev = cause )
+        {
+            System.out.println("** --> Nested cause exception: **");
+            cause.printStackTrace(System.out);
+        }
+        System.out.println("-- Exception ends: " + ex.getClass().getName() + " --");
+    }
+
+    /**
      * DOCUMENT ME!
      *
      * @param text DOCUMENT ME!
