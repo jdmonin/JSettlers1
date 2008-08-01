@@ -271,9 +271,13 @@ public class ColorSquare extends Canvas implements MouseListener
     }
 
     /**
-     * Overrides standard to allow special warning behavior if GREY.
+     * Overrides standard to allow special warning behavior for {@link #GREY}.
+     * Only grey squares change background color when a warning-level
+     * threshold is reached ({@link #setHighWarningLevel(int)}
+     * or {@link #setLowWarningLevel(int)}).
+     * TODO DOCU - what do other squares do?
      *
-     * @param c DOCUMENT ME! - JM TODO
+     * @param c New background color
      */
     public void setBackground(Color c)
     {
@@ -282,9 +286,11 @@ public class ColorSquare extends Canvas implements MouseListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Set this square's background color.  The text color cannot be changed.
+     * See {@link #setBackground(Color)} for special behavior with warning-level.
+     * thresholds.
      *
-     * @param c DOCUMENT ME!
+     * @param c New background color
      */
     public void setColor(Color c)
     {

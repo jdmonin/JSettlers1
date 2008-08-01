@@ -37,7 +37,9 @@ import java.awt.event.ActionListener;
  */
 class SOCDiscoveryDialog extends Dialog implements ActionListener, ColorSquareListener
 {
+    /** Pick (Done) button */
     private Button doneBut;
+    /** Clear button */
     private Button clearBut;
     private ColorSquare[] rsrc;
     private Label msg;
@@ -61,7 +63,7 @@ class SOCDiscoveryDialog extends Dialog implements ActionListener, ColorSquareLi
         setForeground(Color.black);
         setFont(new Font("Geneva", Font.PLAIN, 12));
 
-        doneBut = new Button("Done");
+        doneBut = new Button("Pick");
         clearBut = new Button("Clear");
 
         setLayout(null);
