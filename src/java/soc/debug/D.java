@@ -80,6 +80,19 @@ public class D
     }
 
     /**
+     * DOCUMENT ME!
+     *
+     * @param text DOCUMENT ME!
+     */
+    public static final void ebugPrint(String text)
+    {
+        if (enabled)
+        {
+            System.out.print(text);
+        }
+    }
+
+    /**
      * If debug is enabled, print the stack trace of this exception
      * @param ex Exception or other Throwable
      * @param prefixMsg Message for {@link #ebugPrintln(String)} above the exception,
@@ -112,16 +125,4 @@ public class D
         System.out.println("-- Exception ends: " + ex.getClass().getName() + " --");
     }
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @param text DOCUMENT ME!
-     */
-    public static final void ebugPrint(String text)
-    {
-        if (enabled)
-        {
-            System.out.print(text);
-        }
-    }
 }
