@@ -26,6 +26,9 @@ package soc.game;
  * This class holds the results of a call to {@link SOCGame#forceEndTurn()}.
  * Specifically, the resulting action type, and possibly list of discarded
  * or returned resources.
+ *<P>
+ * The result object isn't intended to be conveyed over a network to clients; the server
+ * should translate it into standard SOCMessages which change game state.
  */
 public class SOCForceEndTurnResult
 {
@@ -50,25 +53,39 @@ public class SOCForceEndTurnResult
     private int devCardType;
 
     /**
-     * {@link SOCGame#forceEndTurn()} return values
+     * {@link SOCGame#forceEndTurn()} return values. FORCE_ENDTURN_MIN is the lowest valid value.
      */
-    public static final int FORCE_ENDTURN_MIN              = 1;  // Lowest possible
-    public static final int FORCE_ENDTURN_NONE             = 1;
+    public static final int FORCE_ENDTURN_MIN               = 1;  // Lowest possible
 
-    /** Unplace an initial road or settlement; current player changes, and state changes (not to {@link SOCGame#PLAY1}). */ 
-    public static final int FORCE_ENDTURN_UNPLACE_START    = 2;
+    /** Since state is already {@link SOCGame#PLAY1}, already OK to end turn. No action was taken by forceEndTurn. */
+    public static final int FORCE_ENDTURN_NONE              = 1;
 
-    /** sent both for placement of bought pieces, and for "free" pieces from road-building cards */
-    public static final int FORCE_ENDTURN_RSRC_RET_UNPLACE = 3;
-    public static final int FORCE_ENDTURN_UNPLACE_ROBBER   = 4;
-    public static final int FORCE_ENDTURN_RSRC_DISCARD     = 5;
+    /** Skip an initial road or settlement; current player has advanced forward, state changes to {@link SOCGame#START1A}. */
+    public static final int FORCE_ENDTURN_SKIP_START_ADV    = 2;
 
-    /** Cannot end turn yet; other players must discard. {@link SOCGame#isForcingEndTurn()} is set. */
-    public static final int FORCE_ENDTURN_RSRC_DISCARD_WAIT = 6;
+    /** Skip an initial road or settlement; current player has advanced backward, state changes to {@link SOCGame#START2A}. */
+    public static final int FORCE_ENDTURN_SKIP_START_ADVBACK = 3;
+
+    /** Skip an initial road or settlement; state changes to {@link SOCGame#PLAY1}, and {@link SOCGame#endTurn()} should be called. */
+    public static final int FORCE_ENDTURN_SKIP_START_TURN   = 4;
+
+    /** Sent both for placement of bought pieces, and for "free" pieces from road-building cards */
+    public static final int FORCE_ENDTURN_RSRC_RET_UNPLACE  = 5;
+
+    /** Robber movement has been cancelled. */
+    public static final int FORCE_ENDTURN_UNPLACE_ROBBER    = 6;
+
+    /** Resources have been randomly discarded. Ready to end turn. */
+    public static final int FORCE_ENDTURN_RSRC_DISCARD      = 7;
+
+    /** Resources have been randomly discarded. Cannot end turn yet; other players must discard. {@link SOCGame#isForcingEndTurn()} is set. */
+    public static final int FORCE_ENDTURN_RSRC_DISCARD_WAIT = 8;
 
     /** Choice lost; a development card may be returned to hand, see {@link #getDevCardType()}. */
-    public static final int FORCE_ENDTURN_LOST_CHOICE      = 7;
-    public static final int FORCE_ENDTURN_MAX              = 7;  // Highest possible
+    public static final int FORCE_ENDTURN_LOST_CHOICE       = 9;
+
+    /** Highest valid FORCE_ENDTURN_ value for {@link SOCGame#forceEndTurn()} */
+    public static final int FORCE_ENDTURN_MAX               = 9;  // Highest possible
 
     /**
      * Creates a new SOCForceEndTurnResult object, no resources gained/lost.
