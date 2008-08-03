@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1428,7 +1429,7 @@ public class SOCServer extends Server
      */
     private boolean checkNickname(String n)
     {
-        if (getConnection(n) != null)
+        if (getConnection(n) != null)  // check conns hashtable
         {
             return false;
         }
@@ -3457,14 +3458,15 @@ public class SOCServer extends Server
     /**
      * Try to force-end the current player's turn in this game.
      * Alter game state and send messages to players.
-     * Will call {@link #endGameTurn(SOCGame)} if possible.
+     * Will call {@link #endGameTurn(SOCGame)} if appropriate.
+     * Will send gameState and current player (turn) to clients.
      *<P>
      * Assumes, as {@link #endGameTurn(SOCGame)} does:
      * <UL>
      * <LI> ga.canEndTurn already called, returned false
      * <LI> ga.takeMonitor already called (not the same as {@link SOCGameList#takeMonitorForGame(String)})
      * <LI> gamelist.takeMonitorForGame is NOT called, we do NOT have that monitor
-     * </UL> 
+     * </UL>
      * @param ga Game to force end turn
      * @param plName Current player's name. Needed because if they have been disconnected by
      *               {@link #leaveGame(StringConnection, String, boolean)},
@@ -3516,19 +3518,23 @@ public class SOCServer extends Server
         }
 
         /**
-         * (TODO) For initial placements, we don't end turns as normal.
+         * For initial placements, we don't end turns as normal.
+         * (Player number may go forward or backwards, new state isn't PLAY, etc.)
+         * Update clients' gamestate, but don't call endGameTurn.
          */
-        if (res.getResult() == SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_START)
+        final int forceRes = res.getResult(); 
+        if ((forceRes == SOCForceEndTurnResult.FORCE_ENDTURN_SKIP_START_ADV)
+            || (forceRes == SOCForceEndTurnResult.FORCE_ENDTURN_SKIP_START_ADVBACK))
         {
-            // (TODO) sendGameState, broadcastGameStats
-            // Maybe we do have to tell the clients?
+            sendGameState(ga, false);
+            sendTurn(ga, false);
             return;  // <--- Early return ---
         }
 
         /**
          * If the turn can now end, proceed as if player requested it.
          * Otherwise, send current gamestate.  We'll all wait for other
-         * players to send discard messages, and this turn can end.
+         * players to send discard messages, and afterwards this turn can end.
          */
         if (ga.canEndTurn(cpn))
             endGameTurn(ga);
@@ -5061,7 +5067,7 @@ public class SOCServer extends Server
                  */
                 sendGameState(ga);
 
-                if ((ga.getCurrentDice() == 7) && (ga.getPlayer(pn).getResources().getTotal() > 7))
+                if ((ga.getCurrentDice() == 7) && ga.getPlayer(pn).getNeedToDiscard())
                 {
                     messageToPlayer(c, new SOCDiscardRequest(ga.getName(), ga.getPlayer(pn).getResources().getTotal() / 2));
                 }
@@ -5652,7 +5658,7 @@ public class SOCServer extends Server
             if (message != null)
             {
                 if (needComma)
-                    message.append(',');
+                    message.append(", ");
                 message.append(or);
                 message.append(" ore");
                 needComma = true;
@@ -5670,7 +5676,7 @@ public class SOCServer extends Server
             if (message != null)
             {
                 if (needComma)
-                    message.append(',');
+                    message.append(", ");
                 message.append(sh);
                 message.append(" sheep");
                 needComma = true;
@@ -5688,7 +5694,7 @@ public class SOCServer extends Server
             if (message != null)
             {
                 if (needComma)
-                    message.append(',');
+                    message.append(", ");
                 message.append(wh);
                 message.append(" wheat");
                 needComma = true;
@@ -5706,7 +5712,7 @@ public class SOCServer extends Server
             if (message != null)
             {
                 if (needComma)
-                    message.append(',');
+                    message.append(", ");
                 message.append(wo);
                 message.append(" wood");
             }
@@ -5718,7 +5724,7 @@ public class SOCServer extends Server
     /**
      * make sure it's the player's turn
      *
-     * @param c  the connection
+     * @param c  the connection for player
      * @param ga the game
      *
      * @return true if it is the player's turn;
@@ -5936,7 +5942,7 @@ public class SOCServer extends Server
             SOCTurn turnMessage = new SOCTurn(gname, pn);
             messageToGame(gname, turnMessage);
             recordGameEvent(gname, turnMessage.toCmd());
-            
+
             if (sendRollPrompt)
                 messageToGame(gname, new SOCRollDicePrompt(gname, pn));
         }

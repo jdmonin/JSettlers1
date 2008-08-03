@@ -29,12 +29,12 @@ import java.util.StringTokenizer;
 
 /**
  * Messages used for game data, events, and chatting on a channel.
- *
+ *<P>
  * No objects, only strings and integers, are to be sent over the network
  * between servers and clients!  Your game's code must guarantee that no string
  * sent contains a separator character ({@link #sep_char} or {@link #sep2_char}). 
  *<P>
- * Text announcements (SOCGameTextMsg) are often sent along with
+ * Text announcements ({@link SOCGameTextMsg}) are often sent along with
  * data messages.
  *<P>
  * The message data is sent over the network as type ID + data strings
@@ -50,10 +50,10 @@ import java.util.StringTokenizer;
  *<P>
  * To create a new message type:
  *<UL>
- * <LI> choose a message type ID (add to the end of the list in this class)
- * <LI> add it to the switch in {@link #toMsg(String)}.
+ * <LI> Choose a message type ID (add to the end of the list in this class)
+ * <LI> Add it to the switch in {@link #toMsg(String)}.
  * <LI> Extend the SOCMessage class, including the required parseDataStr method.
- *      (SOCDiceResult and SOCSetTurn are good example subclasses.)
+ *      ({@link SOCDiceResult} and {@link SOCSetTurn} are good example subclasses.)
  * <LI> Add to the switch in either
  *      SOCPlayerClient.treat or SOCServer.processCommand.
  *</UL>

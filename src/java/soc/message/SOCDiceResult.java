@@ -24,22 +24,13 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message reports what was rolled on the dice
+ * This message reports total of what was rolled on the dice.
+ * The two individual dice amounts can be reported in a text message.
  *
  * @author Robert S. Thomas
  */
-public class SOCDiceResult extends SOCMessage
+public class SOCDiceResult extends SOCMessageTemplate1i
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
-    /**
-     * The dice result
-     */
-    private int result;
-
     /**
      * Create a DiceResult message.
      *
@@ -48,17 +39,7 @@ public class SOCDiceResult extends SOCMessage
      */
     public SOCDiceResult(String ga, int dr)
     {
-        messageType = DICERESULT;
-        game = ga;
-        result = dr;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
+        super (DICERESULT, ga, dr);
     }
 
     /**
@@ -66,17 +47,7 @@ public class SOCDiceResult extends SOCMessage
      */
     public int getResult()
     {
-        return result;
-    }
-
-    /**
-     * DICERESULT sep game sep2 result
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game, result);
+        return p1;
     }
 
     /**
@@ -94,8 +65,8 @@ public class SOCDiceResult extends SOCMessage
     /**
      * Parse the command String into a DiceResult message
      *
-     * @param s   the String to parse
-     * @return    a DiceResult message, or null of the data is garbled
+     * @param s   the String to parse: DICERESULT sep game sep2 result
+     * @return    a DiceResult message, or null if the data is garbled
      */
     public static SOCDiceResult parseDataStr(String s)
     {
@@ -117,11 +88,4 @@ public class SOCDiceResult extends SOCMessage
         return new SOCDiceResult(ga, dr);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCDiceResult:game=" + game + "|result=" + result;
-    }
 }

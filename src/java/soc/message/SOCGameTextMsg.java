@@ -24,14 +24,16 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message contains a text message for a SoC game
+ * This message contains a text message for a SoC game.
+ * Seen by human players on-screen, occasionally parsed by robots
+ * if they're expecting something.
  *
  * @author Robert S Thomas
  */
 public class SOCGameTextMsg extends SOCMessage
 {
     /**
-     * our token seperator
+     * our token seperator; not the normal {@link SOCMessage#sep2}
      */
     private static String sep2 = "" + (char) 0;
 

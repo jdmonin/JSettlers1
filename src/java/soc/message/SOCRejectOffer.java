@@ -29,10 +29,10 @@ import java.util.StringTokenizer;
  * Sent from rejecting player's client to server.
  * The server then sends a copy of the message to all players
  * to announce the rejection.
- *<P>
- * Message to server is in response to a MAKEOFFER sent earlier this turn to client.
- * Followed by (from server, to all clients) REJECTOFFER with the same data.
- *<P>
+ *<UL>
+ * <LI> Message to server is in response to a MAKEOFFER sent earlier this turn to client.
+ * <LI> Followed by (from server, to all clients) REJECTOFFER with the same data.
+ *</UL>
  * @author Robert S. Thomas
  * @see SOCMakeOffer, SOCAcceptOffer
  */

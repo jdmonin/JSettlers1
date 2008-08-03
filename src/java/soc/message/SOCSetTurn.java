@@ -24,22 +24,12 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message says who's turn it is
+ * This message from server to client says whose turn it is
  *
  * @author Robert S. Thomas
  */
-public class SOCSetTurn extends SOCMessage
+public class SOCSetTurn extends SOCMessageTemplate1i
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
-    /**
-     * The seat number
-     */
-    private int playerNumber;
-
     /**
      * Create a SetTurn message.
      *
@@ -48,17 +38,7 @@ public class SOCSetTurn extends SOCMessage
      */
     public SOCSetTurn(String ga, int pn)
     {
-        messageType = SETTURN;
-        game = ga;
-        playerNumber = pn;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
+        super(SETTURN, ga, pn);
     }
 
     /**
@@ -66,17 +46,7 @@ public class SOCSetTurn extends SOCMessage
      */
     public int getPlayerNumber()
     {
-        return playerNumber;
-    }
-
-    /**
-     * SETTURN sep game sep2 playerNumber
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game, playerNumber);
+        return p1;
     }
 
     /**
@@ -92,10 +62,10 @@ public class SOCSetTurn extends SOCMessage
     }
 
     /**
-     * Parse the command String into a StartGame message
+     * Parse the command String into a SetTurn message
      *
-     * @param s   the String to parse
-     * @return    a StartGame message, or null of the data is garbled
+     * @param s   the String to parse: SETTURN sep game sep2 playerNumber
+     * @return    a StartGame message, or null if the data is garbled
      */
     public static SOCSetTurn parseDataStr(String s)
     {
@@ -117,11 +87,4 @@ public class SOCSetTurn extends SOCMessage
         return new SOCSetTurn(ga, pn);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCSetTurn:game=" + game + "|playerNumber=" + playerNumber;
-    }
 }

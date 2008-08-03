@@ -31,6 +31,7 @@ package soc.message;
  *<P>
  * Sample implementation:
  *<code>
+ *   // format of s: LONGESTROAD sep game sep2 seatnumber sep2 coordinates
  *   public static SOCLongestRoad parseDataStr(String s)
  *   {
  *       String ga; // the game name

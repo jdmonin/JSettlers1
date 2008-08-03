@@ -80,6 +80,9 @@ import java.util.Vector;
 
 /**
  * Applet/Standalone client for connecting to the SOCServer.
+ * Prompts for name and password, displays list of games and channels available.
+ * The actual game is played in a separate {@link SOCPlayerInterface} window.
+ *<P>
  * If you want another connection port, you have to specify it as the "port"
  * argument in the html source. If you run this as a stand-alone, you have to
  * specify the port.
@@ -1902,6 +1905,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected void handleGAMEMEMBERS(SOCGameMembers mes)
     {
         SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(mes.getGame());
+        System.err.println("got GAMEMEMBERS"); // TODO tracing
         pi.began();
     }
 
@@ -3434,7 +3438,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void resetBoardRequest(SOCGame ga)
     {
-        put(SOCResetBoardRequest.toCmd(ga.getName()), ga.isLocal);
+        put(SOCResetBoardRequest.toCmd(SOCMessage.RESETBOARDREQUEST, ga.getName()), ga.isLocal);
     }
 
     /**

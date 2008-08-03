@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -80,7 +81,9 @@ public class SOCHandPanel extends Panel implements ActionListener
     /** Auto-roll timer countdown, 5 seconds unless changed at program start. */
     public static int AUTOROLL_TIME = 5;
 
+    /** Array of five zeroes; for {@link #sqPanel}. */
     protected static final int[] zero = { 0, 0, 0, 0, 0 };
+    /** Before game starts, use {@link #pname} to show if a seat is no-robots-allowed. */
     protected static final String SITLOCKED = "Locked: No robot";
     protected static final String SIT = "Sit Here";
     protected static final String START = "Start Game";
@@ -758,9 +761,14 @@ public class SOCHandPanel extends Panel implements ActionListener
                 if (item.length() == 0)
                     return;
             } else {
-                // No card selected, multiple are in the list.
-                // See if only one card isn't a "(VP)" card, isn't new.
+                /**
+                 * No card selected, multiple are in the list.
+                 * See if only one card isn't a "(VP)" card, isn't new.
+                 * If more than one, but they're all same type (ex.
+                 * unplayed Robbers), pretend there's only one.
+                 */
                 itemNum = -1;  // Nothing yet
+                String itemNumText = null;
                 for (int i = cardList.getItemCount() - 1; i >= 0; --i)
                 {
                     item = cardList.getItem(i);
@@ -772,7 +780,9 @@ public class SOCHandPanel extends Panel implements ActionListener
                         if (itemNum == -1)
                         {
                             itemNum = i;
-                        } else {
+                            itemNumText = item;
+                        } else if (! item.equals(itemNumText))
+                        {
                             itemNum = -1;  // More than one found,
                             break;         // stop looking.
                         }
@@ -783,7 +793,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                     playerInterface.print("* Please click a card first to select it.");
                     return;
                 } else {
-                    item = cardList.getItem(itemNum);
+                    item = itemNumText;
                 }
             }
         }

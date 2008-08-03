@@ -27,12 +27,13 @@ import java.util.StringTokenizer;
  * has been "reset" to a new game (with same name and players, new layout),
  * and they should join at the given position.
  *<P>
- * For robots, they must discard game state and ask to re-join.
- * Treat as a {@link SOCJoinGameRequest}: ask server for us to join the new game.
- *<P>
  * For human players, this message replaces the {@link SOCJoinGameAuth} seen when joining a brand-new game; the reset message will be followed
  * with others which will fill in the game state.
  *<P>
+ * For robots, they must discard game state and ask to re-join.
+ * Treat as a {@link SOCJoinGameRequest}: ask server for us to join the new game.
+ *<P>
+ * Follows {@link SOCResetBoardRequest} and {@link SOCResetBoardVote} messages.
  * For details of messages sent, see 
  * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
  *
@@ -40,24 +41,8 @@ import java.util.StringTokenizer;
  * @author Jeremy D. Monin <jeremy@nand.net>
  *
  */
-public class SOCResetBoardAuth extends SOCMessage
+public class SOCResetBoardAuth extends SOCMessageTemplate2i
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
-    /**
-     * The player position at which client should re-join;
-     * same as their existing position on the old board.
-     */
-    private int playerNumber;
-
-    /**
-     * Player number requesting the reset
-     */
-    private int requesterNumber;
-
     /**
      * Create a ResetBoardAuth message.
      *
@@ -67,18 +52,7 @@ public class SOCResetBoardAuth extends SOCMessage
      */
     public SOCResetBoardAuth(String ga, int joinpn, int reqpn)
     {
-        messageType = RESETBOARDAUTH;
-        game = ga;
-        playerNumber = joinpn;
-        requesterNumber = reqpn;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
+        super (RESETBOARDAUTH, ga, joinpn, reqpn);
     }
 
     /**
@@ -86,7 +60,7 @@ public class SOCResetBoardAuth extends SOCMessage
      */
     public int getRejoinPlayerNumber()
     {
-        return playerNumber;
+        return p1;
     }
 
     /**
@@ -94,36 +68,13 @@ public class SOCResetBoardAuth extends SOCMessage
      */
     public int getRequestingPlayerNumber()
     {
-        return requesterNumber;
-    }
-
-    /**
-     * RESETBOARDAUTH sep game sep2 playernumber sep2 requester
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game, playerNumber, requesterNumber);
-    }
-
-    /**
-     * RESETBOARDAUTH sep game sep2 playernumber sep2 requester
-     *
-     * @param ga  the name of the game
-     * @param joinpn  the player position number at which to join
-     * @param reqpn  player number who requested the reset
-     * @return the command string
-     */
-    public static String toCmd(String ga, int joinpn, int reqpn)
-    {
-        return RESETBOARDAUTH + sep + ga + sep2 + joinpn + sep2 + reqpn;
+        return p2;
     }
 
     /**
      * Parse the command String into a SOCResetBoardAuth message
      *
-     * @param s   the String to parse
+     * @param s   the String to parse: RESETBOARDAUTH sep game sep2 playernumber sep2 requester
      * @return    a SOCResetBoardAuth message, or null if the data is garbled
      */
     public static SOCResetBoardAuth parseDataStr(String s)
@@ -148,11 +99,4 @@ public class SOCResetBoardAuth extends SOCMessage
         return new SOCResetBoardAuth(ga, joinpn, reqpn);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCResetBoardAuth:game=" + game + "|joinPlayerNumber=" + playerNumber + "|requester=" + requesterNumber;
-    }
 }

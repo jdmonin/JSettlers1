@@ -28,20 +28,15 @@ import soc.server.genericServer.StringConnection;
 /**
  * This message from client to server requests a "reset board" of
  * a game being played. (New game, same name, same players, new layout).
- *
- * If reset is allowed, server will respond with {@link soc.message.SOCResetBoardAuth}
- * and subsequent messages. For details, see 
+ *<P>
+ * If reset is allowed, server will respond with {@link SOCResetBoardVoteRequest}
+ * or {@link SOCResetBoardAuth} and subsequent messages. For details, see 
  * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
  *
  * @author Jeremy D. Monin <jeremy@nand.net>
  */
-public class SOCResetBoardRequest extends SOCMessage
+public class SOCResetBoardRequest extends SOCMessageTemplate0
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
     /**
      * Create a ResetBoardRequest message.
      *
@@ -49,37 +44,7 @@ public class SOCResetBoardRequest extends SOCMessage
      */
     public SOCResetBoardRequest(String ga)
     {
-        messageType = RESETBOARDREQUEST;
-        game = ga;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
-    }
-
-    /**
-     * RESETBOARDREQUEST sep game
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game);
-    }
-
-    /**
-     * RESETBOARDREQUEST sep game
-     *
-     * @param ga  the name of the game
-     * @return the command string
-     */
-    public static String toCmd(String ga)
-    {
-        return RESETBOARDREQUEST + sep + ga;
+        super (RESETBOARDREQUEST, ga);
     }
 
     /**
@@ -93,11 +58,4 @@ public class SOCResetBoardRequest extends SOCMessage
         return new SOCResetBoardRequest(s);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCResetBoardRequest:game=" + game;
-    }
 }

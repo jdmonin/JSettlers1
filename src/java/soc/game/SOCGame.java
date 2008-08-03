@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,8 +38,15 @@ import java.util.Vector;
  * A class for holding and manipulating game data.
  * Most methods are not implicitly thread-safe;
  * call {@link #takeMonitor()} and {@link #releaseMonitor()} around them.
- * 
- * {@link #putPiece(SOCPlayingPiece)} and other game-action methods update the game state.
+ *<P>
+ * The model in this client/server game is, the SOCGame at server contains the game's
+ * complete state information, and game logic advances there.
+ * In the clients, their local SOCGame contains only partial state (for instance, other
+ * players' resources or devel cards may be of unknown type); and the server directly
+ * updates clients' game state by sending messages such as
+ * {@link soc.message.SOCGameState} and {@link soc.message.SOCSetPlayedDevCard}.
+ *<P>
+ * {@link #putPiece(SOCPlayingPiece)} and other game-action methods update gameState.
  *
  * @author Robert S. Thomas
  */
@@ -1085,17 +1093,19 @@ public class SOCGame implements Serializable, Cloneable
          */
         if (active)
         {
-            putPieceAdvanceTurnState();
+            advanceTurnStateAfterPutPiece();
         }
     }
 
     /**
      * After placing a piece on the board, update the state of
      * the game, and possibly current player, for play to continue.
+     *<P>
      * Also used in {@link #forceEndTurn()} to continue the game
      * after a cancelled piece placement in {@link #START1A}..{@link #START2B} .
+     * If the current player number changes here, {@link #isForcingEndTurn()} is cleared. 
      */
-    private void putPieceAdvanceTurnState()
+    private void advanceTurnStateAfterPutPiece()
     {
         //D.ebugPrintln("CHANGING GAME STATE FROM "+gameState);
         switch (gameState)
@@ -1106,34 +1116,36 @@ public class SOCGame implements Serializable, Cloneable
             break;
 
         case START1B:
-        {
-            int tmpCPN = currentPlayerNumber + 1;
-
-            if (tmpCPN >= MAXPLAYERS)
             {
-                tmpCPN = 0;
-            }
-            while (isSeatVacant (tmpCPN))
-            {
-                ++tmpCPN;
+                int tmpCPN = currentPlayerNumber + 1;
+    
                 if (tmpCPN >= MAXPLAYERS)
                 {
                     tmpCPN = 0;
                 }
+                while (isSeatVacant (tmpCPN))
+                {
+                    ++tmpCPN;
+                    if (tmpCPN >= MAXPLAYERS)
+                    {
+                        tmpCPN = 0;
+                    }
+                }
+    
+                if (tmpCPN == firstPlayerNumber)
+                {
+                    // All have placed their first settlement/road.
+                    // Begin second placement.
+                    gameState = START2A;
+                }
+                else
+                {
+                    advanceTurn();
+                    gameState = START1A;
+                }
             }
-
-            if (tmpCPN == firstPlayerNumber)
-            {
-                gameState = START2A;
-            }
-            else
-            {
-                advanceTurn();
-                gameState = START1A;
-            }
-        }
-
-        break;
+    
+            break;
 
         case START2A:
             gameState = START2B;
@@ -1141,37 +1153,38 @@ public class SOCGame implements Serializable, Cloneable
             break;
 
         case START2B:
-        {
-            int tmpCPN = currentPlayerNumber - 1;
-
-            if (tmpCPN < 0)
             {
-                tmpCPN = MAXPLAYERS - 1;
-            }
-            while (isSeatVacant (tmpCPN))
-            {
-                --tmpCPN;
+                int tmpCPN = currentPlayerNumber - 1;
+    
                 if (tmpCPN < 0)
                 {
                     tmpCPN = MAXPLAYERS - 1;
                 }
+                while (isSeatVacant (tmpCPN))
+                {
+                    --tmpCPN;
+                    if (tmpCPN < 0)
+                    {
+                        tmpCPN = MAXPLAYERS - 1;
+                    }
+                }
+    
+                if (tmpCPN == lastPlayerNumber)
+                {
+                    // All have placed their second settlement/road.
+                    // Begin play.
+                    // Player number is unchanged; "virtual" endTurn here.
+                    // Don't clear forcingEndTurn flag, if it's set.
+                    gameState = PLAY;
+                }
+                else
+                {
+                    advanceTurnBackwards();
+                    gameState = START2A;
+                }
             }
 
-            if (tmpCPN == lastPlayerNumber)
-            {
-                // player number is unchanged.
-                // "virtual" endTurn here.                    
-                gameState = PLAY;
-                forcingEndTurn = false;
-            }
-            else
-            {
-                advanceTurnBackwards();
-                gameState = START2A;
-            }
-        }
-
-        break;
+            break;
 
         case PLACING_ROAD:
         case PLACING_SETTLEMENT:
@@ -1550,17 +1563,44 @@ public class SOCGame implements Serializable, Cloneable
      * Takes whatever action needed to force current player to end their turn,
      * and if possible, sets state to {@link #PLAY1}, but does not call {@link #endTurn()}.
      * May be used if player loses connection, or robot does not respond.
+     *<P>
      * TODO finish this javadoc...
+     *<P>
      * Since only the server calls {@link #endTurn()}, this method does not do so.
-     * After calling forceEndTurn, the gamestate will usually be {@link #PLAY1},
-     * or {@link #WAITING_FOR_DISCARDS} if the result is
-     * {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}.
-     * (If WAITING_FOR_DISCARDS, the {@link #isForcingEndTurn()} flag will also be set.)
+     *<P>
+     * After calling forceEndTurn, usually the gameState will be {@link #PLAY1},  
+     * and the caller should call {@link #endTurn()}.  The {@link #isForcingEndTurn()}
+     * flag is also set.
+     * Exceptions (caller should not call endTurn) are these return types:
+     * <UL>
+     * <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}
+     *       - Have forced current player to discard randomly, must now
+     *         wait for other players to discard.
+     *         gameState is {@link #WAITING_FOR_DISCARDS}, current player
+     *         as yet unchanged.
+     * <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_ADV}
+     *       - During initial placement, have skipped placement of
+     *         a player's first settlement or road.
+     *         gameState is {@link #START1A}, current player has changed.
+     * <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_ADVBACK}
+     *       - During initial placement, have skipped placement of
+     *         a player's second settlement or road. (Or, final player's
+     *         first _and_ second settlement or road.)
+     *         gameState is {@link #START2A}, current player has changed.
+     *       <P>
+     *       Note that for the very last initial road placed, during normal
+     *       gameplay, that player continues by rolling the first turn's dice.
+     *       To force skipping such a placement, the caller should call endTurn()
+     *       to change the current player.  This is indicated by
+     *       {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_TURN}.
+     * </UL>
      *
      * @return Type of action performed, one of these values:
      *     <UL>
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_NONE}
-     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_ADV}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_ADVBACK}
+     *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_TURN}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_RET_UNPLACE}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_ROBBER}
      *     <LI> {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD}
@@ -1582,19 +1622,17 @@ public class SOCGame implements Serializable, Cloneable
 
         switch (gameState)
         {
-            case START1A:
-            case START1B:
-            case START2A:
-            case START2B:
-            {
-                int cpn = currentPlayerNumber;
-                putPieceAdvanceTurnState();
-                // STATE STATE STATE here...
-                // Must think this through properly.
-                // chk new state, new playernumber vs old, forcingEndTurn flag
-            }
-            return new SOCForceEndTurnResult
-                (SOCForceEndTurnResult.FORCE_ENDTURN_UNPLACE_START);    
+        case START1A:
+        case START1B:
+            return forceEndTurnStartState(true);
+                // FORCE_ENDTURN_UNPLACE_START_ADV
+                // or FORCE_ENDTURN_UNPLACE_START_ADVBACK
+
+        case START2A:
+        case START2B:
+            return forceEndTurnStartState(false);
+                // FORCE_ENDTURN_UNPLACE_START_ADVBACK
+                // or FORCE_ENDTURN_UNPLACE_START_TURN
 
         case PLAY:
             gameState = PLAY1;
@@ -1642,7 +1680,7 @@ public class SOCGame implements Serializable, Cloneable
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_RET_UNPLACE);
 
         case WAITING_FOR_DISCARDS:
-            return forceEndTurnChkDiscards();  // sets gameState
+            return forceEndTurnChkDiscards(currentPlayerNumber);  // sets gameState, discards randomly
 
         case WAITING_FOR_CHOICE:
             gameState = PLAY1;
@@ -1672,47 +1710,98 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * Choose cards to randomly discard from current player's hand.
+     * Special forceEndTurn() treatment for start-game states.
+     * See {@link #forceEndTurn()} for description.
+     *
+     * @param advTurnForward Should the next player be normal (placing first settlement),
+     *                       or backwards (placing second settlement)?
+     * @return A forceEndTurn result of type
+     *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_ADV},
+     *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_ADVBACK},
+     *         or {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_TURN}.
+     */
+    private SOCForceEndTurnResult forceEndTurnStartState (boolean advTurnForward)
+    {
+        final int cpn = currentPlayerNumber;
+        int cancelResType;  // Turn result type
+
+        /**
+         * Set the state we're advancing "from";
+         * this is needed because {@link #START1A}, {@link #START2A}
+         * don't change player number after placing their piece.
+         */
+        if (advTurnForward)
+            gameState = START1B;
+        else
+            gameState = START2B;
+
+        advanceTurnStateAfterPutPiece();  // Changes state, may change current player
+
+        if (cpn == currentPlayerNumber)
+        {
+            // Player didn't change.  This happens when the last player places
+            // their first or second road.  But we're trying to end this player's
+            // turn, and give another player a chance.
+            if (advTurnForward)
+            {
+                // Was first placement; allow other players to begin second placement. 
+                // This player won't get a second placement either.
+                gameState = START2A;
+                advanceTurnBackwards();
+                cancelResType = SOCForceEndTurnResult.FORCE_ENDTURN_SKIP_START_ADVBACK;
+            } else {
+                // Was second placement; begin normal gameplay.
+                // Set resType to tell caller to call endTurn().
+                gameState = PLAY1;
+                cancelResType = SOCForceEndTurnResult.FORCE_ENDTURN_SKIP_START_TURN;
+            }
+        } else {
+            // OK, player has changed.  This means advanceTurnStateAfterPutPiece()
+            // has also cleared the forcingEndTurn flag.
+            if (advTurnForward)
+                cancelResType = SOCForceEndTurnResult.FORCE_ENDTURN_SKIP_START_ADV;
+            else
+                cancelResType = SOCForceEndTurnResult.FORCE_ENDTURN_SKIP_START_ADVBACK;
+        }
+
+        return new SOCForceEndTurnResult(cancelResType);
+    }
+
+    /**
+     * Randomly discard from current player's hand.
      * Look at other players' hand size. If no one else must discard,
      * ready to end turn. Otherwise, must wait for them; if so,
      * set game state to {@link #WAITING_FOR_DISCARDS} with {@link #isForcingEndTurn()} flag.
+     *
+     * @param pn Player number to force to randomly discard
      * @return The force result, including any discarded resources.
      *         Type will be {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD}
      *         or {@link SOCForceEndTurnResult#FORCE_ENDTURN_RSRC_DISCARD_WAIT}.
      */
-    private SOCForceEndTurnResult forceEndTurnChkDiscards()
+    private SOCForceEndTurnResult forceEndTurnChkDiscards(int pn)
     {
-        boolean otherDiscarders = false;
-        for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
-        {
-            if ((i != currentPlayerNumber) && players[i].getNeedToDiscard())
-            {
-                otherDiscarders = true;
-                break;
-            }
-        }
-
-        // select random cards to discard
+        // select random cards and discard
         SOCResourceSet discards = new SOCResourceSet();
         {
-            SOCResourceSet hand = players[currentPlayerNumber].getResources(); 
+            SOCResourceSet hand = players[pn].getResources(); 
             discardPickRandom(hand, hand.getTotal() / 2, discards, rand);
+            discard(pn, discards);  // Checks for other discarders, sets gameState
         }
 
-        if (otherDiscarders)
+        if (gameState == WAITING_FOR_DISCARDS)
         {
-            gameState = WAITING_FOR_DISCARDS;
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD_WAIT, discards, true);
         } else {
-            gameState = PLAY1;
+            // gameState == PLAY1
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD, discards, true);
         }
     }
 
     /**
-     * choose discards at random
+     * Choose discards at random; does not actually discard anything.
+     *
      * @param fromHand     Discard from this set
      * @param numDiscards  This many must be discarded
      * @param discards     Add discards to this set (typically new,empty, when called)
@@ -1720,7 +1809,7 @@ public class SOCGame implements Serializable, Cloneable
      */
     public static void discardPickRandom(SOCResourceSet fromHand, int numDiscards, SOCResourceSet discards, Random rand)
     {
-        Vector hand = new Vector(16);
+        Vector tempHand = new Vector(16);
 
         // System.err.println("resources="+ourPlayerData.getResources());
         for (int rsrcType = SOCResourceConstants.CLAY;
@@ -1729,7 +1818,7 @@ public class SOCGame implements Serializable, Cloneable
             for (int i = fromHand.getAmount(rsrcType);
                     i != 0; i--)
             {
-                hand.addElement(new Integer(rsrcType));
+                tempHand.addElement(new Integer(rsrcType));
 
                 // System.err.println("rsrcType="+rsrcType);
             }
@@ -1741,11 +1830,11 @@ public class SOCGame implements Serializable, Cloneable
         for (; numDiscards > 0; numDiscards--)
         {
             // System.err.println("numDiscards="+numDiscards+"|hand.size="+hand.size());
-            int idx = Math.abs(rand.nextInt() % hand.size());
+            int idx = Math.abs(rand.nextInt() % tempHand.size());
 
             // System.err.println("idx="+idx);
-            discards.add(1, ((Integer) hand.elementAt(idx)).intValue());
-            hand.removeElementAt(idx);
+            discards.add(1, ((Integer) tempHand.elementAt(idx)).intValue());
+            tempHand.removeElementAt(idx);
         }
     }
 
@@ -1974,7 +2063,7 @@ public class SOCGame implements Serializable, Cloneable
     /**
      * A player is discarding resources. Discard, check if other players
      * must still discard, and set gameState to {@link #WAITING_FOR_DISCARDS}
-     * or {@link #PLACING_ROBBER}.
+     * or {@link #PLACING_ROBBER} accordingly.
      *<P>
      * Special case:
      * If {@link #isForcingEndTurn()}, and no one else needs to discard,
@@ -1993,7 +2082,7 @@ public class SOCGame implements Serializable, Cloneable
          * check if we're still waiting for players to discard
          */
         gameState = PLACING_ROBBER;  // assumes oldGameState set already
-        placingRobberForKnightCard = false;
+        placingRobberForKnightCard = false;  // known because robber doesn't trigger discard
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
@@ -3159,7 +3248,21 @@ public class SOCGame implements Serializable, Cloneable
         {
             gameState = OVER;
             playerWithWin = pn;
-            System.err.println("DEBUG: Set playerWithWin = " + pn);
+            System.err.println("DEBUG: Set playerWithWin = " + pn
+                + " -- in thread: " + Thread.currentThread().getName() + " --");
+            // force a stack trace
+            {
+                int x = 10;
+                int y = 0;
+                try {
+                    gameState = x / y;
+                }
+                catch (Throwable th)
+                {
+                    th.printStackTrace();
+                    System.err.println("-- end playerWithWin locator stacktrace --");
+                }
+            }
         }
     }
 

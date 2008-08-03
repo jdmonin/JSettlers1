@@ -31,18 +31,8 @@ import java.util.StringTokenizer;
  * @see SOCResetBoardRequest
  * @author Jeremy D. Monin <jeremy@nand.net>
  */
-public class SOCResetBoardVoteRequest extends SOCMessage
+public class SOCResetBoardVoteRequest extends SOCMessageTemplate1i
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
-    /**
-     * Player number of player requesting the reset
-     */
-    private int requesterNumber;
-
     /**
      * Create a SOCResetBoardVoteRequest message.
      *
@@ -51,17 +41,7 @@ public class SOCResetBoardVoteRequest extends SOCMessage
      */
     public SOCResetBoardVoteRequest(String ga, int reqpn)
     {
-        messageType = RESETBOARDVOTEREQUEST;
-        game = ga;
-        requesterNumber = reqpn;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
+        super (RESETBOARDVOTEREQUEST, ga, reqpn);
     }
 
     /**
@@ -69,17 +49,7 @@ public class SOCResetBoardVoteRequest extends SOCMessage
      */
     public int getRequestingPlayer()
     {
-        return requesterNumber;
-    }
-
-    /**
-     * RESETBOARDVOTEREQUEST sep game sep2 playernumber
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game, requesterNumber);
+        return p1;
     }
 
     /**
@@ -120,11 +90,4 @@ public class SOCResetBoardVoteRequest extends SOCMessage
         return new SOCResetBoardVoteRequest(ga, reqpn);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCResetBoardVoteRequest:game=" + game + "|requester=" + requesterNumber;
-    }
 }

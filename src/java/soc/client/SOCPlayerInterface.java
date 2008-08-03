@@ -54,7 +54,11 @@ import java.io.PrintWriter;  // For chatPrintStackTrace
 import java.io.StringWriter;
 
 /**
- * Interface for a player of Settlers of Catan
+ * Window with interface for a player in one game of Settlers of Catan.
+ * Contains board, client and other players' hands, chat interface,
+ * game message window, and building/buying panel.
+ *<P>
+ * A separate {@link SOCPlayerClient} window holds the list of current games and channels.
  *
  * @author Robert S. Thomas
  */
@@ -167,7 +171,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     private int clientHandPlayerNum;
 
     /**
-     * the player colors
+     * the player colors. Indexes from 0 to {@link SOCGame#MAXPLAYERS} - 1.
      */
     protected Color[] playerColors, playerColorsGhost;
 
@@ -546,11 +550,11 @@ public class SOCPlayerInterface extends Frame implements ActionListener
             {
                 if (oldp != null)
                 {
-                    msgbuf.append(" taken from ");
+                    msgbuf.append("taken from ");
                     msgbuf.append(oldp.getName());
                     msgbuf.append(" by ");
                 } else {
-                    msgbuf.append(" taken by ");                    
+                    msgbuf.append("taken by ");                    
                 }
                 msgbuf.append(newp.getName());
             } else {

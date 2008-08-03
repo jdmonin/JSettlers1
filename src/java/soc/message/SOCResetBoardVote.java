@@ -25,33 +25,22 @@ import java.util.StringTokenizer;
 /**
  * This bi-directional message gives the client's vote on a "board reset",
  * which was requested by another player in that game.
- *<P>
- * When sent from client to server, it gives that client's vote.
- * This won't come from robots: robots are assumed to vote yes and go along.
- *<P>
- * When sent from server to (other) clients, it informs the players of the
- * other player's vote.
+ *<UL>
+ * <LI> The {@link SOCResetBoardVote} message to server is in response to a {@link SOCResetBoardRequest}
+ *      sent earlier this turn to all non-robot clients. (Robots' vote is always Yes.)
+ * <LI> Followed by (from server, to all clients) {@link SOCResetBoardVote} with the same data,
+ *      informing all players of this client's vote.
+ * <LI> Once voting is complete, server sends to all either a {@link SOCResetBoardAuth} or
+ *      {@link SOCResetBoardReject} message.
+ *</UL>
+ * For details of messages sent, see 
+ * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
  *
- * @see SOCResetBoardRequest
+ * @see SOCResetBoardRequest, SOCResetBoardAuth, SOCResetBoardReject
  * @author Jeremy D. Monin <jeremy@nand.net>
  */
-public class SOCResetBoardVote extends SOCMessage
+public class SOCResetBoardVote extends SOCMessageTemplate2i
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
-    /**
-     * the player number of who voted (used when sending to other clients)
-     */
-    private int playerNumber;
-
-    /**
-     * Did they vote yes?
-     */
-    private boolean votedYes;
-
     /**
      * Create a SOCResetBoardVoteRequest message.
      *
@@ -61,18 +50,7 @@ public class SOCResetBoardVote extends SOCMessage
      */
     public SOCResetBoardVote(String ga, int pn, boolean pyes)
     {
-        messageType = RESETBOARDVOTE;
-        game = ga;
-        playerNumber = pn;
-        votedYes = pyes;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
+        super(RESETBOARDVOTE, ga, pn, pyes ? 1 : 0);
     }
 
     /**
@@ -80,7 +58,7 @@ public class SOCResetBoardVote extends SOCMessage
      */
     public int getPlayerNumber()
     {
-        return playerNumber;
+        return p1;
     }
 
     /**
@@ -88,25 +66,11 @@ public class SOCResetBoardVote extends SOCMessage
      */
     public boolean getPlayerVote()
     {
-        return votedYes;
+        return (p2 != 0);
     }
 
     /**
-     * RESETBOARDVOTE sep game sep2 playernumber sep2 yesno
-     *<P>
-     * Yes is Y, No is N
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game, playerNumber, votedYes);
-    }
-
-    /**
-     * RESETBOARDVOTE sep game sep2 playernumber sep2 yesno
-     *<P>
-     * Yes is Y, No is N
+     * RESETBOARDVOTE sep game sep2 playernumber sep2 yesno [Yes is 1, No is 0]
      *
      * @param ga  the name of the game
      * @param pn  the voter's player number
@@ -122,14 +86,14 @@ public class SOCResetBoardVote extends SOCMessage
     /**
      * Parse the command String into a SOCResetBoardVote message
      *
-     * @param s   the String to parse
+     * @param s   the String to parse: RESETBOARDVOTE sep game sep2 playernumber sep2 yesno [1 or 0]
      * @return    a SOCResetBoardVote message, or null if the data is garbled
      */
     public static SOCResetBoardVote parseDataStr(String s)
     {
         String ga; // the game name
         int pn;    // the voter's player number
-        String vy; // vote, "Y" or "N"
+        int vy;    // vote, 1 or 0
 
         StringTokenizer st = new StringTokenizer(s, sep2);
 
@@ -137,22 +101,14 @@ public class SOCResetBoardVote extends SOCMessage
         {
             ga = st.nextToken();
             pn = Integer.parseInt(st.nextToken());
-            vy = st.nextToken();
+            vy = Integer.parseInt(st.nextToken());
         }
         catch (Exception e)
         {
             return null;
         }
 
-        return new SOCResetBoardVote(ga, pn, vy.equals("Y"));
+        return new SOCResetBoardVote(ga, pn, vy != 0);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCResetBoardVote:game=" + game + "|pn=" + playerNumber
-            + "|vote=" + (votedYes ? "Y" : "N");
-    }
 }

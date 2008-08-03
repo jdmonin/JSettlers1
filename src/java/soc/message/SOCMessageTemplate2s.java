@@ -32,6 +32,7 @@ package soc.message;
  *<P>
  * Sample implementation:
  *<code>
+ *   // format of s: REJECTCARDNAME sep game sep2 cardid sep2 cardname
  *   public static SOCRejectCardName parseDataStr(String s)
  *   {
  *       String ga; // the game name

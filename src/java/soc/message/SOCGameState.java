@@ -27,6 +27,7 @@ import java.util.StringTokenizer;
  * This message communicates the current state of the game
  *
  * @author Robert S Thomas
+ * @see SOCGame#getGameState()
  */
 public class SOCGameState extends SOCMessage
 {

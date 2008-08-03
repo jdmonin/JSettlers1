@@ -31,6 +31,8 @@ package soc.message;
  *<P>
  * Sample implementation:
  *<code>
+ *   // format of s: POTENTIALSETTLEMENTS sep game sep2 settlecoord {sep2 settlecoord}*...
+ *   // Must have at least game + 1 settlement param.
  *   public static SOCPotentialSettlements parseDataStr(String[] s)
  *   {
  *       String ga; // the game name

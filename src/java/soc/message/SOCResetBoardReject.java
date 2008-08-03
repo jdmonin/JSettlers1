@@ -23,20 +23,17 @@ package soc.message;
 import java.util.StringTokenizer;
 
 /**
- * This message from server informs all clients that the board reset
- * request has been rejected in voting.
+ * This message from server informs all clients that voting has ended,
+ * and the board reset request has been rejected.
+ *<P>
+ * Follows {@link SOCResetBoardRequest}, and then usually {@link SOCResetBoardVote}, messages.
  *
  * @see SOCResetBoardRequest
  * @author Jeremy D. Monin <jeremy@nand.net>
  *
  */
-public class SOCResetBoardReject extends SOCMessage
+public class SOCResetBoardReject extends SOCMessageTemplate0
 {
-    /**
-     * Name of game
-     */
-    private String game;
-
     /**
      * Create a SOCResetBoardReject message.
      *
@@ -44,37 +41,7 @@ public class SOCResetBoardReject extends SOCMessage
      */
     public SOCResetBoardReject(String ga)
     {
-        messageType = RESETBOARDREJECT;
-        game = ga;
-    }
-
-    /**
-     * @return the name of the game
-     */
-    public String getGame()
-    {
-        return game;
-    }
-
-    /**
-     * RESETBOARDREJECT sep game
-     *
-     * @return the command string
-     */
-    public String toCmd()
-    {
-        return toCmd(game);
-    }
-
-    /**
-     * RESETBOARDREJECT sep game
-     *
-     * @param ga  the name of the game
-     * @return the command string
-     */
-    public static String toCmd(String ga)
-    {
-        return RESETBOARDREJECT + sep + ga;
+        super(RESETBOARDREJECT, ga);
     }
 
     /**
@@ -89,11 +56,4 @@ public class SOCResetBoardReject extends SOCMessage
         return new SOCResetBoardReject(s);
     }
 
-    /**
-     * @return a human readable form of the message
-     */
-    public String toString()
-    {
-        return "SOCResetBoardReject:game=" + game;
-    }
 }
