@@ -39,12 +39,15 @@ import java.util.Vector;
  * Most methods are not implicitly thread-safe;
  * call {@link #takeMonitor()} and {@link #releaseMonitor()} around them.
  *<P>
- * The model in this client/server game is, the SOCGame at server contains the game's
+ * The model in this client/server game is: The SOCGame at server contains the game's
  * complete state information, and game logic advances there.
- * In the clients, their local SOCGame contains only partial state (for instance, other
+ * Each client's local SOCGame contains only partial state (for instance, other
  * players' resources or devel cards may be of unknown type); and the server directly
  * updates clients' game state by sending messages such as
  * {@link soc.message.SOCGameState} and {@link soc.message.SOCSetPlayedDevCard}.
+ *<P>
+ * For the board <b>coordinate system and terms</b> (hex, node, edge), see the
+ * {@link SOCBoard} class javadoc.
  *<P>
  * {@link #putPiece(SOCPlayingPiece)} and other game-action methods update gameState.
  *

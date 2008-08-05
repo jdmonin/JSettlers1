@@ -30,11 +30,26 @@ import java.util.Vector;
 
 /**
  * This is a representation of the board in Settlers of Catan.
- * 
- * Other methods to examine the board:
- * @see SOCGame.getPlayersOnHex(int)
- * @see SOCGame.putPiece(SOCPlayingPiece)
- *
+ *<P>
+ * Other methods to examine the board: {@link SOCGame#getPlayersOnHex(int)},
+ * {@link SOCGame#putPiece(SOCPlayingPiece)}, etc.
+ *<P>
+ * <b>Coordinate system,</b> as seen in appendix A of Robert S Thomas' dissertation:
+ *<P>
+ * <b>Hexes</b> (represented as coordinate of their centers),
+ * <b>nodes</b> (corners of hexes; where settlements/cities are placed),
+ * and <b>edges</b> (between nodes; where roads are placed),
+ * share the same grid of coordinates.
+ * Each hex is 2 units wide, in a 2-D coordinate system.
+ * The first axis runs northwest to southeast; the second runs southwest to northeast.
+ * Having six sides, hexes run in a straight line west to east, separated by vertical edges;
+ * both coordinates increase along a west-to-east line.
+ *<P>
+ * All coordinates are encoded as two-digit hex integers, one digit per axis (thus 00 to FF).
+ * Unfortunately this means the board can't be expanded without changing this
+ * encoding.
+ * The center hex is encoded as 77; see the dissertation appendix PDF for diagrams.
+ *<P>
  * @author Robert S Thomas
  */
 public class SOCBoard implements Serializable, Cloneable
@@ -42,27 +57,39 @@ public class SOCBoard implements Serializable, Cloneable
     //
     // Hex types
     //
+    /** Desert; lowest-numbered hex type */
     public static final int DESERT_HEX = 0;
     public static final int CLAY_HEX = 1;
     public static final int ORE_HEX = 2;
     public static final int SHEEP_HEX = 3;
     public static final int WHEAT_HEX = 4;
+    /** Wood; highest-numbered land hex type (also MAX_ROBBER_HEX) */
     public static final int WOOD_HEX = 5;  // Also MAX_ROBBER_HEX
+    /** Water hex; higher-numbered than all land hex types */
     public static final int WATER_HEX = 6;
+    /** Misc (3-for-1) port type; lowest-numbered port-hextype integer */
     public static final int MISC_PORT_HEX = 7;  // Must be first port-hextype integer
     public static final int CLAY_PORT_HEX = 8;
     public static final int ORE_PORT_HEX = 9;
     public static final int SHEEP_PORT_HEX = 10;
     public static final int WHEAT_PORT_HEX = 11;
+    /** Wood port type; highest-numbered port-hextype integer */
     public static final int WOOD_PORT_HEX = 12;  // Must be last port-hextype integer
+
+    /** Misc (3-for-1) port; lowest-numbered port-type integer */
     public static final int MISC_PORT = 0;  // Must be first port-type integer
+    /** Clay port type */
     public static final int CLAY_PORT = 1;
+    /** Ore port type */
     public static final int ORE_PORT = 2;
+    /** Sheep port type */
     public static final int SHEEP_PORT = 3;
+    /** Wheat port type */
     public static final int WHEAT_PORT = 4;
+    /** Wood port type; highest-numbered port-type integer */
     public static final int WOOD_PORT = 5;  // Must be last port-type integer
     
-    /** Highest-numbered hex type which may hold a robber. */ 
+    /** Highest-numbered hex type which may hold a robber: {@link #WOOD_HEX}. */ 
     public static final int MAX_ROBBER_HEX = WOOD_HEX;
 
     /**
@@ -101,7 +128,8 @@ public class SOCBoard implements Serializable, Cloneable
     public static final int MAXNODEPLUSONE = MAXNODE + 1;
 
     /***************************************
-       Key to the hexes[] :
+     * Each element's value encodes port facing and hex type.
+       Key to the hexes[] values:
        0 : desert
        1 : clay
        2 : ore
@@ -115,23 +143,25 @@ public class SOCBoard implements Serializable, Cloneable
        10 : misc port facing 4
        11 : misc port facing 5
        12 : misc port facing 6
-        ports are represented in binary like this:
+        ports are represented in binary like this:<pre>
         (port facing)           (kind of port)
-              \--> [0 0 0][0 0 0 0] <--/
+              \--> [0 0 0][0 0 0 0] <--/       </pre>
         kind of port:
-        1 : clay
-        2 : ore
-        3 : sheep
-        4 : wheat
-        5 : wood
-        port facing:
+        1 : clay   {@link #CLAY_PORT}
+        2 : ore    {@link #ORE_PORT}
+        3 : sheep  {@link #SHEEP_PORT}
+        4 : wheat  {@link #WHEAT_PORT}
+        5 : wood   {@link #WOOD_PORT}
+        port facing: <pre>
         6___    ___1
             \/\/
             /  \
        5___|    |___2
            |    |
             \  /
-        4___/\/\___3
+        4___/\/\___3  </pre>
+
+         @see #getHexTypeFromNumber(int)
      **************************************************/
 
     /*
@@ -174,12 +204,15 @@ public class SOCBoard implements Serializable, Cloneable
        -1, 3, 0, 4, -1,
        -1, -1, -1, -1 };
      */
+    /** Dice number from hex numbers; @see #numToHexID */
     private int[] numberLayout = 
     {
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1
     };
+
+    /** Hex coordinates from hex numbers */
     private int[] numToHexID = 
     {
         0x17, 0x39, 0x5B, 0x7D,
@@ -203,42 +236,43 @@ public class SOCBoard implements Serializable, Cloneable
     private int[] hexIDtoNum;
 
     /**
-     * add to hex coord to get all node coords
+     * offset to add to hex coord to get all node coords
      */
     private int[] hexNodes = { 0x01, 0x12, 0x21, 0x10, -0x01, -0x10 };
 
     /**
-     *  all hexes adjacent to a node
+     *  offset of all hexes adjacent to a node
      */
     private int[] nodeToHex = { -0x21, 0x01, -0x01, -0x10, 0x10, -0x12 };
 
     /**
-     * the hex that the robber is in
+     * the hex coordinate that the robber is in; placed on desert in constructor
      */
     private int robberHex;
 
     /**
-     * where the ports are
+     * where the ports are; coordinates per port type.
+     * Indexes are port types, {@link #MISC_PORT} to {@link #WOOD_PORT}.
      */
     private Vector[] ports;
 
     /**
-     * pieces on the board
+     * pieces on the board; Vector of SOCPlayingPiece
      */
     private Vector pieces;
 
     /**
-     * roads on the board
+     * roads on the board; Vector of SOCPlayingPiece
      */
     private Vector roads;
 
     /**
-     * settlements on the board
+     * settlements on the board; Vector of SOCPlayingPiece
      */
     private Vector settlements;
 
     /**
-     * cities on the board
+     * cities on the board; Vector of SOCPlayingPiece
      */
     private Vector cities;
 
@@ -248,7 +282,7 @@ public class SOCBoard implements Serializable, Cloneable
     private Random rand = new Random();
 
     /**
-     * a list of nodes on the board
+     * a list of nodes on the board; key is node's Integer coordinate, value is Boolean
      */
     protected Hashtable nodesOnBoard;
 
@@ -257,7 +291,7 @@ public class SOCBoard implements Serializable, Cloneable
      */
     public SOCBoard()
     {
-        robberHex = -1;
+        robberHex = -1;  // Soon placed on desert
 
         /**
          * generic counter
@@ -340,7 +374,10 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * Auxillery method for initializing the hexIDtoNum array
+     * Auxiliary method for initializing part of the hexIDtoNum array
+     * @param begin Beginning of coordinate range
+     * @param end   Ending coordinate
+     * @param num   Number to assign to {@link #hexIDtoNum}[] within this coordinate range
      */
     private final void initHexIDtoNumAux(int begin, int end, int num)
     {
@@ -387,7 +424,7 @@ public class SOCBoard implements Serializable, Cloneable
             // place the land hexes
             hexLayout[numPath[i]] = landHex[i];
 
-            // place the robber
+            // place the robber on the desert
             if (landHex[i] == 0)
             {
                 robberHex = numToHexID[numPath[i]];
@@ -455,13 +492,16 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * Auxillary method for placing the port hexes
+     * Auxiliary method for placing the port hexes
+     * @param port Port type; in range {@link #MISC_PORT} to {@link #WOOD_PORT}.
+     * @param hex  Hex coordinate
+     * @param face Facing of port; 1 to 6
      */
     private final void placePort(int port, int hex, int face)
     {
         if (port == 0)
         {
-            // generic port
+            // generic port == 6 + facing
             hexLayout[hex] = face + 6;
         }
         else
@@ -543,8 +583,9 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * @return the type of port given a hex type
-     * @param hex  the hex type
+     * @return the type of port given a hex type;
+     *         in range {@link #MISC_PORT} to {@link #WOOD_PORT}
+     * @param hex  the hex type, as in {@link #hexLayout}  
      */
     public int getPortTypeFromHex(int hex)
     {
@@ -583,9 +624,11 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * @return the list of coordinates for a type of port
+     * @return the list of coordinates for a type of port;
+     *         each element is an Integer
      *
-     * @param portType  the type of port
+     * @param portType  the type of port;
+     *        in range {@link #MISC_PORT} to {@link #WOOD_PORT}.
      */
     public Vector getPortCoordinates(int portType)
     {
@@ -605,11 +648,11 @@ public class SOCBoard implements Serializable, Cloneable
     }
 
     /**
-     * Given a hex number, return the number on that hex
+     * Given a hex number, return the (dice-roll) number on that hex
      *
      * @param hex  the number of a hex
      *
-     * @return the number on that hex
+     * @return the dice-roll number on that hex, or 0
      */
     public int getNumberOnHexFromNumber(int hex)
     {
@@ -630,7 +673,9 @@ public class SOCBoard implements Serializable, Cloneable
      *
      * @param hex  the coordinates for a hex
      *
-     * @return the type of hex
+     * @return the type of hex:
+     *         Land in range {@link #CLAY_PORT_HEX} to {@link #WOOD_PORT_HEX},
+     *         {@link #DESERT_HEX}, or {@link #MISC_PORT_HEX} for any port.
      */
     public int getHexTypeFromCoord(int hex)
     {
@@ -640,9 +685,12 @@ public class SOCBoard implements Serializable, Cloneable
     /**
      * Given a hex number, return the type of hex
      *
-     * @param hex  the number of a hex
+     * @param hex  the number of a hex (not its coordinate)
      *
-     * @return the type of hex
+     * @return the type of hex:
+     *         Land in range {@link #CLAY_PORT_HEX} to {@link #WOOD_PORT_HEX},
+     *         {@link #DESERT_HEX}, or {@link #MISC_PORT_HEX} for any port.
+     *
      */
     public int getHexTypeFromNumber(int hex)
     {
@@ -1173,17 +1221,11 @@ public class SOCBoard implements Serializable, Cloneable
 
     /**
      * @return true if the node is on the board
+     * @param node Node coordinate
      */
     public boolean isNodeOnBoard(int node)
     {
-        if (nodesOnBoard.containsKey(new Integer(node)))
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return nodesOnBoard.containsKey(new Integer(node));
     }
 
     /**

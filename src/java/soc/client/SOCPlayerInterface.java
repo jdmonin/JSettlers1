@@ -929,7 +929,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * start game: add "sit" buttons, set chat input (textInput) to initial prompt.
+     * start the game interface: add "sit" buttons, set chat input (textInput) to initial prompt.
+     * This doesn't mean that game play or placement is starting,
+     * only that the window is ready for players to choose where to sit.
      */
     public void began()
     {

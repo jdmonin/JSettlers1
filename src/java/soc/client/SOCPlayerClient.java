@@ -86,6 +86,8 @@ import java.util.Vector;
  * If you want another connection port, you have to specify it as the "port"
  * argument in the html source. If you run this as a stand-alone, you have to
  * specify the port.
+ *<P>
+ * At startup or init, will try to connect to server via {@link #connect()}.
  *
  * @author Robert S Thomas
  */
@@ -624,7 +626,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
     /**
      * Attempts to connect to the server. See {@link #connected} for success or
-     * failure.
+     * failure. Once connected, starts a {@link #reader} thread.
+     *
      * @throws IllegalStateException if already connected 
      */
     public synchronized void connect()
