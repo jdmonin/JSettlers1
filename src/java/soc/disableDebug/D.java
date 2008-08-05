@@ -21,7 +21,9 @@
 package soc.disableDebug;
 
 /**
- * DOCUMENT ME!
+ * Debug output; the disabled class is always off.
+ * {@link soc.debug.D} and soc.disableDebug.D have the same interface, to easily switch
+ * debug on and off per class.
  *
  * @author $author$
  * @version $Revision: 1.1 $
@@ -32,18 +34,18 @@ public class D
     static private boolean enabled = true;
 
     /**
-     * DOCUMENT ME!
+     * Does nothing, since this is the disabled version.
      */
     public static final void ebug_enable() {}
 
     /**
-     * DOCUMENT ME!
+     * Always disabled; does nothing, since this is the disabled version.
      */
     public static final void ebug_disable() {}
 
     /**
      * Is debug currently enabled?
-     * */
+     */
     public static final boolean ebugIsEnabled()
     {
         return false;

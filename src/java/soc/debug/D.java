@@ -21,7 +21,9 @@
 package soc.debug;
 
 /**
- * DOCUMENT ME!
+ * Debug output; can be switched on and off.  All output goes to System.out.
+ * soc.debug.D and {@link soc.disableDebug.D} have the same interface, to easily switch
+ * debug on and off per class.
  *
  * @author $author$
  * @version $Revision: 1.1 $
@@ -108,7 +110,7 @@ public class D
 
         if (prefixMsg != null)
             ebugPrintln(prefixMsg + " - " + ex.toString());
-        System.out.println("-- Exception stack trace begins --");
+        System.out.println("-- Exception stack trace begins -- Thread: " + Thread.currentThread().getName());
         ex.printStackTrace(System.out);
 
         /**
