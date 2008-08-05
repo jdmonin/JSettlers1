@@ -364,7 +364,7 @@ public class SOCServer extends Server
     /**
      * Adds a connection to a game.
      *
-     * @param c    the Connection to be added
+     * @param c    the Connection to be added; its name and version should already be set.
      * @param ga   the name of the game
      *
      * @return     true if c was not a member of ch before
@@ -832,6 +832,7 @@ public class SOCServer extends Server
     }
 
     /**
+     * Used when SOCPlayerClient is also hosting games.
      * @return The names (Strings) of games on this server
      */
     public Enumeration getGameNames()

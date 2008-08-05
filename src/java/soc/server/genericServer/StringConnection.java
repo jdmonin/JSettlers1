@@ -90,4 +90,17 @@ public interface StringConnection
      */
     public abstract Date getConnectTime();
 
+    /**
+     * Give the version number (if known) of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @return Version number, or 0 if unknown.
+     */
+    public abstract int getVersion();
+
+    /**
+     * Set the version number of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @param version Version number, or 0 if unknown.
+     */
+    public abstract void setVersion(int version);
 }

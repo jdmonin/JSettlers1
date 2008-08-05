@@ -50,12 +50,15 @@ import java.util.StringTokenizer;
  *<P>
  * To create a new message type:
  *<UL>
- * <LI> Choose a message type ID (add to the end of the list in this class)
- * <LI> Add it to the switch in {@link #toMsg(String)}.
+ * <LI> Choose a message type name and ID number.  Aadd to the end of the list in this class.
+ *      Add a comment to note the JSettlers version in which it was introduced.
+ * <LI> Add it to the switch in {@link #toMsg(String)}.  Again, note the version.
  * <LI> Extend the SOCMessage class, including the required parseDataStr method.
  *      ({@link SOCDiceResult} and {@link SOCSetTurn} are good example subclasses.)
- * <LI> Add to the switch in either
- *      SOCPlayerClient.treat or SOCServer.processCommand.
+ *      Template parent-classes can help; the example subclasses extend them.
+ *      Be sure to override the minimum version reported in {@link #getMinimumVersion()}.
+ * <LI> Add to the switch in either SOCPlayerClient.treat or SOCServer.processCommand.
+ *      Note the JSettlers version with a comment.
  *</UL>
  *<P>
  * For most messages, at most one {@link #sep} token per message, which separates the messagetype number
@@ -170,6 +173,26 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public int getType()
     {
         return messageType;
+    }
+
+    /**
+     * To identify new message types, give the minimum version where this
+     * type is used.  Default of 1000 (version 1.0.00) unless overridden.
+     * @return Version number, as in 1006 for JSettlers 1.0.06.
+     */
+    public int getMinimumVersion()
+    {
+        return 1000;
+    }
+
+    /**
+     * To identify obsolete message types, give the maximum version where this
+     * type is used.  Default (for active messages) returns {@link Integer#MAX_VALUE}.
+     * @return Version number, as in 1006 for JSettlers 1.0.06, or {@link Integer#MAX_VALUE}.
+     */
+    public int getMaximumVersion()
+    {
+        return Integer.MAX_VALUE;
     }
 
     /**

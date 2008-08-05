@@ -56,9 +56,18 @@ public class Version {
     minJREVersion();
   }
 
-  /** Return the current version string. */
+  /** Return the current version string. @see #versionNumber() */
   public static String version() {
     return versionInfo.getProperty(VERSION);
+  }
+
+  /**
+   * Return the current version number.
+   * @return Version integer; 1100 is version 1.1.00.
+   * @see #version()
+   */
+  public static int versionNumber() {
+    return 1100;  // TODO dynamic
   }
 
   /** Return the copyright string. */

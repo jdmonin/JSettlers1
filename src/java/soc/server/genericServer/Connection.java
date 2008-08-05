@@ -56,6 +56,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     Server sv;
     public Thread reader;
     protected String hst;
+    protected int remoteVersion;
     protected Exception error = null;
     protected Date connectTime = new Date();
     protected boolean connected = false;
@@ -70,6 +71,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         s = so;
         reader = null;
         data = null;
+        remoteVersion = 0;
         
         /* Thread name for debugging */
         if (hst != null)
@@ -323,6 +325,26 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     public boolean isConnected()
     {
         return connected;
+    }
+
+    /**
+     * Give the version number (if known) of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @return Version number, or 0 if unknown.
+     */
+    public int getVersion()
+    {
+        return remoteVersion;
+    }
+
+    /**
+     * Set the version number of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @param version Version number, or 0 if unknown.
+     */
+    public void setVersion(int version)
+    {
+        remoteVersion = version;
     }
 
     class Putter extends Thread

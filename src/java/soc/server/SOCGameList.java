@@ -27,6 +27,7 @@ import soc.game.SOCGame;
 import soc.server.genericServer.StringConnection;
 
 import soc.util.MutexFlag;
+import soc.util.Version;
 
 import java.util.Date;
 import java.util.Enumeration;
@@ -252,10 +253,12 @@ public class SOCGameList
     }
 
     /**
-     * add a member to the game
+     * add a member to the game.
+     * Also checks client's version against game's current range of client versions.
+     * Please call {@link #takeMonitorForGame(String)} before calling this.
      *
      * @param  gaName   the name of the game
-     * @param  conn     the member's connection
+     * @param  conn     the member's connection; version should already be set
      */
     public synchronized void addMember(StringConnection conn, String gaName)
     {
@@ -264,11 +267,28 @@ public class SOCGameList
         if ((members != null) && (!members.contains(conn)))
         {
             members.addElement(conn);
+
+            // Check version range
+            SOCGame ga = getGameData(gaName);
+            int cliLowestAlready  = ga.clientVersionLowest;
+            int cliHighestAlready = ga.clientVersionHighest;
+            final int cliVers = conn.getVersion();
+            if (cliVers < cliLowestAlready)
+            {
+                ga.clientVersionLowest = cliVers;
+                ga.hasOldClients = true;
+            }
+            if (cliVers > cliHighestAlready)
+            {
+                ga.clientVersionHighest = cliVers;
+            }
         }
     }
 
     /**
-     * remove member from the game
+     * remove member from the game.
+     * Also updates game's version range of remaining connected members.
+     * Please call {@link #takeMonitorForGame(String)} before calling this.
      *
      * @param  gaName   the name of the game
      * @param  conn     the member's connection
@@ -280,6 +300,27 @@ public class SOCGameList
         if ((members != null))
         {
             members.removeElement(conn);
+
+            // Check version of remaining members
+            if (! members.isEmpty())
+            {
+                StringConnection c = (StringConnection) members.firstElement();
+                int lowVers = c.getVersion();
+                int highVers = lowVers;
+                for (int i = members.size() - 1; i > 1; --i)
+                {
+                    c = (StringConnection) members.elementAt(i);
+                    int v = c.getVersion();
+                    if (v < lowVers)
+                        lowVers = v;
+                    if (v > highVers)
+                        highVers = v;
+                }
+                SOCGame ga = getGameData(gaName);
+                ga.clientVersionLowest  = lowVers;
+                ga.clientVersionHighest = highVers;
+                ga.hasOldClients = (lowVers < Version.versionNumber());
+            }
         }
     }
 

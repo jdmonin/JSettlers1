@@ -42,6 +42,11 @@ import java.util.Vector;
  *  Local (StringConnection) network system by Jeremy D Monin <jeremy@nand.net>
  *  This is the real stuff. Server subclasses won't have to care about
  *  reading/writing on the net, data consistency among threads, etc.
+ *<P>
+ *  Newly connecting clients arrive in {@link #run()},
+ *  start a thread for the server side of their Connection or LocalStringConnection,
+ *  and are integrated via {@link #addConnection(StringConnection)}
+ *  called from that thread.
  */
 public abstract class Server extends Thread implements Serializable, Cloneable
 {
@@ -296,9 +301,13 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /**
      * Add a connection to the system.
-     * c.connect() is called.
+     * c.connect() is called at the start of this method.
      * If ... (TODO) named vs unnamed...
      * Synchronized on unnamedConns.
+     *<P>
+     * App-specific work should be done by overriding
+     * {@link #newConnection1(StringConnection)} and
+     * {@link #newConnection2(StringConnection)}.
      *
      * @param c Connecting client; its key data ({@link StringConnection#getData()}) must not be null.
      * @see #nameConnection(StringConnection)

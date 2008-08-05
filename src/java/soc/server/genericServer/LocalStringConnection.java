@@ -1,5 +1,5 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.1.
+ * Local (StringConnection) network system.  Version 1.0.2.
  * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
@@ -36,6 +36,8 @@ import soc.disableDebug.D;
  * Constructors will not create or start a thread.
  *
  * @author Jeremy D. Monin <jeremy@nand.net>
+ *  1.0.1 - 2008-07-30 - check s already null in disconnect
+ *  1.0.2 - 2008-08-05 - add getVersion, setVersion  
  */
 public class LocalStringConnection
     implements StringConnection, Runnable
@@ -51,6 +53,7 @@ public class LocalStringConnection
     protected Server ourServer;  // Optional. Notifies at EOF (calls removeConnection).
     protected Exception error;
     protected Date connectTime;
+    protected int  remoteVersion;
 
     /**
      * the abritrary app-specific data associated with this connection
@@ -410,6 +413,26 @@ public class LocalStringConnection
     public boolean isConnected()
     {
         return accepted && ! out_setEOF;
+    }
+
+    /**
+     * Give the version number (if known) of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @return Version number, or 0 if unknown.
+     */
+    public int getVersion()
+    {
+        return remoteVersion;
+    }
+
+    /**
+     * Set the version number of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @param version Version number, or 0 if unknown.
+     */
+    public void setVersion(int version)
+    {
+        remoteVersion = version;
     }
 
     /**

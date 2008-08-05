@@ -198,6 +198,16 @@ public class SOCGame implements Serializable, Cloneable
     public boolean isLocal;
 
     /**
+     * For use at server; are there clients connected which aren't at the latest version?
+     */
+    public boolean hasOldClients;
+
+    /**
+     * For use at server; lowest and highest version of connected clients.
+     */
+    public int clientVersionLowest, clientVersionHighest;
+
+    /**
      * true if the game came from a board reset
      */
     private boolean isFromBoardReset;
