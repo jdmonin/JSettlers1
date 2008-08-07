@@ -56,4 +56,14 @@ public class SOCResetBoardReject extends SOCMessageTemplate0
         return new SOCResetBoardReject(s);
     }
 
+    /**
+     * Minimum version where this message type is used.
+     * RESETBOARDREJECT introduced in 1.1.00 for reset-board feature.
+     * @return Version number, 1100 for JSettlers 1.1.00.
+     */
+    public int getMinimumVersion()
+    {
+        return 1100;
+    }
+
 }

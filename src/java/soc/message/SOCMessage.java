@@ -51,7 +51,8 @@ import java.util.StringTokenizer;
  * To create a new message type:
  *<UL>
  * <LI> Choose a message type name and ID number.  Aadd to the end of the list in this class.
- *      Add a comment to note the JSettlers version in which it was introduced.
+ *      Add a comment to note the JSettlers version in which it was introduced,
+ *      and the date.
  * <LI> Add it to the switch in {@link #toMsg(String)}.  Again, note the version.
  * <LI> Extend the SOCMessage class, including the required parseDataStr method.
  *      ({@link SOCDiceResult} and {@link SOCSetTurn} are good example subclasses.)
@@ -59,6 +60,11 @@ import java.util.StringTokenizer;
  *      Be sure to override the minimum version reported in {@link #getMinimumVersion()}.
  * <LI> Add to the switch in either SOCPlayerClient.treat or SOCServer.processCommand.
  *      Note the JSettlers version with a comment.
+ *      <P>
+ *      <em>Note:</em> Most things added to SOCPlayerClient.treat should also be added to
+ *      {@link soc.client.SOCDisplaylessPlayerClient#treat(SOCMessage)},
+ *      to {@link soc.robot.SOCRobotClient#treat(SOCMessage)},
+ *      and possibly to {@link soc.robot.SOCRobotBrain#run(). 
  *</UL>
  *<P>
  * For most messages, at most one {@link #sep} token per message, which separates the messagetype number
@@ -148,6 +154,7 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public static final int RESETBOARDVOTEREQUEST = 1075; // resetboard, 20080223, sf patch#tbd
     public static final int RESETBOARDVOTE = 1076;     // resetboard, 20080223, sf patch#tbd
     public static final int RESETBOARDREJECT = 1077;   // resetboard, 20080223, sf patch#tbd
+    public static final int VERSION = 9998;   // cli-serv versioning, 20080807, v1.1.00
     public static final int SERVERPING = 9999;
 
     /**
@@ -236,7 +243,8 @@ public abstract class SOCMessage implements Serializable, Cloneable
      * The string is in the form of "<ID> sep <message name> sep <message data>"
      *
      * @param s  String to convert
-     * @return   converted String to a SOCMessage, or null if the string is garbled
+     * @return   converted String to a SOCMessage, or null if the string is garbled,
+     *           or is an unknown command id
      */
     public static SOCMessage toMsg(String s)
     {
@@ -529,6 +537,9 @@ public abstract class SOCMessage implements Serializable, Cloneable
 
             case RESETBOARDREJECT:   // resetboard, 20080223, sf patch#tbd
                 return SOCResetBoardReject.parseDataStr(data);
+
+            case VERSION:            // cli-serv versioning, 20080807, v1.1.00
+                return SOCVersion.parseDataStr(data);
 
             default:
                 System.err.println("Unhandled message type in SOCMessage.toMsg: " + msgId);

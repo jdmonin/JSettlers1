@@ -88,6 +88,7 @@ import java.util.Vector;
  * specify the port.
  *<P>
  * At startup or init, will try to connect to server via {@link #connect()}.
+ * See that method for more details.
  *
  * @author Robert S Thomas
  */
@@ -144,6 +145,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Exception ex = null;    // Network errors (TCP communication)
     protected Exception ex_L = null;  // Local errors (stringport pipes)
     protected boolean connected = false;
+    /** Server version number, sent soon after connect, or -1 if unknown */
+    protected int sVersion, sLocalVersion;
+
     /**
      * Once true, disable "nick" textfield, etc.
      * Remains true, even if connected becomes false.
@@ -627,8 +631,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Attempts to connect to the server. See {@link #connected} for success or
      * failure. Once connected, starts a {@link #reader} thread.
+     * The first message over the connection is the server's response:
+     * Either {@link SOCRejectConnection}, or the lists of
+     * channels and games ({@link SOCChannels}, {@link SOCGames}).
      *
-     * @throws IllegalStateException if already connected 
+     * @throws IllegalStateException if already connected
+     * @see soc.server.SOCServer#newConnection1(StringConnection)
      */
     public synchronized void connect()
     {
@@ -1074,7 +1082,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * continuously read from the net in a separate thread
+     * continuously read from the net in a separate thread;
+     * not used for talking to the practice server.
      */
     public void run()
     {
@@ -1125,12 +1134,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         lastMessage_N = s;
 
-        D.ebugPrintln("OUT - " + SOCMessage.toMsg(s));
-
         if ((ex != null) || !connected)
         {
             return false;
         }
+
+        if (D.ebugIsEnabled())
+            D.ebugPrintln("OUT - " + SOCMessage.toMsg(s));
 
         try
         {
@@ -1158,12 +1168,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         lastMessage_L = s;
 
-        D.ebugPrintln("OUT L- " + SOCMessage.toMsg(s));
-
         if ((ex_L != null) || !prCli.isConnected())
         {
             return false;
         }
+
+        if (D.ebugIsEnabled())
+            D.ebugPrintln("OUT L- " + SOCMessage.toMsg(s));
 
         prCli.put(s);
 
@@ -1195,12 +1206,23 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void treat(SOCMessage mes, boolean isLocal)
     {
+        if (mes == null)
+            return;  // Parsing error
+
         D.ebugPrintln(mes.toString());
 
         try
         {
             switch (mes.getType())
             {
+            /**
+             * server's version message
+             */
+            case SOCMessage.VERSION:
+                handleVERSION(isLocal, (SOCVersion) mes);
+
+                break;
+
             /**
              * status message
              */
@@ -1627,6 +1649,30 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             System.out.println("SOCPlayerClient treat ERROR - " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Handle the "version" message, server's version report.
+     * Reply with client's version.
+     *
+     * @param isLocal Is the server local, or remote?  Client can be connected
+     *                only to local, or remote.
+     * @param mes  the messsage
+     */
+    private void handleVERSION(boolean isLocal, SOCVersion mes)
+    {
+        D.ebugPrintln("handleVERSION: " + mes);
+        int vers = mes.getVersionNumber();
+        if (isLocal)
+            sLocalVersion = vers;
+        else
+            sVersion = vers;
+
+        // TODO check for minimum,maximum
+
+        // Reply with our own version.
+        put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()),
+                isLocal);
     }
 
     /**

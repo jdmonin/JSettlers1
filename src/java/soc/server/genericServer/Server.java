@@ -36,17 +36,22 @@ import java.util.Vector;
 
 
 /** a general purpose server
- *  @version 1.5
- *  Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A>
- *  Lots of mods by Robert S. Thomas and Jay Budzik
- *  Local (StringConnection) network system by Jeremy D Monin <jeremy@nand.net>
+ *<P>
  *  This is the real stuff. Server subclasses won't have to care about
  *  reading/writing on the net, data consistency among threads, etc.
  *<P>
  *  Newly connecting clients arrive in {@link #run()},
  *  start a thread for the server side of their Connection or LocalStringConnection,
- *  and are integrated via {@link #addConnection(StringConnection)}
+ *  and are integrated into server data via {@link #addConnection(StringConnection)}
  *  called from that thread.
+ *<P>
+ *  The first message over the connection should be from the server to the client,
+ *  in {@link #newConnection1(StringConnection)} or {@link #newConnection2(StringConnection)}.
+ *<P>
+ *  @version 1.5
+ *  @author Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A> <br>
+ *  Lots of mods by Robert S. Thomas and Jay Budzik <br>
+ *  Local (StringConnection) network system by Jeremy D Monin <jeremy@nand.net>
  */
 public abstract class Server extends Thread implements Serializable, Cloneable
 {
@@ -213,15 +218,21 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /** placeholder for doing things when server gets down */
     protected void serverDown() {}
 
-    /** placeholder for doing things when a new connection comes, part 1 -
-     *  decide whether to accept.
-     *  If the connection is accepted, it's added to a list ({@link #unnamedConns} or {@link #conns}).
-     *  Unless you override this method, always returns true.
-     *   Note that {@link #addConnection(StringConnection)} won't close the channel or
-     *   take other action to disconnect a rejected client.
-     *  SYNCHRONIZATION NOTE: During the call to newConnection1, the monitor lock of
-     *  {@link #unnamedConns} is held.  Thus, defer as much as possible until
-     *  {@link #newConnection2(StringConnection)} (after the connection is accepted).
+    /**
+     * placeholder for doing things when a new connection comes, part 1 -
+     * decide whether to accept.
+     * If the connection is accepted, it's added to a list ({@link #unnamedConns} or {@link #conns}).
+     * Unless you override this method, always returns true.
+     *<P>
+     * Should send a message to the client in either {@link #newConnection1(StringConnection)}
+     * or {@link #newConnection2(StringConnection)}.
+     *<P>
+     * Note that {@link #addConnection(StringConnection)} won't close the channel or
+     * take other action to disconnect a rejected client.
+     *<P>
+     * SYNCHRONIZATION NOTE: During the call to newConnection1, the monitor lock of
+     * {@link #unnamedConns} is held.  Thus, defer as much as possible until
+     * {@link #newConnection2(StringConnection)} (after the connection is accepted).
      *
      * @param c incoming connection to evaluate and act on
      * @return true to accept and continue, false if you have rejected this connection

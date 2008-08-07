@@ -95,7 +95,10 @@ import soc.message.SOCStartGame;
 import soc.message.SOCStatusMessage;
 import soc.message.SOCTextMsg;
 import soc.message.SOCTurn;
+import soc.message.SOCVersion;
 import soc.server.genericServer.LocalStringConnection;
+import soc.server.genericServer.StringConnection;
+import soc.util.Version;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -112,6 +115,8 @@ import java.util.Hashtable;
  * If you want another connection port, you have to specify it as the "port"
  * argument in the html source. If you run this as a stand-alone, you have to
  * specify the port.
+ *<P>
+ * The {@link soc.robot.SOCRobotClient} is based on this client.
  *
  * @author Robert S Thomas
  */
@@ -128,6 +133,8 @@ public class SOCDisplaylessPlayerClient implements Runnable
     protected DataInputStream in;
     protected DataOutputStream out;
     protected LocalStringConnection sLocal;  // if strSocketName not null
+    /** Server version number, sent soon after connect, or -1 if unknown */
+    protected int sVersion, sLocalVersion;
     protected Thread reader = null;
     protected Exception ex = null;
     protected boolean connected = false;
@@ -171,6 +178,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
         port = 8889;
         strSocketName = null;
         gotPassword = false;
+        sVersion = -1;  sLocalVersion = -1;
     }
 
     /**
@@ -185,6 +193,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
         host = h;
         port = p;
         strSocketName = null;
+        sVersion = -1;  sLocalVersion = -1;
     }
 
     /**
@@ -303,12 +312,23 @@ public class SOCDisplaylessPlayerClient implements Runnable
      */
     public void treat(SOCMessage mes)
     {
+        if (mes == null)
+            return;  // Msg parsing error
+
         D.ebugPrintln(mes.toString());
 
         try
         {
             switch (mes.getType())
             {
+            /**
+             * server's version message
+             */
+            case SOCMessage.VERSION:
+                handleVERSION((sLocal != null), (SOCVersion) mes);
+
+                break;
+
             /**
              * status message
              */
@@ -717,6 +737,29 @@ public class SOCDisplaylessPlayerClient implements Runnable
     protected void handleJOINAUTH(SOCJoinAuth mes)
     {
         gotPassword = true;
+    }
+
+    /**
+     * Handle the "version" message, server's version report.
+     * Reply with client's version.
+     *
+     * @param isLocal Is the server local, or remote?  Client can be connected
+     *                only to local, or remote.
+     * @param mes  the messsage
+     */
+    private void handleVERSION(boolean isLocal, SOCVersion mes)
+    {
+        D.ebugPrintln("handleVERSION: " + mes);
+        int vers = mes.getVersionNumber();
+        if (isLocal)
+            sLocalVersion = vers;
+        else
+            sVersion = vers;
+
+        // TODO check for minimum,maximum
+
+        // Reply with our own version.
+        put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
     }
 
     /**

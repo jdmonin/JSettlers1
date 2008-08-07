@@ -67,7 +67,7 @@ public class Version {
    * @see #version()
    */
   public static int versionNumber() {
-    return 1100;  // TODO dynamic
+    return 1100;  // TODO dynamic from properties
   }
 
   /** Return the copyright string. */

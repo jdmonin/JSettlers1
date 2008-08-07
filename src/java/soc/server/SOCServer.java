@@ -1273,6 +1273,7 @@ public class SOCServer extends Server
      * Things to do when a new connection comes.
      * If the connection is accepted, it's added to {@link #unnamedConns} until the
      * player "names" it by joining or creating a game under their player name.
+     * Other communication is then done, in {@link #newConnection2(StringConnection)}.
      *  SYNCHRONIZATION NOTE: During the call to newConnection1, the monitor lock of
      *  {@link #unnamedConns} is held.  Thus, defer as much as possible until
      *  {@link #newConnection2(StringConnection)} (after the connection is accepted).
@@ -1347,13 +1348,24 @@ public class SOCServer extends Server
         return false;  // Not accepted
     }
 
-    /** Send welcome messages (channel list, game list) when a new connection comes, part 2 -
-     *  c has been accepted and added to a connection list.
-     *  Unlike {@link #newConnection1(StringConnection)},
-     *  no connection-list locks are held when this method is called.
+    /**
+     * Send welcome messages (server version, and the lists of channels and games
+     * ({@link SOCChannels}, {@link SOCGames})) when a new
+     * connection comes, part 2 - c has been accepted and added to a connection list.
+     * Unlike {@link #newConnection1(StringConnection)},
+     * no connection-list locks are held when this method is called.
+     *<P>
+     * Also set client's "assumed version" to -1, until we have sent and
+     * received a VERSION message.
      */
     protected void newConnection2(StringConnection c)
     {
+        c.setVersion(-1);
+
+        // VERSION
+        c.put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
+
+        // CHANNELS
         Vector cl = new Vector();
         channelList.takeMonitor();
 
@@ -1375,6 +1387,7 @@ public class SOCServer extends Server
 
         c.put(SOCChannels.toCmd(cl));
 
+        // GAMES
         Vector gl = new Vector();
         gameList.takeMonitor();
 
@@ -1470,6 +1483,15 @@ public class SOCServer extends Server
 
                 switch (mes.getType())
                 {
+
+                /**
+                 * client's "version" message
+                 */
+                case SOCMessage.VERSION:
+                    handleVERSION(c, (SOCVersion) mes);
+
+                    break;
+                
                 /**
                  * "join a channel" message
                  */
@@ -2156,6 +2178,23 @@ public class SOCServer extends Server
         //
         //SOCDBHelper.recordLogin(userName, c.host(), currentTime.getTime());
         return true;
+    }
+
+    /**
+     * Handle the "version" message, client's version report.
+     * May ask to disconnect, if version is too old.
+     *
+     * @param c  the connection that sent the message
+     * @param mes  the messsage
+     */
+    private void handleVERSION(StringConnection c, SOCVersion mes)
+    {
+        if (c == null)
+            return;
+        
+        D.ebugPrintln("handleVERSION: " + mes);
+        c.setVersion(mes.getVersionNumber());
+        // TODO check for minimum
     }
 
     /**

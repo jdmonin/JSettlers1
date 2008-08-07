@@ -111,4 +111,14 @@ public class SOCResetBoardVote extends SOCMessageTemplate2i
         return new SOCResetBoardVote(ga, pn, vy != 0);
     }
 
+    /**
+     * Minimum version where this message type is used.
+     * RESETBOARDVOTE introduced in 1.1.00 for reset-board feature.
+     * @return Version number, 1100 for JSettlers 1.1.00.
+     */
+    public int getMinimumVersion()
+    {
+        return 1100;
+    }
+
 }

@@ -125,4 +125,15 @@ public class SOCRollDicePrompt extends SOCMessage
     {
         return "SOCRollDicePrompt:game=" + game + "|playerNumber=" + playerNumber;
     }
+
+    /**
+     * Minimum version where this message type is used.
+     * ROLLDICEPROMPT introduced in 1.1.00 for automatic rolling after x seconds.
+     * @return Version number, 1100 for JSettlers 1.1.00.
+     */
+    public int getMinimumVersion()
+    {
+        return 1100;
+    }
+
 }

@@ -58,4 +58,14 @@ public class SOCResetBoardRequest extends SOCMessageTemplate0
         return new SOCResetBoardRequest(s);
     }
 
+    /**
+     * Minimum version where this message type is used.
+     * RESETBOARDREQUEST introduced in 1.1.00 for reset-board feature.
+     * @return Version number, 1100 for JSettlers 1.1.00.
+     */
+    public int getMinimumVersion()
+    {
+        return 1100;
+    }
+
 }

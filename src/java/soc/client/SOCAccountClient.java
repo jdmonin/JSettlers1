@@ -481,6 +481,9 @@ public class SOCAccountClient extends Applet implements Runnable, ActionListener
      */
     public void treat(SOCMessage mes)
     {
+        if (mes == null)
+            return;  // Msg parsing error
+
         D.ebugPrintln(mes.toString());
 
         try
