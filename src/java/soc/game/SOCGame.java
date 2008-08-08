@@ -90,6 +90,8 @@ public class SOCGame implements Serializable, Cloneable
      */
     public static final int NEW = 0; // Brand new game
     public static final int READY = 1; // Ready to start playing
+    public static final int SETOPTIONS_EXCL = 2; // Future use: Game owner setting options, no one can yet connect
+    public static final int SETOPTIONS_INCL = 3; // Future use: Game owner setting options, but anyone can connect
     public static final int START1A = 5; // Players place 1st stlmt
     public static final int START1B = 6; // Players place 1st road
     public static final int START2A = 10; // Players place 2nd stlmt
