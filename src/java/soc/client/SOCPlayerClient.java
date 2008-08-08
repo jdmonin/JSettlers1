@@ -217,6 +217,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected boolean gotPassword;
 
     /**
+     * face ID chosen most recently (for use in new games)
+     */
+    protected int lastFaceChange;
+
+    /**
      * the channels
      */
     protected Hashtable channels = new Hashtable();
@@ -297,6 +302,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         host = h;
         port = p;
         hasConnectOrPractice = cp;
+        lastFaceChange = 1;  // Default human face
     }
 
     /**
@@ -2057,12 +2063,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
                 pi.getBuildingPanel().setPlayer();
 
                 /**
-                 * chenge the face (this is so that old faces don't 'stick')
+                 * change the face (this is so that old faces don't 'stick')
                  */
-                if (! ga.isBoardReset())
+                if (! ga.isBoardReset() && (ga.getGameState() < SOCGame.START1A))
                 {
-                    ga.getPlayer(mesPN).setFaceId(1);
-                    changeFace(ga, 1);
+                    ga.getPlayer(mesPN).setFaceId(lastFaceChange);
+                    changeFace(ga, lastFaceChange);
                 }
             }
 
@@ -3451,6 +3457,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     public void changeFace(SOCGame ga, int id)
     {
+        lastFaceChange = id;
         put(SOCChangeFace.toCmd(ga.getName(), ga.getPlayer(nickname).getPlayerNumber(), id), ga.isLocal);
     }
 
