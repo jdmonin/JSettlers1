@@ -216,6 +216,16 @@ public class LocalStringConnection
             out_setEOF = true;
             out.notifyAll();
         }
+        disconnectSoft();  // clear "in", set its EOF
+    }
+
+    /** accept no further input, allow output to drain, don't immediately close the socket. */
+    public void disconnectSoft()
+    {
+        if (in_reachedEOF)
+            return;
+
+        D.ebugPrintln("DISCONNECTING(SOFT) " + data);
         synchronized (in)
         {
             in.clear();

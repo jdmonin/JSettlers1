@@ -63,6 +63,9 @@ public interface StringConnection
     /** close the socket, set EOF */
     public abstract void disconnect();
 
+    /** accept no further input, allow output to drain, don't immediately close the socket. */
+    public abstract void disconnectSoft();
+
     /**
      * @return The app-specific data for this connection.
      */

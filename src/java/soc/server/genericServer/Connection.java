@@ -60,6 +60,8 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected Exception error = null;
     protected Date connectTime = new Date();
     protected boolean connected = false;
+    /** @see #disconnectSoft() */
+    protected boolean inputConnected = false;
     public Vector outQueue = new Vector();
 
     /** initialize the connection data */
@@ -101,6 +103,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             in = new DataInputStream(s.getInputStream());
             out = new DataOutputStream(s.getOutputStream());
             connected = true;
+            inputConnected = true;
             reader = this;
             connectTime = new Date();
 
@@ -134,7 +137,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
         try
         {
-            while (connected)
+            while (inputConnected)
             {
                 // readUTF max message size is 65535 chars, modified utf-8 format
                 sv.treat(in.readUTF(), this);
@@ -151,7 +154,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
             if (!connected)
             {
-                return;
+                return;  // Don't set error twice
             }
 
             error = e;
@@ -294,6 +297,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
         D.ebugPrintln("DISCONNECTING " + data);
         connected = false;
+        inputConnected = false;
 
         /*                if(Thread.currentThread()!=reader && reader!=null && reader.isAlive())
            reader.stop();*/
@@ -319,12 +323,22 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         out = null;
     }
 
+    /** accept no further input, allow output to drain, don't immediately close the socket. */
+    public void disconnectSoft()
+    {
+        if (! inputConnected)
+            return;
+
+        D.ebugPrintln("DISCONNECTING(SOFT) " + data);
+        inputConnected = false;
+    }
+
     /**
      * Are we currently connected and active?
      */
     public boolean isConnected()
     {
-        return connected;
+        return connected && inputConnected;
     }
 
     /**

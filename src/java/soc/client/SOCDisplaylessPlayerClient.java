@@ -1545,6 +1545,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
     protected void handleREJECTCONNECTION(SOCRejectConnection mes)
     {
         rejected = true;
+        System.err.println("Rejected by server: " + mes.getText());
         disconnect();
     }
 

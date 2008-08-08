@@ -73,6 +73,21 @@ public class SOCServer extends Server
     public static final String SERVERNAME = "Server";
 
     /**
+     * Minimum required client version, to connect and play a game.
+     * Same format as {@link soc.util.Version#versionNumber()}.
+     * Currently there is no minimum.
+     * @see #setClientVersionOrReject(StringConnection, int)
+     */
+    public static final int CLI_VERSION_MIN = 0;
+
+    /**
+     * Minimum required client version, in "display" form, like "1.0.00".
+     * Currently there is no minimum.
+     * @see #setClientVersionOrReject(StringConnection, int)
+     */
+    public static final String CLI_VERSION_MIN_DISPLAY = "0.0.00";
+
+    /**
      * If game will expire in this or fewer minutes, warn the players. Default 10.
      * Must be at least twice the sleep-time in SOCGameTimeoutChecker.run().
      * The game expiry time is set at game creation in SOCGameList.CreateGame.
@@ -362,7 +377,7 @@ public class SOCServer extends Server
     }
 
     /**
-     * Adds a connection to a game.
+     * Adds a connection to a game.  If the game doesn't yet exist, create it.
      *
      * @param c    the Connection to be added; its name and version should already be set.
      * @param ga   the name of the game
@@ -1279,7 +1294,8 @@ public class SOCServer extends Server
      *  {@link #newConnection2(StringConnection)} (after the connection is accepted).
      *
      * @param c  the new Connection
-     * @return true to accept and continue, false if you have rejected this connection
+     * @return true to accept and continue, false if you have rejected this connection;
+     *         if false, addConnection will call {@link StringConnection#disconnectSoft()}.
      *
      * @see #addConnection(StringConnection)
      * @see #newConnection2(StringConnection)
@@ -2193,12 +2209,40 @@ public class SOCServer extends Server
             return;
         
         D.ebugPrintln("handleVERSION: " + mes);
-        c.setVersion(mes.getVersionNumber());
-        // TODO check for minimum
+        setClientVersionOrReject(c, mes.getVersionNumber());
     }
 
     /**
-     * Handle the "join a channel" message
+     * Set client's version, and check against minimum required version {@link #CLI_VERSION_MIN}.
+     * If version is too low, send {@link SOCRejectConnection}.
+     * 
+     * @param c     Client's connection
+     * @param cvers Version reported by client, or assumed if no report
+     * @return True if OK, false if rejected
+     */
+    private boolean setClientVersionOrReject(StringConnection c, int cvers)
+    {
+        c.setVersion(cvers);
+        if (cvers < CLI_VERSION_MIN)
+        {
+            String rejectMsg;
+            if (cvers > 0)
+                rejectMsg = "Sorry, your client version number " + cvers + " is too old, version ";
+            else
+                rejectMsg = "Sorry, your client version is too old, version number ";
+            rejectMsg += Integer.toString(CLI_VERSION_MIN)
+                + " (" + CLI_VERSION_MIN_DISPLAY + ") or above is required.";
+            c.put(new SOCRejectConnection(rejectMsg).toCmd());
+            c.disconnectSoft();
+            System.out.println("Rejected client: Version " + cvers + " too old");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Handle the "join a channel" message.
+     * If client hasn't yet sent its version, assume is version 1.0.00, disconnect if too low.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2208,6 +2252,15 @@ public class SOCServer extends Server
         if (c != null)
         {
             D.ebugPrintln("handleJOIN: " + mes);
+
+            /**
+             * Check the reported version
+             */
+            if (c.getVersion() == -1)
+            {
+                if (! setClientVersionOrReject(c, 1000))
+                    return;  // <--- Early return: Client too old ---
+            }
 
             /**
              * Check that the nickname is ok
@@ -2339,7 +2392,9 @@ public class SOCServer extends Server
     }
 
     /**
-     * Handle the "I'm a robot" message
+     * Handle the "I'm a robot" message.
+     * Robots send their {@link SOCVersion} before sending this message.
+     * Their version is checked here, must equal server's version.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2348,6 +2403,21 @@ public class SOCServer extends Server
     {
         if (c != null)
         {
+            /**
+             * Check the reported version
+             */
+            int srvVers = Version.versionNumber();
+            int cliVers = c.getVersion(); 
+            if (cliVers != srvVers)
+            {
+                String rejectMsg = "Sorry, robot client version does not match, version number "
+                    + Integer.toString(srvVers) + " is required.";
+                c.put(new SOCRejectConnection(rejectMsg).toCmd());
+                c.disconnectSoft();
+                System.out.println("Rejected robot " + mes.getNickname() + ": Version " + cliVers + " does not match server version");
+                return;  // <--- Early return: Robot client too old ---
+            }
+
             /**
              * Check that the nickname is ok
              */
@@ -2358,6 +2428,7 @@ public class SOCServer extends Server
                 c.put(rcCommand.toCmd());
                 System.err.println("Robot login attempt, name already in use: " + mes.getNickname());
                 // c.disconnect();
+                c.disconnectSoft();
 
                 return;
             }
@@ -2393,8 +2464,9 @@ public class SOCServer extends Server
     }
 
     /**
-     * Handle the "join a game" message.
+     * Handle the "join a game" message: Join or create a game.
      * Will join the game, or return a STATUSMESSAGE if nickname is not OK.
+     * If client hasn't yet sent its version, assume is version 1.0.00, disconnect if too low.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2404,6 +2476,15 @@ public class SOCServer extends Server
         if (c != null)
         {
             D.ebugPrintln("handleJOINGAME: " + mes);
+
+            /**
+             * Check the reported version
+             */
+            if (c.getVersion() == -1)
+            {
+                if (! setClientVersionOrReject(c, 1000))
+                    return;  // <--- Early return: Client too old ---
+            }
 
             /**
              * Check that the nickname is ok
@@ -2441,7 +2522,8 @@ public class SOCServer extends Server
              */
 
             /**
-             * Tell the client that everything is good to go
+             * Tell the client that everything is good to go;
+             * if game doesn't yet exist, it's created here.
              */
             if (connectToGame(c, mes.getGame()))
             {

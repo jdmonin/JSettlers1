@@ -73,12 +73,14 @@ import soc.message.SOCStartGame;
 import soc.message.SOCStatusMessage;
 import soc.message.SOCTurn;
 import soc.message.SOCUpdateRobotParams;
+import soc.message.SOCVersion;
 
 import soc.server.genericServer.LocalStringServerSocket;
 
 import soc.util.CappedQueue;
 import soc.util.CutoffExceededException;
 import soc.util.SOCRobotParameters;
+import soc.util.Version;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -193,7 +195,7 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     }
 
     /**
-     * Initialize the robot player
+     * Initialize the robot player; connect to server, send first messages
      */
     public void init()
     {
@@ -216,6 +218,7 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
 
             //resetThread = new SOCRobotResetThread(this);
             //resetThread.start();
+            put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
             put(SOCImARobot.toCmd(nickname));
         }
         catch (Exception e)

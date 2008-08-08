@@ -235,7 +235,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * {@link #newConnection2(StringConnection)} (after the connection is accepted).
      *
      * @param c incoming connection to evaluate and act on
-     * @return true to accept and continue, false if you have rejected this connection
+     * @return true to accept and continue, false if you have rejected this connection;
+     *         if false, addConnection will call {@link StringConnection#disconnectSoft()}.
      *
      * @see #addConnection(StringConnection)
      * @see #newConnection2(StringConnection)
@@ -340,6 +341,10 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                         conns.put(cKey, c);
                     else
                         unnamedConns.add(c);
+                }
+                else
+                {
+                    c.disconnectSoft();
                 }
             } else {
                 return;  // <--- early return: c.connect failed ---
