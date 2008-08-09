@@ -1,5 +1,5 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.0.
+ * Local (StringConnection) network system.  Version 1.0.3.
  * Copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,13 @@ import java.util.Date;
  * with no difference between local and actual networked traffic.
  * 
  * @author Jeremy D Monin <jeremy@nand.net>
+ *
+ *<PRE>
+ *  1.0.0 - 2007-11-18 - initial release
+ *  1.0.1 - 2008-06-28 - add getConnectTime
+ *  1.0.2 - 2008-07-30 - no change in this file
+ *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
+ *</PRE>
  */
 public interface StringConnection
 {
@@ -53,17 +60,21 @@ public interface StringConnection
     /** Are we currently connected and active? */
     public abstract boolean isConnected();
 
-    /** start ability to read from the net; called only by the server.
+    /** Start ability to read from the net; called only by the server.
      * (In a network-based subclass, another thread may be started by this method.)
      * 
      * @return true if able to connect, false if an error occurred.
      */    
     public abstract boolean connect(); 
 
-    /** close the socket, set EOF */
+    /** Close the socket, set EOF */
     public abstract void disconnect();
 
-    /** accept no further input, allow output to drain, don't immediately close the socket. */
+    /**
+     * Accept no further input, allow output to drain, don't immediately close the socket. 
+     * Once called, {@link #isConnected()} will return false, even if output is still being
+     * sent to the other side. 
+     */
     public abstract void disconnectSoft();
 
     /**

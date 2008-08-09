@@ -1,5 +1,5 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.2.
+ * Local (StringConnection) network system.  Version 1.0.3.
  * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
@@ -36,8 +36,13 @@ import soc.disableDebug.D;
  * Constructors will not create or start a thread.
  *
  * @author Jeremy D. Monin <jeremy@nand.net>
- *  1.0.1 - 2008-07-30 - check s already null in disconnect
- *  1.0.2 - 2008-08-05 - add getVersion, setVersion  
+ *
+ *<PRE>
+ *  1.0.0 - 2007-11-18 - initial release
+ *  1.0.1 - 2008-06-28 - add getConnectTime
+ *  1.0.2 - 2008-07-30 - check if s already null in disconnect
+ *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion  
+ *</PRE>
  */
 public class LocalStringConnection
     implements StringConnection, Runnable
@@ -47,6 +52,7 @@ public class LocalStringConnection
     protected Vector in, out;
     protected boolean in_reachedEOF;
     protected boolean out_setEOF;
+    /** Active connection, server has called accept, and not disconnected yet */
     protected boolean accepted;
     private LocalStringConnection ourPeer;
 
@@ -219,11 +225,18 @@ public class LocalStringConnection
         disconnectSoft();  // clear "in", set its EOF
     }
 
-    /** accept no further input, allow output to drain, don't immediately close the socket. */
+    /**
+     * Accept no further input, allow output to drain, don't immediately close the socket.
+     * Once called, {@link #isConnected()} will return false, even if output is still being
+     * sent to the other side. 
+     */
     public void disconnectSoft()
     {
         if (in_reachedEOF)
-            return;
+            return;  // <--- Early return: Already stopped input and draining output ---
+
+        // Don't check accepted; it'll be false if we're called from
+        // disconnect(), and it's OK to do this part twice.
 
         D.ebugPrintln("DISCONNECTING(SOFT) " + data);
         synchronized (in)
@@ -422,7 +435,7 @@ public class LocalStringConnection
     /** Are we currently connected and active? */
     public boolean isConnected()
     {
-        return accepted && ! out_setEOF;
+        return accepted && ! (out_setEOF || in_reachedEOF);
     }
 
     /**

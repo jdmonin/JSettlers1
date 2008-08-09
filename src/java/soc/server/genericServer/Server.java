@@ -314,8 +314,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /**
      * Add a connection to the system.
      * c.connect() is called at the start of this method.
-     * If ... (TODO) named vs unnamed...
-     * Synchronized on unnamedConns.
+     * Synchronized on unnamedConns, although named conns (getData not null) are
+     * added to conns, not unnamedConns.
      *<P>
      * App-specific work should be done by overriding
      * {@link #newConnection1(StringConnection)} and

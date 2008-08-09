@@ -323,7 +323,11 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         out = null;
     }
 
-    /** accept no further input, allow output to drain, don't immediately close the socket. */
+    /**
+     * Accept no further input, allow output to drain, don't immediately close the socket.
+     * Once called, {@link #isConnected()} will return false, even if output is still being
+     * sent to the other side. 
+     */
     public void disconnectSoft()
     {
         if (! inputConnected)
