@@ -24,9 +24,11 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message says who's turn it is
+ * This message from server to client signals end of the current player's turn.
+ * Client should end current turn, clear dice, set current player number, reset votes, etc.
  *
  * @author Robert S. Thomas
+ * @see SOCSetTurn
  */
 public class SOCTurn extends SOCMessage
 {

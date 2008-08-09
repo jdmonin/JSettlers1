@@ -1,5 +1,5 @@
 /**
- * 
+ * Testing for cross-platform context-click (right-click)
  */
 package soc.client;
 
@@ -11,7 +11,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
 /**
- * @author jdmonin
+ * Testing for cross-platform context-click (right-click); standalone class.
+ * @author Jeremy D Monin <jeremy@nand.net>
  *
  */
 public class AWTClickTester extends java.awt.Canvas implements MouseListener

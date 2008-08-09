@@ -3231,58 +3231,45 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
 
 
-    /** This class creates a popup menu as the interface to 
-      the illustrious jplot package. (TODO verbiage -JM)
-      */
-    class BoardPopupMenu extends PopupMenu
+    /**
+     * This class creates a popup menu on the board,
+     * to trade or build or cancel building.
+     */
+    private class BoardPopupMenu extends PopupMenu
         implements java.awt.event.ActionListener
     {
-
+      /** our parent boardpanel */
       SOCBoardPanel bp;
-      MenuItem buildRoadItem, buildSettleItem, upgradeCityItem; // , aboutItem, exitItem;
+
+      MenuItem buildRoadItem, buildSettleItem, upgradeCityItem;
       MenuItem cancelBuildItem;
-      /** determined at menu-show time, only over a useable port. Added, and removed at next menu-show */
+
+      /** determined at menu-show time, only over a useable port. Added then, and removed at next menu-show */
       SOCHandPanel.ResourceTradePopupMenu portTradeSubmenu;
-      // About us;  // TODO - JM
+
       /** determined at menu-show time */
       private int menuPlayerID;
+
       /** determined at menu-show time */
       private boolean menuPlayerIsCurrent;
+
       /** determined at menu-show time */
       private boolean wantsCancel;
+
       private int cancelBuildType;
+
       /** hover road ID, or 0, at menu-show time */
       private int hoverRoadID;
+
       /** hover settlement or city node ID, or 0, at menu-show time */
       private int hoverSettlementID, hoverCityID;
+
       /** Will this be for initial placement (send putpiece right away),
        *  or for placement during game (send build, receive gamestate, send putpiece)?
        */
       protected boolean isInitialPlacement;
 
-
-      /** the constructor handles everything. The calling class needs only
-          to specify which window the menu should appear in. This is
-          done by passing us the menu's parent component (hopefully this
-          will be a plotwinThread).  Any application specific menu items
-          will be passed into this constructor by telling us what 
-          function is being used. If the function has a jplot friendly menu,
-          we'll find it.
-          Currently, only one app-specific menu may be added on. 
-          if it is large, it is expected to handle it's own submenus.
-          the menu will look like this:
-          (TODO verbiage - JM)
-          
-              ----------------
-          |Zoom...       -----------
-          |App Spec Menu>|Your Menu|
-          |close         -----------
-          |--------------|
-          |about...      |
-          |exit          |
-          ----------------
-
-      **/
+      /** create a new BoardPopupMenu on this board */
       public BoardPopupMenu(SOCBoardPanel bpanel)
       {
         super ("JSettlers");

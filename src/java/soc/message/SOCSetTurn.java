@@ -24,9 +24,12 @@ import java.util.StringTokenizer;
 
 
 /**
- * This message from server to client says whose turn it is
+ * This message from server to client says whose turn it is.
+ * Only the game's current player number should change; no other
+ * game state is updated.
  *
  * @author Robert S. Thomas
+ * @see SOCTurn
  */
 public class SOCSetTurn extends SOCMessageTemplate1i
 {
