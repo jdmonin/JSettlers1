@@ -22,7 +22,8 @@ package soc.server;
 
 
 /**
- * Wakes up to check for games that have expired
+ * Wakes up every 5 minutes to check for games that have expired,
+ * by calling {@link SOCServer#checkForExpiredGames()}.
  *
  * @author Robert S Thomas
  */
@@ -41,10 +42,11 @@ public class SOCGameTimeoutChecker extends Thread
         server = srv;
         alive = true;
         setName ("timeoutChecker");  // Thread name for debug
+        try { setDaemon(true); } catch (Exception e) {}  // Don't wait on us to exit program
     }
 
     /**
-     * DOCUMENT ME!
+     * Wakes up every 5 minutes to check for games that have expired
      */
     public void run()
     {
@@ -55,7 +57,7 @@ public class SOCGameTimeoutChecker extends Thread
 
             try
             {
-                // check every 5 minutes
+                // check every 5 minutes; must be at most half of SOCServer.GAME_EXPIRE_WARN_MINUTES
                 sleep(300000);
             }
             catch (InterruptedException exc) {}
