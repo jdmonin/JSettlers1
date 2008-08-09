@@ -702,9 +702,17 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * If acceptable, send request to server. If not, say so in text area.
      * Not acceptable if they've already done so this turn, or if voting
      * is active because another player called for a vote.
+     *<P>
+     * Board reset was added in version 1.1.00.  Older servers won't support it.
+     * If this happens, give user a message.
      */
     public void resetBoardRequest()
     {
+        if (client.getServerVersion() < 1100)
+        {
+            textDisplay.append("*** This server does not support board reset, server is too old.\n");
+            return;
+        }
         if (game.getResetVoteActive())
         {
             textDisplay.append("*** Voting is already active. Try again when voting completes.\n");

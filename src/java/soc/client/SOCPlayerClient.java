@@ -242,9 +242,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Vector ignoreList = new Vector();
 
     /**
-     * for practice game
+     * for local-practice game via {@link #prCli}
      */
     protected SOCServer practiceServer = null;
+
+    /**
+     * for connection to local-practice server {@link #practiceServer}
+     */
     protected StringConnection prCli = null;
     protected int numPracticeGames = 0;  // Used for naming practice games
 
@@ -1205,7 +1209,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * Treat the incoming messages
+     * Treat the incoming messages.
+     * Messages of unknown type are ignored (mes will be null from {@link SOCMessage#toMsg(String)}).
      *
      * @param mes    the message
      * @param isLocal Server is local (practice game, not network)
@@ -1674,11 +1679,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         else
             sVersion = vers;
 
-        // TODO check for minimum,maximum
+        // If we ever require a minimum server version, would check that here.
 
-        // Reply with our own version.
+        // Reply with our client version.
         put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()),
-                isLocal);
+            isLocal);
     }
 
     /**
@@ -3984,6 +3989,17 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             }
             catch (InterruptedException ie) {}
         }
+    }
+
+    /**
+     * Server version, assuming we're connected to a remote server.
+     * Returns -1 if unknown. 
+     * @return Server version, format like {@link soc.util.Version#versionNumber()},
+     *         or 0 or -1.
+     */
+    public int getServerVersion()
+    {
+        return sVersion;
     }
 
     /**
