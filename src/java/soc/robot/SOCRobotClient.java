@@ -267,12 +267,16 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     }
 
     /**
-     * Treat the incoming messages
+     * Treat the incoming messages.
+     * Messages of unknown type are ignored (mes will be null from {@link SOCMessage#toMsg(String)}).
      *
      * @param mes    the message
      */
     public void treat(SOCMessage mes)
     {
+        if (mes == null)
+            return;  // Message syntax error or unknown type
+
         D.ebugPrintln("IN - " + mes);
 
         try

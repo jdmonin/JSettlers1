@@ -306,7 +306,8 @@ public class SOCDisplaylessPlayerClient implements Runnable
     }
 
     /**
-     * Treat the incoming messages
+     * Treat the incoming messages.
+     * Messages of unknown type are ignored (mes will be null from {@link SOCMessage#toMsg(String)}).
      *
      * @param mes    the message
      */
