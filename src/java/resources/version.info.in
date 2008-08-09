@@ -3,7 +3,7 @@
 # See also soc.util.Version
 project.version=@VERSION@
 project.copyright=@COPYRIGHT@
-project.buildnum=JM20080808
+project.buildnum=JM20080809
 project.jre.min.major=1
 project.jre.min.minor=4
 project.jre.min.edit=0

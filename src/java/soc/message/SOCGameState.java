@@ -21,6 +21,7 @@
 package soc.message;
 
 import java.util.StringTokenizer;
+import soc.game.SOCGame;  // for javadoc's use
 
 
 /**

@@ -25,19 +25,19 @@ import java.util.StringTokenizer;
 
 /**
  *  This message type has three meanings, depending on game state and direction of send. 
- *
+ *<P>
  * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
  *   their mind about spending resources to build a piece.  Only allowed during normal
  *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
- *
+ *<P>
  *  When sent from server to client:
- *
- * - During game startup (START1B or START2B):
+ *<P>
+ * - During game startup (START1B or START2B): <BR>
  *       Sent from server, CANCELBUILDREQUEST means the current player
  *       wants to undo the placement of their initial settlement.  
- *
+ *<P>
  * - During piece placement (PLACING_ROAD, PLACING_CITY, PLACING_SETTLEMENT,
- *                           PLACING_FREE_ROAD1 or PLACING_FREE_ROAD2):
+ *                           PLACING_FREE_ROAD1 or PLACING_FREE_ROAD2): <BR>
  *      Sent from server, CANCELBUILDREQUEST means the player has sent
  *      an illegal PUTPIECE (bad building location). Humans can probably
  *      decide a better place to put their road, but robots must cancel

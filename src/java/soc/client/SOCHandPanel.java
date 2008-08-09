@@ -1246,7 +1246,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     /**
      * Handpanel interface updates at start of each turn (not just our turn).
      * Calls {@link #updateTakeOverButton()}, and checks if current player (for hilight).
-     * Called from client when server sends {@link SOCMessage#TURN}.
+     * Called from client when server sends {@link soc.message.SOCMessage#TURN}.
      * Called also at start of game by {@link SOCPlayerInterface#updateAtGameState()},
      * because the server sends no TURN between the last road (gamestate START2B)
      * and the first player's turn (state PLAY).
@@ -2223,8 +2223,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      * Used for countdown before auto-roll of the current player.
      * Updates on-screen countdown, fires auto-roll at 0.
      *
-     * @see #SOCHandPanel.AUTOROLL_TIME
-     * @see #SOCHandPanel.autoRollSetupTimer()
+     * @see SOCHandPanel#AUTOROLL_TIME
+     * @see SOCHandPanel#autoRollSetupTimer()
      *
      * @author Jeremy D Monin <jeremy@nand.net>
      */
@@ -2406,7 +2406,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     /**
      * Menu for right-click on resource square to trade with bank/port.
      *
-     * @see ResourceTradeTypeMenu
+     * @see SOCHandPanel.ResourceTradeTypeMenu
      * @see SOCBoardPanel.ResourceTradeAllMenu
      * @author Jeremy D Monin <jeremy@nand.net>
      */

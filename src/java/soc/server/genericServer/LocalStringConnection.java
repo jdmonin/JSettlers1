@@ -185,7 +185,7 @@ public class LocalStringConnection
      * Send data over the connection.  Does not block.
      * Ignored if setEOF() has been called.
      *
-     * @param str Data to send
+     * @param dat Data to send
      *
      * @throws IllegalStateException if not yet accepted by server
      */
@@ -386,7 +386,7 @@ public class LocalStringConnection
      * If a server is set, its removeConnection method is called if our input reaches EOF.
      * Call this before calling run().
      * 
-     * @param dat The new server, or null
+     * @param srv The new server, or null
      */
     public void setServer(Server srv)
     {

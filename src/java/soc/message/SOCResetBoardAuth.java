@@ -35,7 +35,7 @@ import java.util.StringTokenizer;
  *<P>
  * Follows {@link SOCResetBoardRequest} and {@link SOCResetBoardVote} messages.
  * For details of messages sent, see 
- * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
+ * {@link soc.server.SOCServer#resetBoardAndNotify(String, int)}.
  *
  * @see SOCResetBoardRequest
  * @author Jeremy D. Monin <jeremy@nand.net>

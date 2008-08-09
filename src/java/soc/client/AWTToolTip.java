@@ -49,7 +49,7 @@ public class AWTToolTip
 
   private String tip;
 
-  /** JM add? tfont is parentComp.getFont, set at mouseEntered */
+  /** tfont is parentComp.getFont, set at mouseEntered */
   protected Font tfont;
 
   /** Component to which tooltip is notionally added, set in constructor.

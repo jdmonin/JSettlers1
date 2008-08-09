@@ -541,12 +541,13 @@ public class FaceChooserFrame extends Frame implements ActionListener, WindowLis
             currentFaceId = id;
         }
 
-        /** Ensure this row of faces is visible.  Calls repaint if needed.
-         *  Number of rows visible at a time is faceRowsHeight.
+        /**
+         * Ensure this row of faces is visible.  Calls repaint if needed.
+         * Number of rows visible at a time is faceRowsHeight.
          *
-         * @param r  Row number, counting from 0.
+         * @param newRow  Row number, counting from 0.
          *   The row number can be determined from the faceID
-         *   by r = (faceId - 1) / rowFacesWidth.
+         *   by newRow = (faceId - 1) / rowFacesWidth.
          *
          * @throws IllegalArgumentException if newRow < 0 or newRow >= rowCount
          */

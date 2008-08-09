@@ -64,7 +64,7 @@ import java.util.StringTokenizer;
  *      <em>Note:</em> Most things added to SOCPlayerClient.treat should also be added to
  *      {@link soc.client.SOCDisplaylessPlayerClient#treat(SOCMessage)},
  *      to {@link soc.robot.SOCRobotClient#treat(SOCMessage)},
- *      and possibly to {@link soc.robot.SOCRobotBrain#run(). 
+ *      and possibly to {@link soc.robot.SOCRobotBrain#run()}. 
  *</UL>
  *<P>
  * Backwards compatability: Unknown message types are ignored by client and by server.

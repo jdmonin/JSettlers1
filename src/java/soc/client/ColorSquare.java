@@ -325,7 +325,9 @@ public class ColorSquare extends Canvas implements MouseListener
      *     If tip is null, tooltip is removed, and any warning-level tip text
      *     or zero-level text is also set to null.
      *
-     * @see #setTooltipWarningLevel(String, int)
+     * @see #setTooltipHighWarningLevel(String, int)
+     * @see #setTooltipLowWarningLevel(String, int)
+     * @see #setTooltipZeroText(String)
      */
     public void setTooltipText(String tip)
     {
@@ -587,7 +589,9 @@ public class ColorSquare extends Canvas implements MouseListener
      * @param zeroTip   TODO docu - or null to clear tip text
      *
      * @see #setTooltipText(String)
-     * @see #setTooltipWarningLevel(String, int)
+     * @see #setTooltipHighWarningLevel(String, int)
+     * @see #setTooltipLowWarningLevel(String, int)
+     * @see #setTooltipZeroText(String)
      *
      * @throws IllegalStateException if setTooltipText has not yet been called,
      *     and zeroTip is not null

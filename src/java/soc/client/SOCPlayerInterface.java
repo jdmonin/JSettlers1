@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -198,7 +199,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * this other player has requested a board reset; voting is under way.
      * Null if no board reset vote is under way.
      *
-     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, int)
      */
     protected SOCHandPanel boardResetRequester;
 
@@ -636,7 +637,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Whenever this field is nonzero, textmessages from the server
      * will be scanned for " rolled a ".
      *
-     * @param textDisplayRollExpected The expected roll result, or 0.
+     * @param roll The expected roll result, or 0.
      */
     public void setTextDisplayRollExpected(int roll)
     {
@@ -771,7 +772,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * If we are the requester, we update local game state
      * but don't vote.
      *
-     * @param pn Player number of the player requesting the board reset
+     * @param pnRequester Player number of the player requesting the board reset
      */
     public void resetBoardAskVote(int pnRequester)
     {
@@ -1297,7 +1298,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * @param rejoinPlayerNumber Sanity check - must be our correct player number in this game
      * @param requesterNumber Player who requested the board reset  
      * 
-     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, int)
      */
     public void resetBoard(SOCGame newGame, int rejoinPlayerNumber, int requesterNumber)
     {

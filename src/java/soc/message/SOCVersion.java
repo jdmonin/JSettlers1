@@ -100,7 +100,9 @@ public class SOCVersion extends SOCMessage
     /**
      * VERSION SEP vernum SEP2 verstr SEP2 build; build may be blank
      *
-     * @param tm  the text message
+     * @param verNum  the version number, like 1100 for 1.1.00, as in {@link soc.util.Version#versionNumber()}
+     * @param verStr  the version as string, like "1.1.00"
+     * @param verBuild the version build, or null, from {@link soc.util.Version#buildnum()}
      * @return    the command string
      */
     public static String toCmd(int verNum, String verStr, String verBuild)

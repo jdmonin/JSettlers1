@@ -31,7 +31,7 @@ import soc.server.genericServer.StringConnection;
  *<P>
  * If reset is allowed, server will respond with {@link SOCResetBoardVoteRequest}
  * or {@link SOCResetBoardAuth} and subsequent messages. For details, see 
- * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
+ * {@link soc.server.SOCServer#resetBoardAndNotify(String, int)}.
  *
  * @author Jeremy D. Monin <jeremy@nand.net>
  */

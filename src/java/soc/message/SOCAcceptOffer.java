@@ -30,13 +30,13 @@ import java.util.StringTokenizer;
  * If the trade is allowed, also sent from server to all players so
  * that robots can learn that news.
  *<UL>
- * <LI> Message to server is in response to a MAKEOFFER sent earlier this turn to client.
- * <LI> Followed by (to all from server) PLAYERELEMENTs, GAMETEXTMSG, CLEAROFFERs,
+ * <LI> Message to server is in response to a {@link SOCMakeOffer} sent earlier this turn to client.
+ * <LI> Followed by (to all from server) {@link SOCPlayerElement}s, {@link SOCGameTextMsg}, {@link SOCClearOffer}s,
  *      and (for robots' benefit) the received ACCEPTOFFER is re-sent from
  *      server to all clients.
  *</UL>
  * @author Robert S. Thomas
- * @see SOCMakeOffer, SOCPlayerElement, SOCGameTextMsg, SOCClearOffer, SOCRejectOffer
+ * @see SOCRejectOffer
  */
 public class SOCAcceptOffer extends SOCMessage
 {

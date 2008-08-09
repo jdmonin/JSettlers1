@@ -26,7 +26,7 @@ import java.util.StringTokenizer;
  * This bi-directional message gives the client's vote on a "board reset",
  * which was requested by another player in that game.
  *<UL>
- * <LI> The {@link SOCResetBoardVote} message to server is in response to a {@link SOCResetBoardRequest}
+ * <LI> This message to server is in response to a {@link SOCResetBoardRequest}
  *      sent earlier this turn to all non-robot clients. (Robots' vote is always Yes.)
  * <LI> Followed by (from server, to all clients) {@link SOCResetBoardVote} with the same data,
  *      informing all players of this client's vote.
@@ -34,9 +34,8 @@ import java.util.StringTokenizer;
  *      {@link SOCResetBoardReject} message.
  *</UL>
  * For details of messages sent, see 
- * {@link soc.server.SOCServer#resetBoardAndNotify(String, String)}.
+ * {@link soc.server.SOCServer#resetBoardAndNotify(String, int)}.
  *
- * @see SOCResetBoardRequest, SOCResetBoardAuth, SOCResetBoardReject
  * @author Jeremy D. Monin <jeremy@nand.net>
  */
 public class SOCResetBoardVote extends SOCMessageTemplate2i

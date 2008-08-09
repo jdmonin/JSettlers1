@@ -3685,7 +3685,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * between the server and client.  It's here just in case.
      * Ideally the server responds right away, and the client responds then.
      * 
-     * @see #SOCBoardPanel.autoRollSetupTimer()
+     * @see SOCHandPanel#autoRollSetupTimer()
      */
     protected class BoardPanelSendBuildTask extends java.util.TimerTask
     {

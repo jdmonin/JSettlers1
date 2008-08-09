@@ -102,7 +102,7 @@ public class SOCServer extends Server
      * For local practice games (pipes, not TCP), the name of the pipe.
      * Used to distinguish practice vs "real" games.
      * 
-     * @see soc.util.LocalStringConnection
+     * @see soc.server.genericServer.LocalStringConnection
      */
     public static String PRACTICE_STRINGPORT = "SOCPRACTICE"; 
 
@@ -130,7 +130,7 @@ public class SOCServer extends Server
      * Robot default parameters; copied for each newly connecting robot.
      * Changing this will not change parameters of any robots already connected.
      *
-     * @see #handleIMAROBOT(StringConnection, SOCImARobot)
+     * @see #handleIMAROBOT(StringConnection, soc.message.SOCImARobot)
      * @see soc.robot.SOCRobotDM
      */
     public static SOCRobotParameters ROBOT_PARAMS_DEFAULT
@@ -2159,7 +2159,7 @@ public class SOCServer extends Server
      * and by SOCPlayerClient's locally hosted TCP server.
      *
      * @param stopMsg Final text message to send to all connected clients, or null.
-     *         Will be sent as a {@link SOCBcastTextMsg}.
+     *         Will be sent as a {@link SOCBCastTextMsg}.
      *         As always, if message starts with ">>" it will be considered urgent.
      */
     public synchronized void stopServer(String stopMsg)
@@ -4663,7 +4663,7 @@ public class SOCServer extends Server
      * If any human player's client is too old to vote for reset,
      * assume they vote yes.
      *
-     * @see #resetBoardAndNotify(String, String)
+     * @see #resetBoardAndNotify(String, int)
      *
      * @param c  the connection
      * @param mes  the message
@@ -4772,7 +4772,7 @@ public class SOCServer extends Server
      * If all votes have now arrived, and the vote is unanimous,
      * reset the game to a copy with same name and players, new layout.
      *
-     * @see #resetBoardAndNotify(String, String)
+     * @see #resetBoardAndNotify(String, int)
      *
      * @param c  the connection
      * @param mes  the message

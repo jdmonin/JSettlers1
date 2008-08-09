@@ -124,8 +124,8 @@ public class SOCForceEndTurnResult
      * Creates a new SOCForceEndTurnResult object, with resources gained.
      *
      * @param res Result type, from constants in this class
-     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
-     * @param gainedLost Resources gained (returned to cancel piece
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER}, etc.)
+     * @param gained Resources gained (returned to cancel piece
      *            placement), or null.
      * @throws IllegalArgumentException If res is not in the range
      *            {@link #FORCE_ENDTURN_MIN} to {@link #FORCE_ENDTURN_MAX}.
@@ -139,7 +139,7 @@ public class SOCForceEndTurnResult
      * Creates a new SOCForceEndTurnResult object, with resources gained/lost.
      *
      * @param res Result type, from constants in this class
-     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER}, etc.)
      * @param gainedLost Resources gained (returned to cancel piece
      *            placement) or lost (discarded), or null.
      * @param isLoss     Resources are lost (discarded), not gained (returned to player).
@@ -160,7 +160,7 @@ public class SOCForceEndTurnResult
     /**
      * Get the force result type.
      * @return Result type, from constants in this class
-     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER, etc.)
+     *            ({@link #FORCE_ENDTURN_UNPLACE_ROBBER}, etc.)
      */
     public int getResult()
     {

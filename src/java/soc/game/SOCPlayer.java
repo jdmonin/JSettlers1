@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -124,7 +125,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
      * the final total score (pushed from server at end of game),
      * or 0 if no score has been forced.
      * 
-     * @see #forceFinalScore(int)
+     * @see #forceFinalVP(int)
      */
     private int finalTotalVP;
 
@@ -564,7 +565,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
     /**
      * set the flag indicating if the player asked to reset the board this turn
      *
-     * @param true to set, false to clear
+     * @param value  true to set, false to clear
      */
     public void setAskedBoardReset(boolean value)
     {

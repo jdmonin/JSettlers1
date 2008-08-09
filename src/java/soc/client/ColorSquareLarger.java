@@ -48,7 +48,7 @@ public class ColorSquareLarger extends ColorSquare
      * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
      * @param in interactive flag allowing user interaction
      * @param c background color
-     * @see #ColorSquare(int, boolean, Color)
+     * @see ColorSquare#ColorSquare(int, boolean, Color)
      */
     public ColorSquareLarger(int k, boolean in, Color c)
     {

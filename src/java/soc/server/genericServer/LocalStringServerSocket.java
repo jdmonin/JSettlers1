@@ -179,7 +179,7 @@ public class LocalStringServerSocket implements StringServerSocket
      * @throws ConnectException If accept queue is full (ACCEPT_QUEUELENGTH)
      * @throws EOFException  If client is at EOF already
      *
-     * @see accept()
+     * @see #accept()
      * @see #ACCEPT_QUEUELENGTH
      */
     protected LocalStringConnection queueAcceptClient(LocalStringConnection client)

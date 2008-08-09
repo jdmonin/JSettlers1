@@ -49,7 +49,8 @@ package soc.message;
  *         return SOCPotentialSettlements.parseDataStr(multiData);
  *</code>
  *
- * @see SOCMessageTemplateMi, SOCMessageTemplateMs
+ * @see SOCMessageTemplateMi
+ * @see SOCMessageTemplateMs
  * @author Jeremy D Monin <jeremy@nand.net>
  */
 public abstract class SOCMessageMulti extends SOCMessage

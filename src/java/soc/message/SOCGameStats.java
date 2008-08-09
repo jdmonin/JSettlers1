@@ -40,7 +40,7 @@ public class SOCGameStats extends SOCMessage
     private String game;
 
     /**
-     * The scores; always indexed 0 to {@link soc.game.SOCGame#MAXPLAYERS},
+     * The scores; always indexed 0 to {@link soc.game.SOCGame#MAXPLAYERS}-1,
      *   regardless of number of players in the game.
      */
     private int[] scores;

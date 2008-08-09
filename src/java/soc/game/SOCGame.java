@@ -1574,6 +1574,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * Can this player end the current turn?
+     *<P>
      * In some states, the current player can't end their turn yet
      * (such as needing to move the robber, or choose resources for a
      *  year-of-plenty card, or discard if a 7 is rolled).
@@ -1785,9 +1786,9 @@ public class SOCGame implements Serializable, Cloneable
      * @param advTurnForward Should the next player be normal (placing first settlement),
      *                       or backwards (placing second settlement)?
      * @return A forceEndTurn result of type
-     *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_ADV},
-     *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_ADVBACK},
-     *         or {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_TURN}.
+     *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_ADV},
+     *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_ADVBACK},
+     *         or {@link SOCForceEndTurnResult#FORCE_ENDTURN_SKIP_START_TURN}.
      */
     private SOCForceEndTurnResult forceEndTurnStartState(boolean advTurnForward)
     {
@@ -3002,6 +3003,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * Can the current player play a Road Building card?
+     *<P>
      * This card directs the player to place 2 roads.
      * Checks of game rules online show they "MAY" or "CAN", not "MUST", place 2.
      * If they have 2 or more roads, place 2.

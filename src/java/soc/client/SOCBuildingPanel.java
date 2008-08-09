@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -333,7 +334,7 @@ public class SOCBuildingPanel extends Panel implements ActionListener
      * @param target Button clicked, as returned by ActionEvent.getActionCommand
      * @param doNotClearPopup Do not call SOCBoardPanel.popupClearBuildRequest()
      * 
-     * @see SOCBoardPanel.popupClearBuildRequest()
+     * @see SOCBoardPanel#popupClearBuildRequest()
      */
     public void clickBuildingButton(SOCGame game, SOCPlayerClient client, String target, boolean doNotClearPopup)
     {

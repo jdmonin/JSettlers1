@@ -1,6 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1017,7 +1018,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Look for active games that we're playing
      *
-     * @param fromLocalServer  Enumerate games from {@link #practiceServer},
+     * @param fromPracticeServer  Enumerate games from {@link #practiceServer},
      *     instead of {@link #playerInterfaces}?
      * @return Any found game of ours which is active (state not OVER), or null if none.
      * @see #anyHostedActiveGames()
@@ -2479,25 +2480,25 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * handle the rare "cancel build request" message; usually not sent from
      * server to client.
-     *
+     *<P>
      * - When sent from client to server, CANCELBUILDREQUEST means the player has changed
      *   their mind about spending resources to build a piece.  Only allowed during normal
      *   game play (PLACING_ROAD, PLACING_SETTLEMENT, or PLACING_CITY).
-     *
+     *<P>
      *  When sent from server to client:
-     *
-     * - During game startup (START1B or START2B):
+     *<P>
+     * - During game startup (START1B or START2B): <BR>
      *       Sent from server, CANCELBUILDREQUEST means the current player
      *       wants to undo the placement of their initial settlement.  
-     *
+     *<P>
      * - During piece placement (PLACING_ROAD, PLACING_CITY, PLACING_SETTLEMENT,
      *                           PLACING_FREE_ROAD1 or PLACING_FREE_ROAD2):
-     *
+     *<P>
      *      Sent from server, CANCELBUILDREQUEST means the player has sent
      *      an illegal PUTPIECE (bad building location). Humans can probably
      *      decide a better place to put their road, but robots must cancel
      *      the build request and decide on a new plan.
-     *      
+     *<P>
      *      Our client can ignore this case, because the server also sends a text
      *      message that the human player is capable of reading and acting on.
      *
@@ -2903,7 +2904,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      *
      * @param mes  the message
      *
-     * @see soc.server.SOCServer#resetBoardAndNotify(String, String)
+     * @see soc.server.SOCServer#resetBoardAndNotify(String, int)
      * @see soc.game.SOCGame#resetAsCopy()
      */
     protected void handleRESETBOARDAUTH(SOCResetBoardAuth mes)
@@ -3803,7 +3804,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      *         {@link #startPracticeGame()} instead
      * @param mainPanelIsActive Is the SOCPlayerClient main panel active?
      *         False if we're being called from elsewhere, such as
-     *         {@link SOCConnectOrPractice}.
+     *         {@link SOCConnectOrPracticePanel}.
      */
     public void startPracticeGame(String practiceGameName, boolean mainPanelIsActive)
     {
@@ -3857,7 +3858,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * If the {@link #localTCPServer} is already created, does nothing.
      * If {@link #connected} already, does nothing.
      *
-     * @param port Port number to host on; must be greater than zero.
+     * @param tport Port number to host on; must be greater than zero.
      * @throws IllegalArgumentException If port is 0 or negative
      */
     public void startLocalTCPServer(int tport)
@@ -3929,7 +3930,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * This lets the server randomize whether we play against smart or fast ones.
      * (Some will be SOCRobotDM.FAST_STRATEGY, some SMART_STRATEGY).
      * If the local server is stringport, it must be running as
-     * {@link #PRACTICE_STRINGPORT}.
+     * {@link SOCServer#PRACTICE_STRINGPORT}.
      *
      * @param port Port number for tcp, or 0 for stringport
      * @see #startPracticeGame()
