@@ -78,7 +78,7 @@ public class SOCServer extends Server
      * Currently there is no minimum.
      * @see #setClientVersionOrReject(StringConnection, int)
      */
-    public static final int CLI_VERSION_MIN = 0;
+    public static final int CLI_VERSION_MIN = 0000;
 
     /**
      * Minimum required client version, in "display" form, like "1.0.00".
@@ -722,30 +722,51 @@ public class SOCServer extends Server
                         }
                     }
                     
-                    if (foundNoRobots && (playerNumber == cg.getCurrentPlayerNumber()))
+                    if (foundNoRobots)
                     {
-                        /**
-                         * Rare condition:
-                         * No robot was found, but it was this player's turn.
-                         * End their turn just to keep the game limping along.
-                         * To prevent deadlock, we must release gamelist's monitor for
-                         * this game before calling endGameTurn.
-                         */
-                        if (cg.canEndTurn(playerNumber))
+                        final int cpn = cg.getCurrentPlayerNumber();
+
+                        if (playerNumber == cpn)
                         {
+                            /**
+                             * Rare condition:
+                             * No robot was found, but it was this player's turn.
+                             * End their turn just to keep the game limping along.
+                             * To prevent deadlock, we must release gamelist's monitor for
+                             * this game before calling endGameTurn.
+                             */
+                            if (cg.canEndTurn(playerNumber))
+                            {
+                                gameList.releaseMonitorForGame(gm);
+                                cg.takeMonitor();
+                                endGameTurn(cg);
+                                cg.releaseMonitor();
+                                gameList.takeMonitorForGame(gm);
+                            } else {
+                                // Cannot easily end turn.
+                                // Must back out something in progress.
+                                // May or may not end turn; see javadocs
+                                // of forceEndGameTurn and game.forceEndTurn
+                                gameList.releaseMonitorForGame(gm);
+                                cg.takeMonitor();
+                                forceEndGameTurn(cg, plName);
+                                cg.releaseMonitor();
+                                gameList.takeMonitorForGame(gm);
+                            }
+                        }
+                        else if ((cg.getGameState() == SOCGame.WAITING_FOR_DISCARDS)
+                                 && (cg.getPlayer(playerNumber).getNeedToDiscard()))
+                        {
+                            /**
+                             * Another rare case, where the game is waiting for input
+                             * from the player who is leaving. 
+                             * For discard, tell the discarding player's client that they discarded the resources,
+                             * tell everyone else that the player discarded unknown resources.
+                             */
                             gameList.releaseMonitorForGame(gm);
                             cg.takeMonitor();
-                            endGameTurn(cg);
-                            cg.releaseMonitor();
-                            gameList.takeMonitorForGame(gm);
-                        } else {
-                            // Cannot easily end turn.
-                            // Must back out something in progress.
-                            // May or may not end turn; see javadocs
-                            // of forceEndGameTurn and game.forceEndTurn
-                            gameList.releaseMonitorForGame(gm);
-                            cg.takeMonitor();
-                            forceEndGameTurn(cg, plName);
+                            forceGamePlayerDiscard(cg, cpn, c, plName, playerNumber);
+                            sendGameState(cg, false);  // WAITING_FOR_DISCARDS or MOVING_ROBBER
                             cg.releaseMonitor();
                             gameList.takeMonitorForGame(gm);
                         }
@@ -789,6 +810,33 @@ public class SOCServer extends Server
 
         //D.ebugPrintln("*** gameDestroyed = "+gameDestroyed+" for "+gm);
         return gameDestroyed;
+    }
+
+    /**
+     * Force this player (not current player) to discard, and report resources to all players.
+     * Does not send gameState, which may have changed; see {@link SOCGame#discardPickRandom(SOCResourceSet, int, SOCResourceSet, Random)}.
+     *<P>
+     * Assumes, as {@link #endGameTurn(SOCGame)} does:
+     * <UL>
+     * <LI> ga.takeMonitor already called (not the same as {@link SOCGameList#takeMonitorForGame(String)})
+     * <LI> gamelist.takeMonitorForGame is NOT called, we do NOT have that monitor
+     * </UL>
+     *
+     * @param cg  Game object
+     * @param cpn Game's current player number
+     * @param c   Connection of discarding player
+     * @param plName Discarding player's name, for GameTextMsg
+     * @param pn  Player number who must discard
+     */
+    private void forceGamePlayerDiscard(SOCGame cg, final int cpn, StringConnection c, String plName, final int pn)
+    {
+        SOCResourceSet discard = cg.playerDiscardRandom(pn);
+        final String gaName = cg.getName();
+        if ((c != null) && c.isConnected())
+            reportRsrcGainLoss(gaName, discard, true, cpn, -1, null, c);
+        int totalRes = discard.getTotal();
+        messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes));
+        messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + " discarded " + totalRes + " resources."));
     }
 
     /**
@@ -1473,8 +1521,8 @@ public class SOCServer extends Server
     }
 
     /**
-     * Treat the incomming messages
-     *
+     * Treat the incoming messages.  Messages of unknown type are ignored.
+     *<P>
      * Note: When there is a choice, always use local information
      *       over information from the message.  For example, use
      *       the nickname from the connection to get the player
@@ -2014,6 +2062,8 @@ public class SOCServer extends Server
             messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Games finished: " + numberOfGamesFinished));
             messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Total Memory: " + rt.totalMemory()));
             messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Free Memory: " + rt.freeMemory()));
+            messageToGame(ga, new SOCGameTextMsg(ga, SERVERNAME, "> Version: "
+                + Version.versionNumber() + " (" + Version.version() + ") build " + Version.buildnum()));
         }
         else if (dcmd.startsWith("*GC*"))
         {
@@ -2254,7 +2304,7 @@ public class SOCServer extends Server
             D.ebugPrintln("handleJOIN: " + mes);
 
             /**
-             * Check the reported version
+             * Check the reported version; if none, assume 1000 (1.0.00)
              */
             if (c.getVersion() == -1)
             {
@@ -2404,7 +2454,7 @@ public class SOCServer extends Server
         if (c != null)
         {
             /**
-             * Check the reported version
+             * Check the reported version; if none, assume 1000 (1.0.00)
              */
             int srvVers = Version.versionNumber();
             int cliVers = c.getVersion(); 
@@ -2478,7 +2528,7 @@ public class SOCServer extends Server
             D.ebugPrintln("handleJOINGAME: " + mes);
 
             /**
-             * Check the reported version
+             * Check the reported version; if none, assume 1000 (1.0.00)
              */
             if (c.getVersion() == -1)
             {
@@ -2821,6 +2871,7 @@ public class SOCServer extends Server
                                         // When play starts, or after placing 2nd free road,
                                         // announce even though player unchanged,
                                         // to trigger auto-roll for the player.
+                                        // If the client is too old (1.0.6), it will ignore the prompt.
                                         messageToGame(gaName, new SOCRollDicePrompt (gaName, player.getPlayerNumber()));
                                     }
                                 }
@@ -3005,7 +3056,7 @@ public class SOCServer extends Server
     }
 
     /**
-     * handle "start game" message
+     * handle "start game" message.  Game state must be NEW, or this message is ignored.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -3367,7 +3418,7 @@ public class SOCServer extends Server
                                 if (( ! ga.isSeatVacant(i))
                                     && (ga.getPlayer(i).getResources().getTotal() > 7))
                                 {
-                                    // Request discard half (round down)
+                                    // Request to discard half (round down)
                                     StringConnection con = getConnection(ga.getPlayer(i).getName());
                                     if (con != null)
                                     {
@@ -3661,7 +3712,7 @@ public class SOCServer extends Server
         if (ga.canEndTurn(cpn))
             endGameTurn(ga);
         else
-            sendGameState(ga, false);
+            sendGameState(ga, false); 
     }
 
     /**
@@ -4608,6 +4659,9 @@ public class SOCServer extends Server
      * ask them to start a new game instead. This is a rare occurrence
      * and we shouldn't bring in new robots and all,
      * since we already have an interface to set up a game.
+     *<P>
+     * If any human player's client is too old to vote for reset,
+     * assume they vote yes.
      *
      * @see #resetBoardAndNotify(String, String)
      *
@@ -4647,7 +4701,7 @@ public class SOCServer extends Server
         StringConnection[] robotConns = new StringConnection[SOCGame.MAXPLAYERS];
         int numHuman = SOCGameBoardReset.sortPlayerConnections(ga, null, gameList.getMembers(gaName), humanConns, robotConns);
 
-        int reqPN = reqPlayer.getPlayerNumber();
+        final int reqPN = reqPlayer.getPlayerNumber();
         if (numHuman < 2)
         {
             // Are there robots? Go ahead and reset if so.
@@ -4664,16 +4718,51 @@ public class SOCServer extends Server
         }
         else
         {
-            // Put it to a vote
+            // Probably put it to a vote.
             gameList.takeMonitorForGame(gaName);
-            messageToGameWithMon(gaName, new SOCGameTextMsg
-                (gaName, SERVERNAME, (String) c.getData() + " requests a board reset - other players please vote."));
-            String vrCmd = SOCResetBoardVoteRequest.toCmd(gaName, reqPN);
-            ga.resetVoteBegin(reqPN);
-            gameList.releaseMonitorForGame(gaName);
-            for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
-                if (humanConns[i] != null)
-                    humanConns[i].put(vrCmd);
+
+            // First, Count number of other players who can vote (connected, version chk)
+            int votingPlayers = 0;
+            for (int i = SOCGame.MAXPLAYERS-1; i>=0; --i)
+            {
+                if ((i != reqPN) && ! ga.isSeatVacant(i))
+                {
+                    StringConnection pc = getConnection(ga.getPlayer(i).getName());
+                    if ((pc != null) && pc.isConnected() && pc.getVersion() >= 1100)                        
+                    {
+                         ++votingPlayers;                        
+                    }
+                }
+            }
+
+            if (votingPlayers == 0)
+            {
+                // No one else is capable of voting.
+                // Reset the game immediately.
+                messageToGameWithMon(gaName, new SOCGameTextMsg
+                    (gaName, SERVERNAME, ">>> " + (String) c.getData()
+                     + " is resetting the game - other connected players are unable to vote (client too old)."));
+                gameList.releaseMonitorForGame(gaName);
+                resetBoardAndNotify(gaName, reqPN);
+            }
+            else
+            {
+                // Put it to a vote
+                messageToGameWithMon(gaName, new SOCGameTextMsg
+                    (gaName, SERVERNAME, (String) c.getData() + " requests a board reset - other players please vote."));
+                String vrCmd = SOCResetBoardVoteRequest.toCmd(gaName, reqPN);
+                ga.resetVoteBegin(reqPN);
+                gameList.releaseMonitorForGame(gaName);
+                for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
+                    if (humanConns[i] != null)
+                    {
+                        if (humanConns[i].getVersion() >= 1100)
+                            humanConns[i].put(vrCmd);
+                        else
+                            ga.resetVoteRegister
+                                (ga.getPlayer((String)(humanConns[i].getData())).getPlayerNumber(), true);
+                    }
+            }
         }
     }
 
@@ -5312,6 +5401,7 @@ public class SOCServer extends Server
      * Assumes current player does not change during this state.
      * If we send a text message to prompt the new player to roll,
      * also sends a RollDicePrompt data message.
+     * If the client is too old (1.0.6), it will ignore the prompt.
      *
      * @param ga  the game
      * 
@@ -5326,7 +5416,7 @@ public class SOCServer extends Server
      * send the current state of the game with a message.
      * Note that the current (or new) player number is not sent here.
      * If game is now OVER, send appropriate messages.
-     * 
+     *
      * @see #sendTurn(SOCGame, boolean)
      * @see #sendGameState(SOCGame)
      * @see #sendGameStateOVER(SOCGame)
@@ -5334,7 +5424,8 @@ public class SOCServer extends Server
      * @param ga  the game
      * @param sendRollPrompt  If true, and if we send a text message to prompt
      *    the player to roll, send a RollDicePrompt data message.
-     *    
+     *    If the client is too old (1.0.6), it will ignore the prompt.
+     *
      * @return    did we send a text message to prompt the player to roll?
      *    If so, sendTurn can also send a RollDicePrompt data message.  
      */
@@ -5944,7 +6035,7 @@ public class SOCServer extends Server
     }
 
     /**
-     * Reset the board to a copy with same players but new layout.
+     * Reset the board, to a copy with same players but new layout.
      *<OL>
      * <LI value=1> Reset the board, remember player positions.
      * <LI value=2> Send ResetBoardAuth to each client (like sending JoinGameAuth at new game)
@@ -6047,7 +6138,8 @@ public class SOCServer extends Server
     }
 
     /**
-     * send whose turn it is. Optionally also send a prompt to roll. 
+     * send whose turn it is. Optionally also send a prompt to roll.
+     * If the client is too old (1.0.6), it will ignore the prompt.
      *
      * @param ga  the game
      * @param sendRollPrompt  whether to send a RollDicePrompt message afterwards

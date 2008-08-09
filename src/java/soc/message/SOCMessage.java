@@ -67,6 +67,11 @@ import java.util.StringTokenizer;
  *      and possibly to {@link soc.robot.SOCRobotBrain#run(). 
  *</UL>
  *<P>
+ * Backwards compatability: Unknown message types are ignored by client and by server.
+ * Technically they are returned as null from {@link #toMsg(String)} if the local copy
+ * of SOCMessage doesn't know that message type.
+ *<P>
+ * Format:
  * For most messages, at most one {@link #sep} token per message, which separates the messagetype number
  * from the message data; multiple SEP2 are allowed after SEP.
  * For multi-messages, multiple SEP are allowed; see {@link SOCMessageMulti}.
@@ -239,8 +244,9 @@ public abstract class SOCMessage implements Serializable, Cloneable
     }
 
     /**
-     * Convert a string into a SOCMessage
-     * The string is in the form of "<ID> sep <message name> sep <message data>"
+     * Convert a string into a SOCMessage.
+     * The string is in the form of "<ID> sep <message name> sep <message data>".
+     * If the message type id is unknown, this is printed to System.err.
      *
      * @param s  String to convert
      * @return   converted String to a SOCMessage, or null if the string is garbled,

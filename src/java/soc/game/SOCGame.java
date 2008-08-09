@@ -57,6 +57,10 @@ public class SOCGame implements Serializable, Cloneable
 {
     /**
      * Game states.  NEW is a brand-new game, not yet ready to start playing.
+     * Players are choosing where to sit, or have all sat but no one has yet clicked
+     * the "start game" button.
+     * Next state from NEW is {@link #READY} if robots, or {@link #START1A} if only humans
+     * are playing.
      *<P>
      * General assumptions for states and their numeric values:
      * <UL>
@@ -88,16 +92,58 @@ public class SOCGame implements Serializable, Cloneable
         SOCPlayerClient.handleCANCELBUILDREQUEST, SOCDisplaylessPlayerClient.handleCANCELBUILDREQUEST
      * </PRE>
      */
-    public static final int NEW = 0; // Brand new game
+    public static final int NEW = 0; // Brand new game, players sitting down
+
+    /**
+     * Ready to start playing.  All humans have chosen a seat.
+     * Wait for requested robots to sit down.
+     * Once robots have joined the game (this happens in other threads, possibly in other
+     * processes), gameState will become {@link #START1A}.
+     */
     public static final int READY = 1; // Ready to start playing
+
     public static final int SETOPTIONS_EXCL = 2; // Future use: Game owner setting options, no one can yet connect
     public static final int SETOPTIONS_INCL = 3; // Future use: Game owner setting options, but anyone can connect
+
+    /**
+     * Players place first settlement.  Proceed in order for each player; next state
+     * is {@link #START1B} to place each player's 1st road.
+     */
     public static final int START1A = 5; // Players place 1st stlmt
+
+    /**
+     * Players place first road.  Next state is {@link #START1A} to place next
+     * player's 1st settlement, or if all have placed settlements,
+     * {@link #START2A} to place 2nd settlement.
+     */
     public static final int START1B = 6; // Players place 1st road
+
+    /**
+     * Players place second settlement.  Proceed in reverse order for each player;
+     * next state is {@link #START2B} to place 2nd road.
+     */
     public static final int START2A = 10; // Players place 2nd stlmt
+
+    /**
+     * Players place second road.  Next state is {@link #START2A} to place previous
+     * player's 2nd settlement (player changes in reverse order), or if all have placed
+     * settlements, {@link #PLAY} to begin first player's turn.
+     */
     public static final int START2B = 11; // Players place 2nd road
+
+    /**
+     * Start of a normal turn.  Time to roll or play a card.
+     * Next state depends on card or roll, but usually is {@link #PLAY1}.
+     */
     public static final int PLAY = 15; // Play continues normally; time to roll or play card
+
+    /**
+     * Done rolling (or moving robber on 7).  Time for other turn actions,
+     * such as building or buying or trading, or playing a card if not already done.
+     * Next state depends on what's done, but usually is the next player's {@link #PLAY}.
+     */
     public static final int PLAY1 = 20; // Done rolling
+
     public static final int PLACING_ROAD = 30;
     public static final int PLACING_SETTLEMENT = 31;
     public static final int PLACING_CITY = 32;
@@ -108,10 +154,15 @@ public class SOCGame implements Serializable, Cloneable
     public static final int WAITING_FOR_CHOICE = 51; // Waiting for player to choose a player
     public static final int WAITING_FOR_DISCOVERY = 52; // Waiting for player to choose 2 resources
     public static final int WAITING_FOR_MONOPOLY = 53; // Waiting for player to choose a resource
+
+    /**
+     * The game is over.  A player has accumulated 10 ({@link #VP_WINNER}) victory points.
+     */
     public static final int OVER = 1000; // The game is over
+
     /**
      * This game is an obsolete old copy of a new (reset) game with the same name.
-     * To assist logic, numeric constant value is greater than OVER.
+     * To assist logic, numeric constant value is greater than {@link #OVER}.
      * @see #resetAsCopy()
      * @see #getResetOldGameState()
      */
@@ -246,7 +297,8 @@ public class SOCGame implements Serializable, Cloneable
     private SOCBoard board;
 
     /**
-     * the players
+     * the players; never contains a null element, use {@link #isSeatVacant(int)}
+     * to see if a position is occupied.
      */
     private SOCPlayer[] players;
 
@@ -574,9 +626,9 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * @return the player object for a player id
+     * @return the player object for a player id; never null if pn is in range
      *
-     * @param pn  the player number
+     * @param pn  the player number, in range 0 to {@link #MAXPLAYERS}-1
      */
     public SOCPlayer getPlayer(int pn)
     {
@@ -1407,9 +1459,11 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * do the things involved in starting a game
-     * shuffle the tiles and cards
-     * make a board
+     * do the things involved in starting a game:
+     * shuffle the tiles and cards,
+     * make a board,
+     * choose first player.
+     * gameState becomes {@link #START1A}.
      */
     public void startGame()
     {
@@ -1735,7 +1789,7 @@ public class SOCGame implements Serializable, Cloneable
      *         {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_ADVBACK},
      *         or {@link SOCForceEndTurnResult#FORCE_ENDTURN_UNPLACE_START_TURN}.
      */
-    private SOCForceEndTurnResult forceEndTurnStartState (boolean advTurnForward)
+    private SOCForceEndTurnResult forceEndTurnStartState(boolean advTurnForward)
     {
         final int cpn = currentPlayerNumber;
         int cancelResType;  // Turn result type
@@ -1783,10 +1837,12 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * Randomly discard from current player's hand.
-     * Look at other players' hand size. If no one else must discard,
-     * ready to end turn. Otherwise, must wait for them; if so,
-     * set game state to {@link #WAITING_FOR_DISCARDS} with {@link #isForcingEndTurn()} flag.
+     * Randomly discard from this player's hand, by calling {@link #discard(int, SOCResourceSet)}.
+     * Then look at other players' hand size. If no one else must discard,
+     * ready to end turn, set state {@link #PLAY1}.
+     * Otherwise, must wait for them; if so,
+     * set game state to {@link #WAITING_FOR_DISCARDS}.
+     * When called, assumes {@link #isForcingEndTurn()} flag is already set.
      *
      * @param pn Player number to force to randomly discard
      * @return The force result, including any discarded resources.
@@ -1795,7 +1851,7 @@ public class SOCGame implements Serializable, Cloneable
      */
     private SOCForceEndTurnResult forceEndTurnChkDiscards(int pn)
     {
-        // select random cards and discard
+        // select random cards, and discard
         SOCResourceSet discards = new SOCResourceSet();
         {
             SOCResourceSet hand = players[pn].getResources(); 
@@ -1808,7 +1864,7 @@ public class SOCGame implements Serializable, Cloneable
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD_WAIT, discards, true);
         } else {
-            // gameState == PLAY1
+            // gameState == PLAY1 - was set in discard()
             return new SOCForceEndTurnResult
                 (SOCForceEndTurnResult.FORCE_ENDTURN_RSRC_DISCARD, discards, true);
         }
@@ -1851,6 +1907,39 @@ public class SOCGame implements Serializable, Cloneable
             discards.add(1, ((Integer) tempHand.elementAt(idx)).intValue());
             tempHand.removeElementAt(idx);
         }
+    }
+
+    /**
+     * Force this non-current player to discard randomly.  Used at server when a
+     * player must discard and they lose connection while the game is waiting for them.
+     *<P>
+     * On return, gameState will be:
+     *<UL>
+     * <LI> {@link #WAITING_FOR_DISCARDS} if other players still must discard
+     * <LI> {@link #PLAY1} if everyone has discarded, and {@link #isForcingEndTurn()} is set
+     * <LI> {@link #PLACING_ROBBER} if everyone has discarded, and {@link #isForcingEndTurn()} is not set
+     *</UL>
+     *
+     * @param pn Player number to discard; player must must need to discard,
+     *           must not be current player (use {@link #forceEndTurn()} for that)
+     * @return   Set of resource cards which were discarded
+     * @throws IllegalStateException If the gameState isn't {@link #WAITING_FOR_DISCARDS},
+     *                               or if pn's {@link SOCPlayer#getNeedToDiscard()} is false,
+     *                               or if pn == currentPlayer.
+     */
+    public SOCResourceSet playerDiscardRandom(int pn)
+        throws IllegalStateException
+    {
+        if (pn == currentPlayerNumber)
+            throw new IllegalStateException("Cannot call for current player, use forceEndTurn instead");
+        if (gameState != WAITING_FOR_DISCARDS)
+            throw new IllegalStateException("gameState not WAITING_FOR_DISCARDS: " + gameState);
+        if (! (players[pn].getNeedToDiscard()))
+            throw new IllegalStateException("Player " + pn + " does not need to discard");
+
+        // Since doesn't change current player number, this is safe to call
+        SOCForceEndTurnResult rs = forceEndTurnChkDiscards(pn);
+        return rs.getResourcesGainedLost();
     }
 
     /**
