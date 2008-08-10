@@ -1,6 +1,49 @@
 [ The list of the different public versions of JSettlers ]
 
-    > 1.0.6 (build 2004-11-17)
+    > 1.1.00 (build 2008-08-08)  http://nand.net/jsettlers/devel/
+- Development at new site, sourceforge project appeared abandoned in 2005
+- Much more visually responsive to game state
+- User-friendly
+	Can right-click on board to build, right-click ports or resource squares to trade  [sf patch 1905791]
+	Can right-click face to choose a new face [sf patch 1860920]
+	Popup dialog buttons wrap if window too narrow
+	Robber doesn't disappear when must be moved, it just "ghosts" [sf patch 1812912]
+	Other minor improvements
+- Local "practice-game" mode, if network connection or server is unavailable
+- Play with 2-4 players, no longer requires 4
+- Larger graphics on board, resizeable for higher-resolution screens [sf patch 1929452, based on images and code of rbrooks9's sf patch 1398331]
+- Ability to reset board, during or after game  [sf feature req. 1110481]
+- Can cancel and re-place initial settlement, if you haven't yet placed the road  [sf patch 1824441]
+- More robust handling if client's connection to server is lost, even if current player
+- Automatic dice roll after 5 seconds, if you have no playable card  [sf patch 1812254]
+- At end of game, show hidden VP cards for all players  [sf patch 1812497]
+- At end of game, give game duration and total connection time
+- Announce when longest road/largest army is stolen
+- Road-building allowed with 1 road [sf patch 1905080]
+- Can win only on your own turn; if not your turn, must wait
+- Less clutter in scrolling message area
+- Confirm quit before closing window
+- Show pieces when rejoining after lost connection
+- Attempt to end turn, if current player leaves the game
+- Client,server versioning; also add BUILDNUM property
+- Can double-click jar for local server hosting (or run w. no arguments); player GUI will ask for IP and port#
+- Robot bugfix, now will re-try if makes a bad piece placement
+- More advance warning when game will soon expire
+- Hilight who won when game is over
+- Reminder to place 2 roads with road-building card
+- Reminder to only play 1 card per turn
+- Reminder when VP cards are played
+- Trade offer's checkboxes track current player
+- New graphics: images/robot1.gif; Removed obsolete: images/arrowL.gif, arrowR.gif
+- Other sourceforge patches applied:
+	1816668 jdmonin AWT debug help
+	1816605 jdmonin Patch for #997263 cannot place road during game start
+	1816581 jdmonin Fix server treater startup race
+	1812257 jdmonin Debug help, minor comments
+	N/A     sfhonza (John Vicherek) "Swinging" number of resources, http://john.vicherek.com/jsettlers-1.0.6.swing_resources.patch
+	1088775 drichardson (Douglas Ryan Richardson) [1039250] Auto-rejecting impossible offers; Make accept button invisible when user cannot accept offer
+
+    > 1.0.6 (build 2004-11-17)  http://sourceforge.net/projects/jsettlers
 
 - Fixed the same PORT property error in the Account client
 - Fixed bug which could allow modified clients to invoke admin
@@ -11,12 +54,12 @@
 - Moved more SQL error handling and reconnecting from SOCServer to
   SOCDBHelper correcting potential errors like 1060651
 
-    > 1.0.5 (build 2004-06-12)
+    > 1.0.5 (build 2004-06-12)  http://sourceforge.net/projects/jsettlers
 
 - Fixed an error introduced into the applet initialization which kept
   the PORT property from being read properly
 
-    > 1.0.4 (build 2004-06-10)
+    > 1.0.4 (build 2004-06-10)  http://sourceforge.net/projects/jsettlers
 
 - build.xml file added for Ant builds
 - soc.util.Version class added so both build files and source code get

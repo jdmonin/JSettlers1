@@ -16,11 +16,12 @@ information.  A client applet to create user accounts is also
 provided.
 
 JSettlers is an open-source project licensed under the GPL. The
-software is maintained as a SourceForge project at
-http://sourceforge.net/projects/jsettlers.
+software is maintained at http://nand.net/jsettlers/devel/
 
-Forums for discussions and community based support are provided at
-SourceForge.
+JSettlers was previously hosted at http://sourceforge.net/projects/jsettlers
+but this seems to be abandoned.  Forums for discussions and
+community-based support are available at SourceForge, but may
+not be checked on a frequent basis.
 
                           -- The JSettlers Development Team
 
@@ -54,9 +55,8 @@ Requirements
 ------------
 
 To play JSettlers by connecting to a remote server you will need the
-Java Runtime Version 1.1 or above (1.4 recommended). To connect as an
-applet, use any browser which is Java enabled (again, we recommend
-Java 1.4 using the browser plug-in).
+Java Runtime Version 1.4 or above (1.5 or later recommended). To connect as an
+applet, use any browser which is Java enabled (using the browser plug-in).
 
 To Play JSettlers locally you need the Java Runtime 1.4 (or
 later). Remote clients started on the command line can connect
@@ -64,8 +64,12 @@ directly to this server. To host a JSettlers server and provide a web
 applet for clients, you will need an http server such as Apache's
 httpd, available from http://httpd.apache.org.
 
+The JSettlers.jar file can also run locally, as a server or to connect to other servers,
+without needing a web server.  The applet is considered more convenient,
+because you know everyone will have the same version.
+
 To build JSettlers from source, you will need Apache Ant, available from
-http://ant.apache.org.
+http://ant.apache.org, or an IDE such as Eclipse which understands Ant's format.
 
 
 Setting up and testing
@@ -74,7 +78,7 @@ Setting up and testing
 From the command line, make sure you are in the JSettlers distribution
 directory which contains both JSettlers.jar, settlers-server.jar and the
 "lib" directory.  Start the server with the following command
-(server requires Java 1.4):
+(server requires Java 1.4 or higher):
 
   java -jar JSettlersServer.jar 8880 10 dbUser dbPass
 
@@ -91,13 +95,6 @@ the following command:
 
   java -jar JSettlers.jar localhost 8880
 
-If you are using Java 1.1 you will need to unpack the Java archive
-(Java could not run directly from jar files until version 1.2). The
-commands to unpack, then start the client are:
-
-  jar -xf JSettlers.jar
-  java soc.client.SOCPlayerClient localhost 8880
-
 In the player client window, enter "debug" in the Nickname field and
 create a new game.
 
@@ -112,6 +109,7 @@ something like the following in the chat display:
   * > Games finished: 0
   * > Total Memory: 2031616
   * > Free Memory: 1524112
+  * > Version: 1100 (1.1.00) build JM20080808
 
 If you do not, you might not have entered your nickname correctly.  It
 must be "debug" in order to use the administrative commands.
@@ -129,8 +127,9 @@ Now click on the "Sit Here" button and press "Start Game".  The robot
 players should automatically join the game and start playing.
 
 If you want other people to access your server, tell them your server
-IP address and port number (in this case 8880).  They will enter the
-following command (or use the instructions above for Java 1.1):
+IP address and port number (in this case 8880).  They can run the
+JSettlers.jar file by itself, and it will bring up a window to enter your IP
+and port number.  Or, they can enter the following command:
 
   java -jar JSettlers.jar <host> <port_number>
 
@@ -155,7 +154,6 @@ Hosting a JSettlers server
   - Start JSettlers Server
   - Start http server (optional)
   - Copy JSettlers.jar jar and "web/*.html" server directory (optional)
-    - Extract JSettlers.jar to allow Java 1.1 clients (optional)
   - Copy "docs/users" to the server directory (optional)
 
 To host a JSettlers server, start the server as described in "Setup
@@ -231,14 +229,13 @@ following command:
 Development and Compiling
 -------------------------
 
-Source code for JSettlers is available via anonymous CVS. Source code
-tarballs are also made available.  See the project website at
-http://sourceforge.net/projects/jsettlers/ for details. Patches
-against CVS may be submitted there.
+Source code for JSettlers is available via tarballs.
+See the project website at http://nand.net/jsettlers/devel/
+for details. Patches against the latest version may be submitted there.
 
 Before building, make sure you have at least version 1.4 of the Java
 development kit installed.  If you simply want to run the client and
-server, you only need the Java. If you wish to maintain a user
+server, you only need the Java Runtime (JRE). If you wish to maintain a user
 database for your server, you need MySQL installed, and configured.
 
 This package was designed to use the ANT tool available from
