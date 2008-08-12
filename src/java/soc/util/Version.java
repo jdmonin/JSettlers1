@@ -17,6 +17,7 @@ import java.util.Properties;
 public class Version {
 
   public static String VERSION   = "project.version";
+  public static String VERSNUM   = "project.versionnum";
   public static String COPYRIGHT = "project.copyright";
   public static String BUILDNUM  = "project.buildnum";
   
@@ -38,6 +39,7 @@ public class Version {
 
     // defaults in case build failed to produce version.info
     versionInfo.put(VERSION, "-error-");
+    versionInfo.put(VERSNUM, "-error-");
     versionInfo.put(COPYRIGHT, "-error-");
     versionInfo.put(BUILDNUM, "-unknown-");
     // JRE_MIN_VERSION default is built later
@@ -64,10 +66,18 @@ public class Version {
   /**
    * Return the current version number.
    * @return Version integer; 1100 is version 1.1.00.
+   *         If the version number cannot be read, 0 is returned.
    * @see #version()
    */
   public static int versionNumber() {
-    return 1100;  // TODO dynamic from properties
+    int vnum;
+    try {
+        vnum = Integer.parseInt(versionInfo.getProperty(VERSNUM));
+    }
+    catch (Throwable e) {
+        vnum = 0;
+    }
+    return vnum;
   }
 
   /** Return the copyright string. */

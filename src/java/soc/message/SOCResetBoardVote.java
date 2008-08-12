@@ -79,7 +79,7 @@ public class SOCResetBoardVote extends SOCMessageTemplate2i
     public static String toCmd(String ga, int pn, boolean pyes)
     {
         return RESETBOARDVOTE + sep + ga + sep2 + pn + sep2
-            + (pyes ? "Y" : "N");
+            + (pyes ? "1" : "0");
     }
 
     /**

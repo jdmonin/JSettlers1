@@ -219,6 +219,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected boolean playerIsClient;
     /** Is this panel's player the game's current player?  Used for hilight - set in updateAtTurn() */
     protected boolean playerIsCurrent;
+    /** Do we have any seated player? Set by {@link #addPlayer(String)}, cleared by {@link #removePlayer()}. */
     protected boolean inPlay;
 
     /** Three player numbers to send trade offers to.
@@ -1690,6 +1691,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     public void resetBoardSetMessage(String message)
         throws IllegalStateException
     {
+        if (! inPlay)
+            return;
         if (offerIsDiscardMessage)
             throw new IllegalStateException("Cannot call resetmessage when discard msg");
         tradeSetMessage(message);
@@ -1707,6 +1710,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public boolean setDiscardMsg()
     {
+        if (! inPlay)
+            return false;
         if (offerIsResetMessage)
             return false;
         tradeSetMessage(TRADEMSG_DISCARD);

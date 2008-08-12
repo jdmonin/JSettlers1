@@ -1,6 +1,14 @@
 [ The list of the different public versions of JSettlers ]
 
-    > 1.1.00 (build 2008-08-08)  http://nand.net/jsettlers/devel/
+    > 1.1.01 (build 2008-08-12)  http://nand.net/jsettlers/devel/
+
+- Bugfix: If player loses connection while voting for board reset, the vote never completes
+- Bugfix: Reset vote message format (from recent refactoring)
+- Version number dynamic from properties file, not hardcoded in soc.util.Version
+- Utility method SOCMessage.getClassNameShort for cleaner debug-output in template classes' toString
+
+    > 1.1.00 (build 2008-08-09)  http://nand.net/jsettlers/devel/
+
 - Development at new site, sourceforge project appeared abandoned in 2005
 - Much more visually responsive to game state
 - User-friendly

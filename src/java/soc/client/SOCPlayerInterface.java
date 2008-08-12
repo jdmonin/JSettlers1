@@ -738,8 +738,9 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         else
             voteMsg = "No thanks.";
         textDisplay.append("* " + game.getPlayer(pn).getName() + " has voted: " + voteMsg + "\n");
-        hands[pn].resetBoardSetMessage(voteMsg);
         game.resetVoteRegister(pn, vyes);
+        try { hands[pn].resetBoardSetMessage(voteMsg); }
+        catch (IllegalStateException e) { /* ignore; discard message is showing */ }
     }
 
     /**
@@ -747,10 +748,14 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      * Display text message and clear the offer.
      */
     public void resetBoardRejected()
-    {        
+    {
         textDisplay.append("** The board reset was rejected.\n");
         for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
-            hands[i].resetBoardSetMessage(null);  // Clear all votes
+        {
+            // Clear all displayed votes
+            try { hands[i].resetBoardSetMessage(null); }
+            catch (IllegalStateException e) { /* ignore; discard message is showing */ }
+        }
         boardResetRequester = null;
         if (boardResetVoteDia != null)
         {
@@ -1329,6 +1334,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
         validate();
         repaint();
         String requesterName = game.getPlayer(requesterNumber).getName();
+        if (requesterName == null)
+            requesterName = "player who left";
         String resetMsg;
         if (oldGameState != SOCGame.OVER)
             resetMsg = "** The board was reset by " + requesterName + ".\n";

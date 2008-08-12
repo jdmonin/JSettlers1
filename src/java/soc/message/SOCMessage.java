@@ -228,6 +228,20 @@ public abstract class SOCMessage implements Serializable, Cloneable
     public abstract String toString();
 
     /**
+     * Utility, get the short simple name of the class: SOCResetBoardVote, not soc.message.SOCResetBoardVote 
+     * @return Short name of class, without package name
+     * @since 1.1.01
+     */
+    public String getClassNameShort()
+    {
+        String clName = getClass().getName();
+        int dot = clName.lastIndexOf(".");
+        if (dot > 0)
+            clName = clName.substring(dot + 1);
+        return clName;
+    }
+
+    /**
      * Utility, place one string into a new single-element array.
      * To assist with {@link SOCMessageMulti} parsing.
      *
@@ -529,19 +543,19 @@ public abstract class SOCMessage implements Serializable, Cloneable
             case ROLLDICEPROMPT:     // autoroll, 20071003, sf patch #1812254
                 return SOCRollDicePrompt.parseDataStr(data);
 
-            case RESETBOARDREQUEST:  // resetboard, 20080217, sf patch#tbd
+            case RESETBOARDREQUEST:  // resetboard, 20080217, v1.1.00
                 return SOCResetBoardRequest.parseDataStr(data);
 
-            case RESETBOARDAUTH:     // resetboard, 20080217, sf patch#tbd
+            case RESETBOARDAUTH:     // resetboard, 20080217, v1.1.00
                 return SOCResetBoardAuth.parseDataStr(data);
 
-            case RESETBOARDVOTEREQUEST:  // resetboard, 20080223, sf patch#tbd
+            case RESETBOARDVOTEREQUEST:  // resetboard, 20080223, v1.1.00
                 return SOCResetBoardVoteRequest.parseDataStr(data);
 
-            case RESETBOARDVOTE:     // resetboard, 20080223, sf patch#tbd
+            case RESETBOARDVOTE:     // resetboard, 20080223, v1.1.00
                 return SOCResetBoardVote.parseDataStr(data);
 
-            case RESETBOARDREJECT:   // resetboard, 20080223, sf patch#tbd
+            case RESETBOARDREJECT:   // resetboard, 20080223, v1.1.00
                 return SOCResetBoardReject.parseDataStr(data);
 
             case VERSION:            // cli-serv versioning, 20080807, v1.1.00

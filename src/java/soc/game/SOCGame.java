@@ -285,9 +285,8 @@ public class SOCGame implements Serializable, Cloneable
      * If a board reset vote is active, we're waiting to receive this many more votes.
      * All human players vote, except the vote requester. Robots do not vote.
      * Synchronize on {@link #boardResetVotes} before reading or writing.
-     * When the vote is complete, this is 0.
-     * Undefined before the first vote; this field is not reset each turn.
-     * Set in resetVoteBegin, resetVoteRegister.
+     * When the vote is complete, or before the first vote has begun, this is 0.
+     * Set in resetVoteBegin, resetVoteRegister. Cleared in resetVoteClear.
      */
     private int boardResetVotesWaiting;
 
@@ -1002,6 +1001,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * Put this piece on the board and update all related game state.
+     * May change current player.
      * If the piece is a city, putPiece removes the settlement there.
      *
      * @param pp the piece to put on the board
@@ -1634,9 +1634,9 @@ public class SOCGame implements Serializable, Cloneable
      * and if possible, sets state to {@link #PLAY1}, but does not call {@link #endTurn()}.
      * May be used if player loses connection, or robot does not respond.
      *<P>
-     * TODO finish this javadoc...
-     *<P>
      * Since only the server calls {@link #endTurn()}, this method does not do so.
+     * This method also does not check if a board-reset vote is in progress,
+     * because endTurn will unconditionally cancel such a vote.
      *<P>
      * After calling forceEndTurn, usually the gameState will be {@link #PLAY1},  
      * and the caller should call {@link #endTurn()}.  The {@link #isForcingEndTurn()}
@@ -3439,6 +3439,8 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * Begin a board-reset vote.
+     * The requester is marked as voting yes, and we mark other players as "no vote yet".
+     * Wait for other human players to vote.
      *
      * @param reqPN Player number requesting the vote
      * @throws IllegalArgumentException If this player number has already
@@ -3462,9 +3464,18 @@ public class SOCGame implements Serializable, Cloneable
              boardResetVoteRequester = reqPN;
              for (int i = 0; i < MAXPLAYERS; ++i)
              {
-                 boardResetVotes[i] = VOTE_NONE;
-                 if ((i != reqPN) && ! (isSeatVacant(i) || players[i].isRobot()))
-                     ++numVoters;
+                 if (i != reqPN)
+                 {
+                     boardResetVotes[i] = VOTE_NONE;
+                     if (! (isSeatVacant(i) || players[i].isRobot()))
+                         ++numVoters;
+                 }
+                 else
+                 {
+                     // Requester doesn't count as a voter we're waiting for,
+                     // but is easier for other code if assume they voted yes.
+                     boardResetVotes[i] = VOTE_YES;
+                 }
              }
              boardResetVotesWaiting = numVoters;
         }
@@ -3472,8 +3483,8 @@ public class SOCGame implements Serializable, Cloneable
         if (gameState >= PLAY)
         {
             players[reqPN].setAskedBoardReset(true);
-            // During game setup, normal end-of-turn flags aren't
-            // cleared.  Easier to just not set this one.
+            // During game setup (START1A..START2B), normal end-of-turn flags aren't
+            // cleared.  Easiest to not set this one during those states.
         }
     }
 
@@ -3567,15 +3578,19 @@ public class SOCGame implements Serializable, Cloneable
      * requester, players' setAskedBoardReset.
      * This is outside of {@link #endTurn()} because
      * endTurn is called only at the server, not at clients.
-     * Do not call this to cancel a vote, because it would
-     * allow players to ask for a reset more than once per turn.
+     * Do not call this to cancel a vote during normal gameplay, because
+     * it would allow players to ask for a reset more than once per turn.
      */
     public void resetVoteClear()
     {
         if (boardResetVoteRequester != -1)
             boardResetVoteRequester = -1;
-        for (int i = 0; i < MAXPLAYERS; ++i)
-            players[i].setAskedBoardReset(false);
+        synchronized (boardResetVotes)
+        {
+            boardResetVotesWaiting = 0;
+            for (int i = 0; i < MAXPLAYERS; ++i)
+                players[i].setAskedBoardReset(false);
+        }
     }
 
     /**

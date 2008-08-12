@@ -157,7 +157,7 @@ public abstract class SOCMessageTemplateMs extends SOCMessageMulti
      */
     public String toString()
     {
-        StringBuffer sb = new StringBuffer(this.getClass().getName());
+        StringBuffer sb = new StringBuffer(getClassNameShort());
         sb.append (":game=");
         sb.append (game);
         if (pa != null)

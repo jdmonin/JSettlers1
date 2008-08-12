@@ -467,7 +467,7 @@ public class SOCServer extends Server
     }
 
     /**
-     * the connection c leaves the game gm.
+     * the connection c leaves the game gm.  Clean up; if needed, call {@link #forceEndGameTurn(SOCGame, String)}.
      *<P>
      * WARNING: MUST HAVE THE gameList.takeMonitorForGame(gm) before
      * calling this method
@@ -496,6 +496,7 @@ public class SOCServer extends Server
 
             boolean gameHasHumanPlayer = false;
             boolean gameHasObserver = false;
+            boolean gameVotingActiveDuringStart = false;
 
             if (cg != null)
             {
@@ -510,6 +511,31 @@ public class SOCServer extends Server
                         && (player.getName().equals(plName)))
                     {
                         isPlayer = true;
+
+                        /**
+                         * About to remove this player from the game. Before doing so:
+                         * If a board-reset vote is in progress, they cannot vote
+                         * once they have left. So to keep the game moving,
+                         * fabricate their response: vote No.
+                         */
+                        if (cg.getResetVoteActive())
+                        {
+                            if (cg.getGameState() <= SOCGame.START2B)
+                                gameVotingActiveDuringStart = true;
+
+                            if (cg.getResetPlayerVote(playerNumber) == SOCGame.VOTE_NONE)
+                            {
+                                gameList.releaseMonitorForGame(gm);
+                                cg.takeMonitor();
+                                resetBoardVoteNotifyOne(cg, playerNumber, plName, false);                
+                                cg.releaseMonitor();
+                                gameList.takeMonitorForGame(gm);
+                            }
+                        }
+
+                        /** 
+                         * Remove the player.
+                         */
                         cg.removePlayer(plName);  // player obj name becomes null
 
                         //broadcastGameStats(cg);
@@ -721,7 +747,10 @@ public class SOCServer extends Server
                             foundNoRobots = true;
                         }
                     }
-                    
+
+                    /**
+                     * What to do if no robot was found to fill their spot?
+                     */
                     if (foundNoRobots)
                     {
                         final int cpn = cg.getCurrentPlayerNumber();
@@ -743,33 +772,61 @@ public class SOCServer extends Server
                                 cg.releaseMonitor();
                                 gameList.takeMonitorForGame(gm);
                             } else {
-                                // Cannot easily end turn.
-                                // Must back out something in progress.
-                                // May or may not end turn; see javadocs
-                                // of forceEndGameTurn and game.forceEndTurn
+                                /**
+                                 * Cannot easily end turn.
+                                 * Must back out something in progress.
+                                 * May or may not end turn; see javadocs
+                                 * of forceEndGameTurn and game.forceEndTurn.
+                                 * All start phases are covered here (START1A..START2B)
+                                 * because canEndTurn returns false in those gameStates.
+                                 */
                                 gameList.releaseMonitorForGame(gm);
                                 cg.takeMonitor();
+                                if (gameVotingActiveDuringStart)
+                                {
+                                    /**
+                                     * If anyone has requested a board-reset vote during
+                                     * game-start phases, we have to tell clients to cancel
+                                     * the vote request, because {@link soc.message.SOCTurn}
+                                     * isn't always sent during start phases.  (Voting must
+                                     * end when the turn ends.)
+                                     */
+                                    messageToGame(gm, new SOCResetBoardReject(gm));
+                                    cg.resetVoteClear();
+                                }
+
+                                /**
+                                 * Force turn to end
+                                 */
                                 forceEndGameTurn(cg, plName);
                                 cg.releaseMonitor();
                                 gameList.takeMonitorForGame(gm);
                             }
                         }
-                        else if ((cg.getGameState() == SOCGame.WAITING_FOR_DISCARDS)
-                                 && (cg.getPlayer(playerNumber).getNeedToDiscard()))
+                        else
                         {
                             /**
-                             * Another rare case, where the game is waiting for input
-                             * from the player who is leaving. 
-                             * For discard, tell the discarding player's client that they discarded the resources,
-                             * tell everyone else that the player discarded unknown resources.
+                             * Check if game is waiting for input from the player who
+                             * is leaving, but who isn't current player.
+                             * To keep the game moving, fabricate their response.
+                             * - Board-reset voting: Handled above.
+                             * - Waiting for discard: Handle here.
                              */
-                            gameList.releaseMonitorForGame(gm);
-                            cg.takeMonitor();
-                            forceGamePlayerDiscard(cg, cpn, c, plName, playerNumber);
-                            sendGameState(cg, false);  // WAITING_FOR_DISCARDS or MOVING_ROBBER
-                            cg.releaseMonitor();
-                            gameList.takeMonitorForGame(gm);
-                        }
+                            if ((cg.getGameState() == SOCGame.WAITING_FOR_DISCARDS)
+                                 && (cg.getPlayer(playerNumber).getNeedToDiscard()))
+                            {
+                                /**
+                                 * For discard, tell the discarding player's client that they discarded the resources,
+                                 * tell everyone else that the player discarded unknown resources.
+                                 */
+                                gameList.releaseMonitorForGame(gm);
+                                cg.takeMonitor();
+                                forceGamePlayerDiscard(cg, cpn, c, plName, playerNumber);
+                                sendGameState(cg, false);  // WAITING_FOR_DISCARDS or MOVING_ROBBER
+                                cg.releaseMonitor();
+                                gameList.takeMonitorForGame(gm);
+                            }
+                        }  // current player?
                     }
                 }
             }
@@ -4781,22 +4838,40 @@ public class SOCServer extends Server
     {
         if (c == null)
             return;
-        String gaName = mes.getGame();
-        SOCGame ga = gameList.getGameData(gaName);
+        SOCGame ga = gameList.getGameData(mes.getGame());
         if (ga == null)
-            return;        
-        SOCPlayer reqPlayer = ga.getPlayer((String) c.getData());
+            return;
+        final String plName = (String) c.getData();
+        SOCPlayer reqPlayer = ga.getPlayer(plName);
         if (reqPlayer == null)
         {
             return;  // Not playing in that game (Security)
         }
-        
+
+        // Register this player's vote, and let game members know.
+        // If vote succeeded, go ahead and reset the game.
+        // If vote rejected, let everyone know.
+
+        resetBoardVoteNotifyOne(ga, reqPlayer.getPlayerNumber(), plName, mes.getPlayerVote());                
+    }
+
+    /**
+     * "Reset-board" request: Register one player's vote, and let game members know.
+     * If vote succeeded, go ahead and reset the game.
+     * If vote rejected, let everyone know.
+     *
+     * @param ga      Game for this reset vote
+     * @param pn      Player number who is voting
+     * @param plName  Name of player who is voting
+     * @param vyes    Player's vote, Yes or no
+     */
+    private void resetBoardVoteNotifyOne(SOCGame ga, final int pn, final String plName, final boolean vyes)
+    {
         boolean votingComplete = false;
+
+        final String gaName = ga.getName();
         try
         {
-            int pn = reqPlayer.getPlayerNumber();
-            boolean vyes = mes.getPlayerVote();
-
             // Register in game
             votingComplete = ga.resetVoteRegister(pn, vyes);
             // Tell other players
@@ -4804,12 +4879,12 @@ public class SOCServer extends Server
         }
         catch (IllegalArgumentException e)
         {
-            D.ebugPrintln("*Error in player voting: game " + ga.getName() + ": " + e);
+            D.ebugPrintln("*Error in player voting: game " + gaName + ": " + e);
             return;
         }
         catch (IllegalStateException e)
         {
-            D.ebugPrintln("*Voting not active: game " + ga.getName());
+            D.ebugPrintln("*Voting not active: game " + gaName);
             return;
         }
 
@@ -4827,7 +4902,7 @@ public class SOCServer extends Server
         {
             // Vote rejected - Let everyone know.
             messageToGame(gaName, new SOCResetBoardReject(gaName));
-        }                
+        }
     }
 
     /**
@@ -6069,8 +6144,14 @@ public class SOCServer extends Server
         // Must release before calling methods below
         gameList.releaseMonitorForGame(gaName);
 
-        messageToGameUrgent(gaName, ">>> Game " + gaName + " board reset by "
-            + reGame.getPlayer(requestingPlayer).getName());
+        // Announce who asked for this reset
+        {
+            String plName = reGame.getPlayer(requestingPlayer).getName();
+            if (plName == null)
+                plName = "player who left";
+            messageToGameUrgent(gaName, ">>> Game " + gaName + " board reset by "
+                + plName);
+        }
 
         /**
          * Player connection data:
