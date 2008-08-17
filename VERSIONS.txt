@@ -1,5 +1,10 @@
 [ The list of the different public versions of JSettlers ]
 
+    > 1.1.02 (build 2008-08-17)  http://nand.net/jsettlers/devel/
+- Reset board: If human leaves game before reset, lock their seat against robots
+- Bugfix: Robot disconnect/reconnect version reporting
+- Add minor items to TODO in README.developer
+
     > 1.1.01 (build 2008-08-12)  http://nand.net/jsettlers/devel/
 
 - Bugfix: If player loses connection while voting for board reset, the vote never completes

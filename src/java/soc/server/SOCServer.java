@@ -2314,8 +2314,7 @@ public class SOCServer extends Server
     {
         if (c == null)
             return;
-        
-        D.ebugPrintln("handleVERSION: " + mes);
+
         setClientVersionOrReject(c, mes.getVersionNumber());
     }
 
@@ -4762,11 +4761,16 @@ public class SOCServer extends Server
         if (numHuman < 2)
         {
             // Are there robots? Go ahead and reset if so.
-            int numRobot = 0;
+            boolean hadRobot = false;
             for (int i = robotConns.length-1; i>=0; --i)
+            {
                 if (robotConns[i] != null)
-                    ++numRobot;
-            if (numRobot > 0)
+                {
+                    hadRobot = true;
+                    break;
+                }
+            }
+            if (hadRobot)
             {
                 resetBoardAndNotify(gaName, reqPN);
             } else {

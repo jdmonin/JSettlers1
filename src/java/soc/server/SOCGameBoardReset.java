@@ -112,16 +112,18 @@ public class SOCGameBoardReset
      * Two modes:
      *<P>
      * If currently copying a game, assumes newGame is from oldGame via {@link SOCGame#resetAsCopy()},
-     * and newGame contains only the human players, oldGame also will contain robot players.
+     * and newGame contains only the human players, oldGame contains all human and robot players.
      *<P>
-     * If not copying a game, oldGame is null, and assumes newGame has all
+     * If not copying a game, only inspecting one, then oldGame is null, and assumes newGame has all
      * players (both human and robot).
      *
      * @param newGame New game (if resetting), or only game
      * @param oldGame Old game (if resetting), or null
      * @param memberConns Members of old game, from {@link SOCGameList#getMembers(String)}; a Vector of StringConnections
-     * @param humanConns Array to fill with human players; indexed 0 to SOCGame.MAXPLAYERS-1
-     * @param robotConns Array to fill with robot players; indexed 0 to SOCGame.MAXPLAYERS-1
+     * @param humanConns New array to fill with human players; indexed 0 to SOCGame.MAXPLAYERS-1.
+     *                   humanConns[pn] will be the human player at position pn, or null.
+     * @param robotConns New array to fill with robot players; indexed 0 to SOCGame.MAXPLAYERS-1.
+     *                   robotConns[pn] will be the robot player at position pn, or null.
      *
      * @return The number of human players in newGame
      */

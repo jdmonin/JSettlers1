@@ -288,7 +288,7 @@ public class SOCGameList
 
     /**
      * remove member from the game.
-     * Also updates game's version range of remaining connected members.
+     * Also updates game's client version range, with remaining connected members.
      * Please call {@link #takeMonitorForGame(String)} before calling this.
      *
      * @param  gaName   the name of the game

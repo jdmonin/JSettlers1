@@ -22,9 +22,14 @@ Current TODO list: (Work on these items not yet begun)
 	- User documentation is out of date; unsure if any user ever reads it anyway
 	- Occasionally shows "Winner" label at wrong player, esp if hidden VP cards
 	- Visual reminder to player when they've made an offer
+	- Hovering mouse at center of robber-hex, should be able to see tooltip with the dice #.
+		instead, currently see road of players on either side
 	- Kick robots if inactive but current player in game, assume they're buggy (use forceEndTurn)
 	- If try to start server in JSettlers.jar, but port already in use, currently bombs out
 		should instead show MessagePanel with option to practice, or even just show a message
+	- Easy robot startup command-line option in standalone server, add like in practice server
+		possibly w. way to add robots when needed as server runs, with server active-game count
+	- At board reset, game observers not currently handled properly
 	- Board coordinate-representation for larger board (5,6-player expansion, or seafarers)
 	- Classes and popup for game options or house rules at start (robber returning to desert, no 7's in first x turns, etc.)
 		Maybe combine with notion of "game owner"

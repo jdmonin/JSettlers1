@@ -231,7 +231,8 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
     }
 
     /**
-     * disconnect and then try to reconnect
+     * disconnect and then try to reconnect.
+     * If the reconnect fails, {@link #ex} is set. Otherwise ex is null.
      */
     public void disconnectReconnect()
     {
@@ -259,6 +260,7 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
 
             //resetThread = new SOCRobotResetThread(this);
             //resetThread.start();
+            put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
             put(SOCImARobot.toCmd(nickname));
         }
         catch (Exception e)
@@ -1797,12 +1799,14 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
         cleanBrainKills++;
     }
 
-    /** destroy the applet */
+    /** losing connection to server; leave all games, then try to reconnect */
     public void destroy()
     {
         SOCLeaveAll leaveAllMes = new SOCLeaveAll();
         put(leaveAllMes.toCmd());
         disconnectReconnect();
+        if (ex != null)
+            System.err.println("Reconnect to server failed: " + ex);
     }
 
     /**

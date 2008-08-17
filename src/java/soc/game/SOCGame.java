@@ -3399,6 +3399,7 @@ public class SOCGame implements Serializable, Cloneable
      * old game, but all other fields set as new Player and Board objects.
      * Robot players are NOT carried over, and must be asked to re-join.
      * (This simplifies the robot client.)
+     * Any vacant seats will be locked, so a robot won't sit there.
      *<P>
      * Old game's state becomes RESET_OLD.
      * Old game's previous state is saved to {@link #getResetOldGameState()}.
@@ -3432,7 +3433,11 @@ public class SOCGame implements Serializable, Cloneable
             if (wasRobot)
                 cp.seats[i] = VACANT;
             else
+            {
                 cp.seats[i] = seats[i];  // reset in case addPlayer cleared VACANT for non-in-use player position
+                if (cp.seats[i] == VACANT)
+                    cp.seatLocks[i] = true;
+            }
         }
         return cp;
     }
