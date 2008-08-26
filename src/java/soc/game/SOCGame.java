@@ -412,45 +412,17 @@ public class SOCGame implements Serializable, Cloneable
     long expiration;
 
     /**
-     * create a new game
+     * create a new, active game
      *
      * @param n  the name of the game
      */
     public SOCGame(String n)
     {
-        active = true;
-        inUse = false;
-        name = n;
-        board = new SOCBoard();
-        players = new SOCPlayer[MAXPLAYERS];
-        seats = new int[MAXPLAYERS];
-        seatLocks = new boolean[MAXPLAYERS];
-        boardResetVotes = new int[MAXPLAYERS];
-
-        for (int i = 0; i < MAXPLAYERS; i++)
-        {
-            players[i] = new SOCPlayer(i, this);
-            seats[i] = VACANT;
-            seatLocks[i] = UNLOCKED;
-        }
-
-        currentPlayerNumber = -1;
-        firstPlayerNumber = -1;
-        currentDice = -1;
-        playerWithLargestArmy = -1;
-        playerWithLongestRoad = -1;
-        boardResetVoteRequester = -1;
-        playerWithWin = -1;
-        numDevCards = 25;
-        gameState = NEW;
-        forcingEndTurn = false;
-        placingRobberForKnightCard = false;
-        oldPlayerWithLongestRoad = new Stack();
-        startTime = new Date();
+        this(n, true);
     }
 
     /**
-     * create a new game that can be INACTIVE
+     * create a new game that can be ACTIVE or INACTIVE
      *
      * @param n  the name of the game
      * @param a  true if this is an active game, false for inactive
@@ -479,8 +451,11 @@ public class SOCGame implements Serializable, Cloneable
         playerWithLargestArmy = -1;
         playerWithLongestRoad = -1;
         boardResetVoteRequester = -1;
+        playerWithWin = -1;
         numDevCards = 25;
         gameState = NEW;
+        forcingEndTurn = false;
+        placingRobberForKnightCard = false;
         oldPlayerWithLongestRoad = new Stack();
         if (active)
             startTime = new Date();

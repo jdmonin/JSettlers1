@@ -1,5 +1,13 @@
 [ The list of the different public versions of JSettlers ]
 
+    > 1.1.03 (build 2008-08-26)  http://nand.net/jsettlers/devel/
+- Reset board: Bugfix: Practice games server version-check
+- Don't show hovering road/settlement/city unless player has the resources
+- "Play card" button: Disable after playing a card; Enable only at start of turn, not after buying a card
+- Bugfix: At end of game, client sometimes incorrectly showed player 0 (Blue) as winner
+- Javadocs clarify SOCPlayerClient local TCP vs practice server
+- Add minor items to TODO in README.developer
+
     > 1.1.02 (build 2008-08-17)  http://nand.net/jsettlers/devel/
 - Reset board: If human leaves game before reset, lock their seat against robots
 - Bugfix: Robot disconnect/reconnect version reporting

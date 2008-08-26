@@ -709,7 +709,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public void resetBoardRequest()
     {
-        if (client.getServerVersion() < 1100)
+        if (client.getServerVersion(game) < 1100)
         {
             textDisplay.append("*** This server does not support board reset, server is too old.\n");
             return;

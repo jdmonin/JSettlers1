@@ -54,6 +54,15 @@ import java.util.Timer;
  * It can be used in an applet or an application.
  * It loads gifs from a directory named "images" in the same
  * directory at the code.
+ *<P>
+ * When the mouse is over the game board, a tooltip shows information
+ * such as a hex's resource, a piece's owner, a port's ratio, or the
+ * number under the robber. See {@link #hoverTip}.
+ *<P>
+ * During game play, moving the mouse over the board shows ghosted roads,
+ * settlements, cities at locations the player can build.  See: {@link #hilight},
+ * {@link SOCBoardPanel.BoardToolTip#hoverRoadID}.
+ * Right-click to build, or use the {@link SOCBuildPanel}'s buttons.
  */
 public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionListener
 {
@@ -166,6 +175,10 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /** Arrow color: cyan: r=106,g=183,b=183 */
     private static final Color ARROW_COLOR = new Color(106, 183, 183);
 
+    /**
+     * BoardPanel's {@link #mode}s. NONE is normal gameplay, or not the client's turn.
+     * For correlation to game state, see {@link #updateMode()}.
+     */
     public final static int NONE = 0;
     public final static int PLACE_ROAD = 1;
     public final static int PLACE_SETTLEMENT = 2;
@@ -179,6 +192,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     public final static int CONSIDER_LT_SETTLEMENT = 10;
     public final static int CONSIDER_LT_ROAD = 11;
     public final static int CONSIDER_LT_CITY = 12;
+    public final static int TURN_STARTING = 97;
     public final static int GAME_FORMING = 98;
     public final static int GAME_OVER = 99;
     
@@ -340,7 +354,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     protected BoardPanelSendBuildTask buildReqTimerTask;
 
     /**
-     * Edge or node being pointed to.
+     * Edge or node being pointed to. When placing a road/settlement/city,
+     * used for coordinate of "ghost" piece under the mouse pointer.
      */
     private int hilight;
 
@@ -391,7 +406,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private Image buffer;
 
     /**
-     * modes of interaction; for correlation to game state, see {@link #updateMode()}.
+     * Modes of interaction; for correlation to game state, see {@link #updateMode()}.
+     * For tooltip's mode, see {@link SOCBoardPanel.BoardToolTip#hoverMode}.
      */
     private int mode;
 
@@ -1842,7 +1858,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     }
 
     /**
-     * update the type of interaction mode
+     * update the type of interaction mode.
+     * Also calls {@link #updateHoverTipToMode()}.
      */
     public void updateMode()
     {
@@ -1897,6 +1914,11 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
                     break;
 
+                case SOCGame.PLAY:
+                    mode = TURN_STARTING;
+
+                    break;
+
                 default:
                     mode = NONE;
 
@@ -1918,7 +1940,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     
     protected void updateHoverTipToMode()
     {
-        if ((mode == NONE) || (mode == GAME_OVER))            
+        if ((mode == NONE) || (mode == TURN_STARTING) || (mode == GAME_OVER))            
             hoverTip.setOffsetX(0);
         else if (mode == PLACE_ROBBER)
             hoverTip.setOffsetX(HOVER_OFFSET_X_FOR_ROBBER);
@@ -1927,7 +1949,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         else
             hoverTip.setHoverText(null);
     }
-    
+
+    /** Set mode to NONE, no hilight */
     protected void clearModeAndHilight()
     {
         mode = NONE;
@@ -2017,7 +2040,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             hoverTip.hideHoverAndPieces();
             wantsRepaint = true;
         }
-        if (mode != NONE)
+        if ((mode != NONE) && (mode != TURN_STARTING))
         {
             hilight = 0;
             wantsRepaint = true;
@@ -2270,6 +2293,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             break;
 
         case NONE:
+        case TURN_STARTING:
         case GAME_OVER:
             // see hover
             if ((ptrOldX != x) || (ptrOldY != y))
@@ -2322,6 +2346,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             switch (mode)
             {
             case NONE:
+                break;
+
+            case TURN_STARTING:
                 break;
 
             case PLACE_INIT_ROAD:
@@ -2784,9 +2811,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         private int hoverID;
         /** Object last pointed at; null for hexes and ports */
         private SOCPlayingPiece hoverPiece;
-        /** hover road ID, or 0. Readonly please from outside this inner class */
+        /** hover road ID, or 0. Readonly please from outside this inner class. Drawn in {@link #paint(Graphics)}. */
         int hoverRoadID;
-        /** hover settlement or city node ID, or 0. Readonly please from outside this inner class */
+        /** hover settlement or city node ID, or 0. Readonly please from outside this inner class. Drawn in {@link #paint(Graphics)}. */
         int hoverSettlementID, hoverCityID;
         /** is hover a port at coordinate hoverID? */
         boolean hoverIsPort;
@@ -2928,7 +2955,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
          * Assumes x or y has changed since last call.
          * Does not affect the "hilight" variable used by SOCBoardPanel during
          * initial placement, and during placement from clicking "Buy" buttons.
-         * 
+         *<P>
+         * If the board mode doesn't allow hovering pieces (ghost pieces), will clear
+         * hoverRoadID, hoverSettlementID, and hoverCityID to 0.
+         * Otherwise, these are set when the mouse is at a location where the
+         * player can build or upgrade, and they have resources to build.
+         *
          * @param x Cursor x, from upper-left of board: actual coordinates, not board-internal coordinates
          * @param y Cursor y, from upper-left of board: actual coordinates, not board-internal coordinates
          */
@@ -2948,15 +2980,20 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 yb = scaleFromActualY(y);
             }
 
-            // Previous: hoverMode, hoverID, hoverText
+            // Variables set in previous call to handleHover:
+            // hoverMode, hoverID, hoverText.
+            // Check whether they have changed.
+            // If not, just move the tooltip with positionToMouse.
+
+            /** Coordinates on board (a node, edge, or hex) */
             int id;
             boolean modeAllowsHoverPieces = ((mode != PLACE_INIT_SETTLEMENT)
                 && (mode != PLACE_INIT_ROAD) && (mode != PLACE_ROBBER)
-                && (mode != GAME_OVER));
-            
+                && (mode != TURN_STARTING) && (mode != GAME_OVER));
+
             boolean playerIsCurrent = (player != null) && playerInterface.clientIsCurrentPlayer();
-            boolean hoverTextSet = false;  // True once determined
-            
+            boolean hoverTextSet = false;  // True once text is determined
+
             if (! modeAllowsHoverPieces)
             {
                 hoverRoadID = 0;
@@ -3012,7 +3049,8 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     if (modeAllowsHoverPieces && playerIsCurrent
                          && (p.getPlayer() == player)
                          && (p.getType() == SOCPlayingPiece.SETTLEMENT)
-                         && (player.isPotentialCity(id)))
+                         && (player.isPotentialCity(id))
+                         && (player.getResources().contains(SOCGame.CITY_SET)))
                     {
                         hoverCityID = id;
                     } else {
@@ -3025,7 +3063,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     {
                         // Nothing currently here.
                         hoverCityID = 0;
-                        if (modeAllowsHoverPieces && player.isPotentialSettlement(id))
+                        if (modeAllowsHoverPieces
+                            && player.isPotentialSettlement(id)
+                            && player.getResources().contains(SOCGame.SETTLEMENT_SET))
                             hoverSettlementID = id;
                         else
                             hoverSettlementID = 0;
@@ -3090,7 +3130,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 else if (playerIsCurrent)
                 {
                     // No piece there
-                    if (modeAllowsHoverPieces && player.isPotentialRoad(id))
+                    if (modeAllowsHoverPieces
+                        && player.isPotentialRoad(id)
+                        && player.getResources().contains(SOCGame.ROAD_SET))
                         hoverRoadID = id;
                     else
                         hoverRoadID = 0;

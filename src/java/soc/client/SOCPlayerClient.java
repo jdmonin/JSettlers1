@@ -90,6 +90,16 @@ import java.util.Vector;
  *<P>
  * At startup or init, will try to connect to server via {@link #connect()}.
  * See that method for more details.
+ *<P>
+ * There are three possible servers to which a client can be connected:
+ *<UL>
+ *  <LI>  A remote server, running on the other end of a TCP connection
+ *  <LI>  A local TCP server, for hosting games, launched by this client: {@link #localTCPServer}
+ *  <LI>  A "practice game" server, not bound to any TCP port, for practicing
+ *        locally against robots: {@link #practiceServer}
+ *</UL>
+ * At most, the client is connected to the practice server and one TCP server.
+ * Each game's {@link SOCGame#isLocal} flag determines which connection to use.
  *
  * @author Robert S Thomas
  */
@@ -146,8 +156,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Exception ex = null;    // Network errors (TCP communication)
     protected Exception ex_L = null;  // Local errors (stringport pipes)
     protected boolean connected = false;
-    /** Server version number, sent soon after connect, or -1 if unknown */
-    protected int sVersion, sLocalVersion;
+    /**
+     *  Server version number for remote server, sent soon after connect, or -1 if unknown.
+     *  A local server's version is always {@link Version#versionNumber()}.
+     */
+    protected int sVersion;
 
     /**
      * Once true, disable "nick" textfield, etc.
@@ -243,7 +256,11 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Vector ignoreList = new Vector();
 
     /**
-     * for local-practice game via {@link #prCli}
+     * for local-practice game via {@link #prCli}; not connected to
+     * the network, not suited for multi-player games. Use {@link #localTCPServer}
+     * for those.
+     * SOCMessages of games where {@link SOCGame#isLocal} is true are sent
+     * to practiceServer.
      */
     protected SOCServer practiceServer = null;
 
@@ -256,7 +273,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Client-hosted TCP server. If client is running this server, it's also connected
      * as a client, instead of being client of a remote server.
+     * Started via {@link #startLocalTCPServer(int)}.
      * {@link #practiceServer} may still be activated at the user's request.
+     * Note that {@link SOCGame#isLocal} is false for localTCPServer's games.
      */
     protected SOCServer localTCPServer = null;
 
@@ -1136,10 +1155,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * write a message to the net
+     * write a message to the net: either to a remote server,
+     * or to {@link #localTCPServer} for games we're hosting.
      *
      * @param s  the message
      * @return true if the message was sent, false if not
+     * @see #put(String, boolean)
      */
     public synchronized boolean putNet(String s)
     {
@@ -1170,10 +1191,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * write a message to the local server
+     * write a message to the practice server. {@link #localTCPServer} is not
+     * the same as the practice server; use {@link #putNet(String)} to send
+     * a message to the local TCP server.
      *
      * @param s  the message
      * @return true if the message was sent, false if not
+     * @see #put(String, boolean)
      */
     public synchronized boolean putLocal(String s)
     {
@@ -1199,6 +1223,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * 
      * @param s  the message
      * @param isLocal Is the server local (practice game), or network?
+     *                {@link #localTCPServer} is considered "network" here.
      * @return true if the message was sent, false if not
      */
     public synchronized boolean put(String s, boolean isLocal)
@@ -1666,6 +1691,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Handle the "version" message, server's version report.
      * Reply with client's version.
+     * If remote, store the server's version for {@link #getServerVersion(SOCGame)}.
+     * (Local server's version is always {@link Version#versionNumber()}.)
      *
      * @param isLocal Is the server local, or remote?  Client can be connected
      *                only to local, or remote.
@@ -1675,9 +1702,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         D.ebugPrintln("handleVERSION: " + mes);
         int vers = mes.getVersionNumber();
-        if (isLocal)
-            sLocalVersion = vers;
-        else
+        if (! isLocal)
             sVersion = vers;
 
         // If we ever require a minimum server version, would check that here.
@@ -3993,14 +4018,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     }
 
     /**
-     * Server version, assuming we're connected to a remote server.
-     * Returns -1 if unknown. 
+     * Server version, for checking feature availability.
+     * Returns -1 if unknown.
+     * @param  game  Game being played on a local (practice) or remote server.
      * @return Server version, format like {@link soc.util.Version#versionNumber()},
      *         or 0 or -1.
      */
-    public int getServerVersion()
+    public int getServerVersion(SOCGame game)
     {
-        return sVersion;
+        if (game.isLocal)
+            return Version.versionNumber();
+        else
+            return sVersion;
     }
 
     /**

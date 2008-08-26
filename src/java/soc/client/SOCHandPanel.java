@@ -807,32 +807,33 @@ public class SOCHandPanel extends Panel implements ActionListener
             return;  // <--- Early Return: Not current player ---
         }
 
+        int cardTypeToPlay = -1;
         if (item.equals("Soldier"))
         {
             if (game.canPlayKnight(player.getPlayerNumber()))
             {
-                client.playDevCard(game, SOCDevCardConstants.KNIGHT);
+                cardTypeToPlay = SOCDevCardConstants.KNIGHT;
             }
         }
         else if (item.equals("Road Building"))
         {
             if (game.canPlayRoadBuilding(player.getPlayerNumber()))
             {
-                client.playDevCard(game, SOCDevCardConstants.ROADS);
+                cardTypeToPlay = SOCDevCardConstants.ROADS;
             }
         }
         else if (item.equals("Year of Plenty"))
         {
             if (game.canPlayDiscovery(player.getPlayerNumber()))
             {
-                client.playDevCard(game, SOCDevCardConstants.DISC);
+                cardTypeToPlay = SOCDevCardConstants.DISC;
             }
         }
         else if (item.equals("Monopoly"))
         {
             if (game.canPlayMonopoly(player.getPlayerNumber()))
             {
-                client.playDevCard(game, SOCDevCardConstants.MONO);
+                cardTypeToPlay = SOCDevCardConstants.MONO;
             }
         }
         else if (item.indexOf("VP)") > 0)
@@ -841,6 +842,12 @@ public class SOCHandPanel extends Panel implements ActionListener
             itemNum = cardList.getSelectedIndex();
             if (itemNum >= 0)
                 cardList.deselect(itemNum);
+        }
+
+        if (cardTypeToPlay != -1)
+        {
+            client.playDevCard(game, cardTypeToPlay);
+            playCardBut.setEnabled(false);  // Can play just one per turn
         }
     }
 
@@ -1384,7 +1391,8 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
-     * DOCUMENT ME!
+     * Update the displayed list of player's development cards,
+     * and enable or disable the "Play Card" button.
      */
     public void updateDevCards()
     {
@@ -1408,7 +1416,7 @@ public class SOCHandPanel extends Panel implements ActionListener
                               "Temple (1VP)",
                               "Chapel (1VP)",
                               "University (1VP)"};
-        boolean hasCards = false;
+        boolean hasOldCards = false;
 
         synchronized (cardList.getTreeLock())
         {
@@ -1419,8 +1427,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 int numOld = cards.getAmount(SOCDevCardSet.OLD, cardTypes[i]);
                 int numNew = cards.getAmount(SOCDevCardSet.NEW, cardTypes[i]);
-                if ((numOld > 0) || (numNew > 0))
-                    hasCards = true;
+                hasOldCards = (numOld > 0);
 
                 for (int j = 0; j < numOld; j++)
                 {
@@ -1435,7 +1442,7 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
         }
 
-        playCardBut.setEnabled (hasCards && playerIsCurrent);
+        playCardBut.setEnabled(hasOldCards && playerIsCurrent);
     }
 
     /**
