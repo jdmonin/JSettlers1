@@ -1,5 +1,5 @@
 /*
- * $Id: AWTToolTip.java,v 1.0 2008/01/12 17:48:00 jm Exp $
+ * $Id: AWTToolTip.java,v 1.0 2008/08/26 20:02:00 jm Exp $
  *
  * (c)2000 IoS Gesellschaft fr innovative Softwareentwicklung mbH
  * http://www.IoS-Online.de    mailto:info@IoS-Online.de
@@ -73,6 +73,7 @@ public class AWTToolTip
   /** Mouse location within parentComp */
   private int mousePosAtWinShowX, mousePosAtWinShowY;
 
+  /** Does the tooltip automatically appear when mouse enters {@link #parentComp}? */
   private boolean autoPopup = false;
 
   /**
@@ -87,16 +88,16 @@ public class AWTToolTip
    */
   public static int OFFSET_Y = 10;
 
-  /** JM add: want shown? If true, must dynamically add us to parentComp. */
+  /** Want shown? If true, must dynamically add us to {@link #parentComp} when become visible. */
   private boolean wantsShown;
 
-  /** Currently showing?  See also mainParentComp != null. */
+  /** Currently showing?  Also indicated by mainParentComp != null. */
   private boolean isShown;  // TODO pick one (isShown or mainParentComp != null)
 
-  /** JM add: Our location within parentComp */
+  /** Our location within parentComp */
   private int boxX, boxY;
 
-  /** JM add: Our size */
+  /** Our size */
   private int boxW, boxH;
 
   /** The background color of the window */
@@ -105,8 +106,7 @@ public class AWTToolTip
   static Color fgcol = Color.BLACK;
 
   /**
-   * Constructor.
-   * Constructs a Tooltip which is displayed if there is a click with the right mousebutton on the given component.
+   * Constructs a Tooltip which is displayed when the mouse enters the given component.
    * The tooltip's font is the same as the component's font.
    *
    * @param _comp the Component which this Tooltip describes.
@@ -452,6 +452,9 @@ public class AWTToolTip
  * $Log: ExpandTooltip.java,v $
  * Revision 1.1.1.1  2001/02/07 15:23:49  rtfm
  * initial
+ *
+ * Revision 1.12  2008/08/26 20:02:00  jm
+ * - minor clarify javadocs
  *
  * Revision 1.11  2008/06/22 02:06:00  jm
  * - remove unused method createValuePanel

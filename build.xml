@@ -15,8 +15,8 @@
   <property name="name"      value="jsettlers" />
   <property name="Name"      value="JSettlers" />
   <!-- version under development, e.g. 1.1, 1.2-RC2, 2.0-SNAPSHOT -->
-  <property name="version"   value="1.1.03" />
-  <property name="versionnum" value="1103" />
+  <property name="version"   value="1.1.04" />
+  <property name="versionnum" value="1104" />
   <property name="copyright" value="2001-2004 Robb Thomas, portions 2007-2008 Jeremy D Monin" />
   <property name="url"       value="http://nand.net/jsettlers/devel/" />
 
@@ -355,6 +355,8 @@
                overview="${java.src}/main-overview.html"
                doctitle="${Name}, v ${version}, API Specification"
                windowtitle="${Name} v${version} API"
+               access="package"
+               source="1.4" 
                additionalparam="-breakiterator">
         <packageset dir="${java.src}" />
         <header><![CDATA[<b><a target="_blank" href="${url}">${Name} v${version} API</a></b><br><font size="-2">Built ${date}</font>]]></header>

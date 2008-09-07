@@ -103,6 +103,7 @@ public class SOCBoardLayout extends SOCMessage
     }
 
     /**
+     * Formatted string to send this BOARDLAYOUT over the network.
      * BOARDLAYOUT sep game sep2 hexLayout[0] sep2 ... sep2 hexLayout[36]
      * sep2 numberLayout[0] sep2 ... sep2 numberLayout[36] sep2 robberHex
      *
@@ -114,6 +115,7 @@ public class SOCBoardLayout extends SOCMessage
     }
 
     /**
+     * Formatted string to send this BOARDLAYOUT over the network.
      * BOARDLAYOUT sep game sep2 hexLayout[0] sep2 ... sep2 hexLayout[36]
      * sep2 numberLayout[0] sep2 ... sep2 numberLayout[36] sep2 robberHex
      *

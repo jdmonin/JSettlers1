@@ -1203,7 +1203,7 @@ public class SOCPlayer implements SOCResourceConstants, SOCDevCardConstants, Ser
                 undoPutPieceAuxSettlement(adjNode.intValue());
             }
 
-            if ((game.getGameState() == SOCGame.START2B))
+            if (ours && (game.getGameState() == SOCGame.START2B))
             {
                 resources.clear();
             }

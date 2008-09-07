@@ -365,10 +365,12 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /**
      * Name a current connection to the system.
+     * Can be called once per connection (once named, cannot be changed).
      * Synchronized on unnamedConns.
      *
-     * @param c Connected client; its key data ({@link StringConnection#getData()}) must not be null.
-     * @throws IllegalArgumentException If c isn't already connected, or If c.getData() returns null
+     * @param c Connected client; its key data ({@link StringConnection#getData()}) must not be null
+     * @throws IllegalArgumentException If c isn't already connected, if c.getData() returns null,
+     *          or if nameConnection has previously been called for this connection.
      * @see #addConnection(StringConnection)
      */
     public void nameConnection(StringConnection c)

@@ -1,5 +1,5 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.3.
+ * Local (StringConnection) network system.  Version 1.0.4.
  * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,7 @@ import java.util.Vector;
  *<PRE>
  *  1.0.0 - 2007-11-18 - initial release
  *  1.0.3 - 2008-08-08 - add change history; no other changes in this file since 1.0.0
+ *  1.0.4 - 2008-09-04 - no change in this file
  *</PRE>
  */
 public class LocalStringServerSocket implements StringServerSocket

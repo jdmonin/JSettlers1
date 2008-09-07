@@ -847,7 +847,6 @@ public class SOCHandPanel extends Panel implements ActionListener
         if (cardTypeToPlay != -1)
         {
             client.playDevCard(game, cardTypeToPlay);
-            playCardBut.setEnabled(false);  // Can play just one per turn
         }
     }
 
@@ -1427,7 +1426,8 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 int numOld = cards.getAmount(SOCDevCardSet.OLD, cardTypes[i]);
                 int numNew = cards.getAmount(SOCDevCardSet.NEW, cardTypes[i]);
-                hasOldCards = (numOld > 0);
+                if (numOld > 0)
+                    hasOldCards = true;
 
                 for (int j = 0; j < numOld; j++)
                 {

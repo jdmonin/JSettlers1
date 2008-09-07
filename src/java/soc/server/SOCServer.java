@@ -1478,10 +1478,12 @@ public class SOCServer extends Server
      *<P>
      * Also set client's "assumed version" to -1, until we have sent and
      * received a VERSION message.
+     * Client's {@link SOCClientData} appdata is set here.
      */
     protected void newConnection2(StringConnection c)
     {
         c.setVersion(-1);
+        c.setAppData(new SOCClientData());
 
         // VERSION
         c.put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
@@ -5645,33 +5647,37 @@ public class SOCServer extends Server
      *  If game is OVER, send messages reporting winner, final score,
      *  and each player's victory-point cards.
      *  Also give stats on game length, and on each player's connect time.
+     *  If player has finished more than 1 game since connecting, send win-loss count.
      *
      * @param ga This game is over; state should be OVER
      */
     protected void sendGameStateOVER(SOCGame ga)
     {
         final String gname = ga.getName();
+        String msg;
 
-        // Find and announce the winner
-        // (the real "found winner" code is in SOCGame.checkForWinner)
+        /**
+         * Find and announce the winner
+         * (the real "found winner" code is in SOCGame.checkForWinner;
+         *  that was already called before sendGameStateOVER.)
+         */
+        SOCPlayer winPl = ga.getPlayer(ga.getCurrentPlayerNumber());
+
+        if (winPl.getTotalVP() < SOCGame.VP_WINNER)
         {
-            SOCPlayer pl = ga.getPlayer(ga.getCurrentPlayerNumber());
-
-            if (pl.getTotalVP() < SOCGame.VP_WINNER)
+            // Should not happen: By rules FAQ, only current player can be winner.
+            // This is fallback code.
+            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
-                // Should not happen: By rules FAQ, only current player can be winner.
-                for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+                winPl = ga.getPlayer(i);        
+                if (winPl.getTotalVP() >= SOCGame.VP_WINNER)
                 {
-                    pl = ga.getPlayer(i);        
-                    if (pl.getTotalVP() >= SOCGame.VP_WINNER)
-                    {
-                        break;
-                    }
+                    break;
                 }
             }
-            String msg = ">>> " + pl.getName() + " has won the game with " + pl.getTotalVP() + " points.";
-            messageToGameUrgent(gname, msg);
         }
+        msg = ">>> " + winPl.getName() + " has won the game with " + winPl.getTotalVP() + " points.";
+        messageToGameUrgent(gname, msg);
         
         /// send a message with the revealed final scores
         {
@@ -5695,7 +5701,7 @@ public class SOCServer extends Server
 
             if (devCards.getNumVPCards() > 0)
             {
-                String msg = pl.getName() + " has";
+                msg = pl.getName() + " has";
                 int vpCardCount = 0;
 
                 for (int devCardType = SOCDevCardConstants.CAP;
@@ -5754,7 +5760,7 @@ public class SOCServer extends Server
         }  // for each player
 
         /**
-         * send game-length and connect-length messages
+         * send game-length and connect-length messages, possibly win-loss count.
          */
         {
             Date now = new Date();
@@ -5778,6 +5784,7 @@ public class SOCServer extends Server
             }
 
             /**
+             * Update each player's win-loss count for this session.
              * Tell each player how long they've been connected.
              */
             String connMsg;
@@ -5788,11 +5795,27 @@ public class SOCServer extends Server
 
             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
             {
-                SOCPlayer pl = ga.getPlayer(i);
-                if (pl.isRobot() || ga.isSeatVacant(i))
-                    continue;  // Don't bother to send timing stats to robots, or to empty seats
+                if (ga.isSeatVacant(i))
+                    continue;
 
-                StringConnection plConn = (StringConnection) conns.get(pl.getName()); 
+                SOCPlayer pl = ga.getPlayer(i);
+                StringConnection plConn = (StringConnection) conns.get(pl.getName());
+                SOCClientData cd;
+                if (plConn != null)
+                {
+                    // Update win-loss count, even for robots
+                    cd = (SOCClientData) plConn.getAppData();
+                    if (pl == winPl)
+                        cd.wonGame();
+                    else
+                        cd.lostGame();
+                } else {
+                    cd = null;  // To satisfy compiler warning
+                }
+
+                if (pl.isRobot())
+                    continue;  // Don't bother to send win-loss or timing stats to robots
+
                 if (plConn != null)
                 {
                     long connTime = plConn.getConnectTime().getTime();
@@ -5803,11 +5826,47 @@ public class SOCServer extends Server
                         cLengthMsg.append(" minute.");
                     else
                         cLengthMsg.append(" minutes.");
-                    messageToPlayer(plConn, new SOCGameTextMsg(ga.getName(), SERVERNAME, cLengthMsg.toString()));
+                    messageToPlayer(plConn, new SOCGameTextMsg(gname, SERVERNAME, cLengthMsg.toString()));
+
+                    // Send client's win-loss count for this session,
+                    // if more than 1 game has been played
+                    {
+                        int wins = cd.getWins();
+                        int losses = cd.getLosses();
+                        if (wins + losses < 2)
+                            continue;  // Only 1 game played so far
+
+                        StringBuffer winLossMsg = new StringBuffer("You have ");
+                        if (wins > 0)
+                        {
+                            winLossMsg.append("won ");
+                            winLossMsg.append(wins);
+                            if (losses == 0)
+                            {
+                                if (wins != 1)
+                                    winLossMsg.append(" games");
+                                else
+                                    winLossMsg.append(" game");
+                            } else {
+                                winLossMsg.append(" and ");
+                            }
+                        }
+                        if (losses > 0)
+                        {
+                            winLossMsg.append("lost ");
+                            winLossMsg.append(losses);
+                            if (losses != 1)
+                                winLossMsg.append(" games");
+                            else
+                                winLossMsg.append(" game");
+                        }
+                        winLossMsg.append(" since connecting.");
+                        messageToPlayer(plConn, new SOCGameTextMsg(gname, SERVERNAME, winLossMsg.toString()));
+                    }
                 }
             }  // for each player
 
-        }  // send game timing stats
+        }  // send game timing stats, win-loss stats
     }
 
     /**

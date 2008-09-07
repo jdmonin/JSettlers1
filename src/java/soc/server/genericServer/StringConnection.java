@@ -1,6 +1,6 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.3.
- * Copyright (C) 2007 Jeremy D Monin <jeremy@nand.net>.
+ * Local (StringConnection) network system.  Version 1.0.4.
+ * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,7 @@ import java.util.Date;
  *  1.0.1 - 2008-06-28 - add getConnectTime
  *  1.0.2 - 2008-07-30 - no change in this file
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
+ *  1.0.4 - 2008-09-04 - add appData
  *</PRE>
  */
 public interface StringConnection
@@ -78,19 +79,46 @@ public interface StringConnection
     public abstract void disconnectSoft();
 
     /**
-     * @return The app-specific data for this connection.
+     * The optional key data used to name this connection.
+     *
+     * @return The key data for this connection, or null.
+     * @see #getAppData()
      */
     public abstract Object getData();
 
     /**
-     * Set the app-specific data for this connection.
+     * The optional app-specific changeable data for this connection.
+     * Not used anywhere in the generic server, only in your app.
+     *
+     * @return The app-specific data for this connection.
+     * @see #getData()
+     */
+    public abstract Object getAppData();
+
+    /**
+     * Set the optional key data for this connection.
+     *
+     * This is anything your application wants to associate with the connection.
+     * The StringConnection system uses this data to name the connection,
+     * so it should not change once set.  After setting, call
+     * {@link Server#nameConnection(StringConnection)}.
+     *
+     * @param data The new key data, or null
+     * @see #setAppData(Object)
+     */
+    public abstract void setData(Object data);
+
+    /**
+     * Set the app-specific non-key data for this connection.
      *
      * This is anything your application wants to associate with the connection.
      * The StringConnection system itself does not reference or use this data.
+     * You can change it as often as you'd like, or not use it.
      *
      * @param data The new data, or null
+     * @see #setData(Object)
      */
-    public abstract void setData(Object data);
+    public abstract void setAppData(Object data);
 
     /**
      * @return Any error encountered, or null

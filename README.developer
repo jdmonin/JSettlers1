@@ -20,12 +20,14 @@ Current partially-done work:
 Current TODO list: (Work on these items not yet begun)
 	- Keyboard shortcuts for "roll", "done" buttons
 	- User documentation is out of date; unsure if any user ever reads it anyway
-	- Occasionally shows "Winner" label at wrong player, esp if hidden VP cards
 	- Visual reminder to player when they've made an offer
 	- Hovering mouse at center of robber-hex, should be able to see tooltip with the dice #.
 		instead, currently see road of players on either side
 	- Rename SOCGame.isLocal to .isPractice
 	- Show # VP in SOCChoosePlayerDialog
+	- Occasionally an image does not re-scale when board is stretched.
+		Instead of giving up (SOCBoardPanel.scaledHexFail, etc),
+		try re-scaling again, but increase width or height by 1 pixel.
 	- Kick robots if inactive but current player in game, assume they're buggy (use forceEndTurn)
 	- If try to start server in JSettlers.jar, but port already in use, currently bombs out
 		should instead show MessagePanel with option to practice, or even just show a message

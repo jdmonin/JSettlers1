@@ -1,6 +1,16 @@
 [ The list of the different public versions of JSettlers ]
 
-    > 1.1.03 (build 2008-08-26)  http://nand.net/jsettlers/devel/
+Unless otherwise indicated, versions are hosted at http://nand.net/jsettlers/devel/
+
+    > 1.1.04 (build 2008-09-06)
+- Bugfix: Cancelling 2nd initial settlement, other players lost resources (SOCPlayer)
+- Bugfix: Don't disable "play card" button after buying or playing a card (SOCHandPanel)
+- Bugfix: Sometimes, "hovering" road or settlement wouldn't show during initial placement (SOCBoardPanel)
+- Give player's win/loss count at end of game, unless first game (new class SOCClientData)
+- Add StringConnection.appData, to support SOCClientData
+- Javadoc adds/updates
+
+    > 1.1.03 (build 2008-08-26)
 - Reset board: Bugfix: Practice games server version-check
 - Don't show hovering road/settlement/city unless player has the resources
 - "Play card" button: Disable after playing a card; Enable only at start of turn, not after buying a card

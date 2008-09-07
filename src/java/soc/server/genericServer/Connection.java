@@ -47,10 +47,17 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected final static int TIMEOUT_VALUE = 3600000; // approx. 1 hour
 
     /**
-     * the arbitrary app-specific data associated with this connection.
+     * the arbitrary key data ("name") associated with this connection.
      * Protected to force callers to use getData() part of StringConnection interface.
      */
     protected Object data;    
+
+    /**
+     * the arbitrary app-specific data associated with this connection.
+     * Not used or referenced by generic server.
+     */
+    protected Object appData;
+
     DataInputStream in = null;
     DataOutputStream out = null;
     Socket s = null;
@@ -257,7 +264,10 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     }
 
     /**
-     * @return The app-specific data for this generic connection
+     * The optional key data used to name this connection.
+     *
+     * @return The key data for this connection, or null.
+     * @see #getAppData()
      */
     public Object getData()
     {
@@ -265,13 +275,46 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     }
 
     /**
-     * Set the data for this connection
-     * 
-     * @param dat The new data, or null
+     * The optional app-specific changeable data for this connection.
+     * Not used anywhere in the generic server, only in your app.
+     *
+     * @return The app-specific data for this connection.
+     * @see #getData()
+     */
+    public Object getAppData()
+    {
+        return appData;
+    }
+
+    /**
+     * Set the optional key data for this connection.
+     *
+     * This is anything your application wants to associate with the connection.
+     * The StringConnection system uses this data to name the connection,
+     * so once set, it should not change.  After setting, call
+     * {@link Server#nameConnection(StringConnection)}.
+     *
+     * @param data The new key data, or null
+     * @see #setAppData(Object)
      */
     public void setData(Object dat)
     {
         data = dat;
+    }
+
+    /**
+     * Set the app-specific non-key data for this connection.
+     *
+     * This is anything your application wants to associate with the connection.
+     * The StringConnection system itself does not reference or use this data.
+     * You can change it as often as you'd like, or not use it.
+     *
+     * @param data The new data, or null
+     * @see #setData(Object)
+     */
+    public void setAppData(Object data)
+    {
+        appData = data;
     }
 
     /**

@@ -494,7 +494,7 @@ public abstract class AskDialog extends Dialog
     /** Stub required by KeyListener */
     public void keyTyped(KeyEvent arg0) { }
 
-    /** Check vs. minimum size */
+    /** Check versus minimum size: calls (@link #checkSizeAndFocus()} */
     public void mouseEntered(MouseEvent e)
     {
         checkSizeAndFocus();  // vs. minimum size

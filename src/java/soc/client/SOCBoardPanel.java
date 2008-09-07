@@ -62,7 +62,7 @@ import java.util.Timer;
  * During game play, moving the mouse over the board shows ghosted roads,
  * settlements, cities at locations the player can build.  See: {@link #hilight},
  * {@link SOCBoardPanel.BoardToolTip#hoverRoadID}.
- * Right-click to build, or use the {@link SOCBuildPanel}'s buttons.
+ * Right-click to build, or use the {@link SOCBuildingPanel}'s buttons.
  */
 public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionListener
 {
@@ -178,6 +178,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * BoardPanel's {@link #mode}s. NONE is normal gameplay, or not the client's turn.
      * For correlation to game state, see {@link #updateMode()}.
+     * If a mode is added, please also update {@link #clearModeAndHilight(int)}.
      */
     public final static int NONE = 0;
     public final static int PLACE_ROAD = 1;
@@ -275,10 +276,17 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     private boolean[] scaledPortFail;
 
     /**
-     * number pix (for hexes)
+     * number pix (for hexes), original resolution.
      */
     private static Image[] numbers;
+    /**
+     * number pix (for hexes), current scaled resolution
+     */
     private Image[] scaledNumbers;
+    /**
+     * If an element is true, scaling that number's image previously failed.
+     * Don't re-try scaling to same size, instead use {@link #numbers}[i].
+     */
     private boolean[] scaledNumberFail;
 
     /**
@@ -1950,11 +1958,55 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             hoverTip.setHoverText(null);
     }
 
-    /** Set mode to NONE, no hilight */
-    protected void clearModeAndHilight()
+    /**
+     * Set board mode to {@link #NONE}, no hilight, usually from a piece-placement mode.
+     *
+     * @param ptype Piece type to clear, like {@link SOCPlayingPiece#ROAD}, or -1 for robber.
+     *              Used to avoid race condition during initial placement,
+     *              where server has already replied with mode for another piece type,
+     *              and board has already set mode to place that piece type.
+     *              If ptype doesn't match the board's current mode/piece type,
+     *              board's mode is not changed to NONE.
+     */
+    protected void clearModeAndHilight(final int ptype)
     {
-        mode = NONE;
-        hilight = 0;
+        int expectedPtype;  // based on current mode
+
+        switch (mode)
+        {
+        case PLACE_ROAD:
+        case PLACE_INIT_ROAD:
+        case CONSIDER_LM_ROAD:
+        case CONSIDER_LT_ROAD:
+            expectedPtype = SOCPlayingPiece.ROAD;
+            break;
+
+        case PLACE_SETTLEMENT:
+        case PLACE_INIT_SETTLEMENT:
+        case CONSIDER_LM_SETTLEMENT:
+        case CONSIDER_LT_SETTLEMENT:
+            expectedPtype = SOCPlayingPiece.SETTLEMENT;
+            break;
+
+        case PLACE_CITY:
+        case CONSIDER_LM_CITY:
+        case CONSIDER_LT_CITY:
+            expectedPtype = SOCPlayingPiece.CITY;
+            break;
+
+        case PLACE_ROBBER:
+            expectedPtype = -1;
+            break;
+
+        default:
+            expectedPtype = ptype;  // Not currently placing
+        }
+
+        if (ptype == expectedPtype)
+        {
+            mode = NONE;
+            hilight = 0;
+        }
         updateHoverTipToMode();
     }
 
@@ -2359,7 +2411,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                     client.putPiece(game, new SOCRoad(player, hilight));
 
                     // Now that we've placed, clear the mode and the hilight.
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.ROAD);
                 }
 
                 break;
@@ -2370,7 +2422,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialSettlement(hilight))
                 {
                     client.putPiece(game, new SOCSettlement(player, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.SETTLEMENT);
                 }
 
                 break;
@@ -2380,7 +2432,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialSettlement(hilight))
                 {
                     client.putPiece(game, new SOCSettlement(player, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.SETTLEMENT);
                 }
 
                 break;
@@ -2390,7 +2442,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (player.isPotentialCity(hilight))
                 {
                     client.putPiece(game, new SOCCity(player, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.CITY);
                 }
 
                 break;
@@ -2400,7 +2452,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (hilight != board.getRobberHex())
                 {
                     client.moveRobber(game, player, hilight);
-                    clearModeAndHilight();
+                    clearModeAndHilight(-1);
                 }
 
                 break;
@@ -2410,7 +2462,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialSettlement(hilight))
                 {
                     client.considerMove(game, otherPlayer.getName(), new SOCSettlement(otherPlayer, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.SETTLEMENT);
                 }
 
                 break;
@@ -2420,7 +2472,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialRoad(hilight))
                 {
                     client.considerMove(game, otherPlayer.getName(), new SOCRoad(otherPlayer, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.ROAD);
                 }
 
                 break;
@@ -2430,7 +2482,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialCity(hilight))
                 {
                     client.considerMove(game, otherPlayer.getName(), new SOCCity(otherPlayer, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.CITY);
                 }
 
                 break;
@@ -2440,7 +2492,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialSettlement(hilight))
                 {
                     client.considerTarget(game, otherPlayer.getName(), new SOCSettlement(otherPlayer, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.SETTLEMENT);
                 }
 
                 break;
@@ -2450,7 +2502,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialRoad(hilight))
                 {
                     client.considerTarget(game, otherPlayer.getName(), new SOCRoad(otherPlayer, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.ROAD);
                 }
 
                 break;
@@ -2460,7 +2512,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 if (otherPlayer.isPotentialCity(hilight))
                 {
                     client.considerTarget(game, otherPlayer.getName(), new SOCCity(otherPlayer, hilight));
-                    clearModeAndHilight();
+                    clearModeAndHilight(SOCPlayingPiece.CITY);
                 }
 
                 break;
@@ -3534,7 +3586,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
               tryCancel();
       } 
 
-      /** Assumes player is current, and player is non-null, when called */
+      /**
+       * Send message to server to request placing this piece, if allowable.
+       * If not initial placement, set up a reaction to send the 2nd message (putpiece).
+       * when server says it's OK to build.
+       * Assumes player is current, and player is non-null, when called.
+       *
+       * @param ptype Piece type, like {@link SOCPlayingPiece#ROAD}
+       */
       void tryBuild(int ptype)
       {
           int cpn = playerInterface.getClientPlayerNumber();
@@ -3598,7 +3657,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
           if (isInitialPlacement || wantsCancel)
           {
               // - Easy, we've sent it right away.  Done with placing this piece.
-              clearModeAndHilight();
+              clearModeAndHilight(ptype);
               return;
           }
 
@@ -3822,7 +3881,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 break;
             }
 
-            clearModeAndHilight();           
+            clearModeAndHilight(pieceType);           
         }
         
     }  // inner class BoardPanelSendBuildTask

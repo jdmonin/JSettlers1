@@ -1,5 +1,5 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.3.
+ * Local (StringConnection) network system.  Version 1.0.4.
  * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,8 @@ import soc.disableDebug.D;
  *  1.0.0 - 2007-11-18 - initial release
  *  1.0.1 - 2008-06-28 - add getConnectTime
  *  1.0.2 - 2008-07-30 - check if s already null in disconnect
- *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion  
+ *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
+ *  1.0.4 - 2008-09-04 - add appData
  *</PRE>
  */
 public class LocalStringConnection
@@ -62,9 +63,15 @@ public class LocalStringConnection
     protected int  remoteVersion;
 
     /**
-     * the abritrary app-specific data associated with this connection
+     * the arbitrary key data associated with this connection.
      */
-    protected Object data;
+    protected Object data;    
+
+    /**
+     * the arbitrary app-specific data associated with this connection.
+     * Not used or referenced by generic server.
+     */
+    protected Object appData;
 
     /**
      * Create a new, unused LocalStringConnection.
@@ -349,9 +356,10 @@ public class LocalStringConnection
     }
 
     /**
-     * @return The app-specific data for this generic connection
+     * The optional key data used to name this connection.
      *
-     * @see #setData(Object)
+     * @return The key data for this connection, or null.
+     * @see #getAppData()
      */
     public Object getData()
     {
@@ -359,16 +367,46 @@ public class LocalStringConnection
     }
 
     /**
-     * Set the app-specific data for this connection.
+     * The optional app-specific changeable data for this connection.
+     * Not used anywhere in the generic server, only in your app.
+     *
+     * @return The app-specific data for this connection.
+     * @see #getData()
+     */
+    public Object getAppData()
+    {
+        return appData;
+    }
+
+    /**
+     * Set the optional key data for this connection.
      *
      * This is anything your application wants to associate with the connection.
-     * The StringConnection system itself does not reference or use this data.
+     * The StringConnection system uses this data to name the connection,
+     * so once set, it should not change.  After setting, call
+     * {@link Server#nameConnection(StringConnection)}.
      *
-     * @param dat The new data, or null
+     * @param data The new key data, or null
+     * @see #setAppData(Object)
      */
     public void setData(Object dat)
     {
         data = dat;
+    }
+
+    /**
+     * Set the app-specific non-key data for this connection.
+     *
+     * This is anything your application wants to associate with the connection.
+     * The StringConnection system itself does not reference or use this data.
+     * You can change it as often as you'd like, or not use it.
+     *
+     * @param data The new data, or null
+     * @see #setData(Object)
+     */
+    public void setAppData(Object data)
+    {
+        appData = data;
     }
 
     /**
@@ -459,8 +497,9 @@ public class LocalStringConnection
     }
 
     /**
-     * For server-side (ourServer != null); continuously read and treat input.
+     * For server-side; continuously read and treat input.
      * You must create and start the thread.
+     * We are on server side if ourServer != null.
      */
     public void run()
     {
