@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -361,15 +361,32 @@ public class SOCGame implements Serializable, Cloneable
     private boolean forcingEndTurn;
 
     /**
-     * the player with the largest army, or -1 if none
+     * the player with the largest army, or -1 if none; its size is
+     * {@link #largestArmySize}.
      */
     private int playerWithLargestArmy;
     private int oldPlayerWithLargestArmy;
 
     /**
-     * the player with the longest road, or -1 if none
+     * size of {@link #playerWithLargestArmy largest army}, or -1 if unknown or if none
+     */
+    private int largestArmySize;
+
+    /**
+     * the player with the longest road, or -1 if none; its length is
+     * {@link #longestRoadLength}.
      */
     private int playerWithLongestRoad;
+
+    /**
+     * length of {@link #playerWithLongestRoad longest road}, or -1 if unknown or if none
+     */
+    private int longestRoadLength;
+
+    /**
+     * used to restore the LR player
+     */
+    Stack oldPlayerWithLongestRoad;
 
     /**
      * the player declared winner, if gamestate == OVER; otherwise -1
@@ -395,11 +412,6 @@ public class SOCGame implements Serializable, Cloneable
      * used to track if there were any player subs
      */
     boolean allOriginalPlayers;
-
-    /**
-     * used to restore the LR player
-     */
-    Stack oldPlayerWithLongestRoad;
 
     /**
      * when this game was created
@@ -449,7 +461,9 @@ public class SOCGame implements Serializable, Cloneable
         firstPlayerNumber = -1;
         currentDice = -1;
         playerWithLargestArmy = -1;
+        largestArmySize = -1;
         playerWithLongestRoad = -1;
+        longestRoadLength = -1;
         boardResetVoteRequester = -1;
         playerWithWin = -1;
         numDevCards = 25;
@@ -811,6 +825,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * @return the player with the largest army
+     * @see #getLargestArmySize()
      */
     public SOCPlayer getPlayerWithLargestArmy()
     {
@@ -822,6 +837,15 @@ public class SOCGame implements Serializable, Cloneable
         {
             return null;
         }
+    }
+
+    /**
+     * @return size of largest army, or -1 if none
+     * @see #getPlayerWithLargestArmy()
+     */
+    public int getLargestArmySize()
+    {
+    	return largestArmySize;
     }
 
     /**
@@ -843,6 +867,7 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * @return the player with the longest road
+     * @see #getLongestRoadLength()
      */
     public SOCPlayer getPlayerWithLongestRoad()
     {
@@ -857,9 +882,20 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * set the player with the longest road
+     * @return length of longest road, or -1 if unknown or if none
+     * @see #getPlayerWithLongestRoad()
+     */
+    public int getLongestRoadLength()
+    {
+    	return longestRoadLength;
+    }
+
+    /**
+     * set the player with the longest road - client side: Do not check versus game rules/status
      *
-     * @param pl  the player
+     * @param pl  the player, or null to clear
+     *
+     * @see #getLongestRoadLength()
      */
     public void setPlayerWithLongestRoad(SOCPlayer pl)
     {
@@ -870,6 +906,43 @@ public class SOCGame implements Serializable, Cloneable
         else
         {
             playerWithLongestRoad = pl.getPlayerNumber();
+        }
+        longestRoadLength = -1;
+    }
+
+    /**
+     * set the player with the longest road - server side: Check length versus game rules/status
+     *
+     * @param pl  the player, or null to clear
+     * @param newLength length of new longest road; if pn != null, must be > 0
+     * @throws IllegalArgumentException if another player already
+     *    has a longer road, and pl is not null;
+     *    or, if newLength is <= 0 and pn != null
+     *
+     * @see #getLongestRoadLength()
+     */
+    public void setPlayerWithLongestRoad(SOCPlayer pl, int newLength)
+        throws IllegalArgumentException
+    {
+        if (pl == null)
+        {
+            setPlayerWithLongestRoad(null);
+        }
+        else
+        {
+        	if (newLength < 0)
+        		throw new IllegalArgumentException("invalid new length");
+
+        	int newPN = pl.getPlayerNumber();
+        	if (newPN == playerWithLongestRoad)
+        		return;
+        	if ((-1 != playerWithLongestRoad)
+        			&& (-1 != longestRoadLength)
+        			&& (newLength <= longestRoadLength))
+        		throw new IllegalArgumentException("not longer");
+
+        	playerWithLongestRoad = newPN;
+            longestRoadLength = newLength;
         }
     }
 
@@ -3243,11 +3316,17 @@ public class SOCGame implements Serializable, Cloneable
 
     /**
      * update which player has longest road longer
-     * than 4
+     * than 4.
      *
-     * this version only calculates the longest road for
+     * this version recalculates the longest road only for
      * the player who is affected by the most recently
-     * placed piece
+     * placed piece, by calling their {@link SOCPlayer#calcLongestRoad2()}.
+     * Assumes all other players' longest road has been updated already.
+     * All players' {@link SOCPlayer#getLongestRoadLength()} is called here.
+     *<P>
+     * if there is a tie, the last player to have LR keeps it.
+     * if two or more players are tied for LR and none of them
+     * used to have LR, then no one has LR.
      *
      * @param pn  the number of the player who is affected
      */
@@ -3259,7 +3338,7 @@ public class SOCGame implements Serializable, Cloneable
         int tmpPlayerWithLR = -1;
 
         players[pn].calcLongestRoad2();
-        longestLength = 4;
+        longestLength = 0;
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
@@ -3273,36 +3352,53 @@ public class SOCGame implements Serializable, Cloneable
             }
         }
 
-        if (longestLength == 4)
+        SOCPlayer newLongest = null;
+
+        if (longestLength >= 5)  // Minimum length is 5 for the bonus
         {
-            playerWithLongestRoad = -1;
-        }
-        else
-        {
-            ///
-            /// if there is a tie, the last player to have LR keeps it.
-            /// if two or more players are tied for LR and none of them
-            /// of them used to have LR, then no one has LR.
-            ///
+        	/// is there a tie? Re-check length of all players' roads.
             int playersWithLR = 0;
+            boolean prevLongestStillHas = false;
 
             for (int i = 0; i < MAXPLAYERS; i++)
             {
                 if (players[i].getLongestRoadLength() == longestLength)
                 {
                     playersWithLR++;
+                    if (i == playerWithLongestRoad)
+                    	prevLongestStillHas = true;
                 }
             }
 
             if (playersWithLR == 1)
             {
-                playerWithLongestRoad = tmpPlayerWithLR;
+            	newLongest = players[tmpPlayerWithLR];
             }
-            else if ((playerWithLongestRoad == -1) || (players[playerWithLongestRoad].getLongestRoadLength() != longestLength))
+            else
             {
-                playerWithLongestRoad = -1;
+                /// Tied.
+                /// The last player to have LR keeps it.
+                /// If none of tied players used to have LR, then no one has LR.
+                ///
+            	if (prevLongestStillHas)
+            	{
+            		// Keep same player, must update length field
+            		newLongest = players[playerWithLongestRoad];
+            	}
             }
-        }
+            
+        }  // if (longestLength >= 5)
+
+        // Now set the player and road-length fields
+
+    	if (newLongest != null)
+    	{
+        	if (longestLength < longestRoadLength)
+        		setPlayerWithLongestRoad(null, -1);  // previous road was broken: reset length field
+    		setPlayerWithLongestRoad(newLongest, longestLength);
+    	}
+    	else
+    		setPlayerWithLongestRoad(null, -1);
 
         //D.ebugPrintln("----- player "+playerWithLongestRoad+" has LR");
     }
@@ -3317,6 +3413,9 @@ public class SOCGame implements Serializable, Cloneable
      * not their turn, there is not yet a winner. This could happen if,
      * for example, the longest road is broken by a new settlement, and
      * the next-longest road is not the current player's road.
+     *<P>
+     * The win is determined not by who has the highest point total, but
+     * solely by reaching 10 victory points (VP_WINNER) during your own turn.
      *
      * @see #getGameState()
      * @see #getPlayerWithWin()
@@ -3331,7 +3430,8 @@ public class SOCGame implements Serializable, Cloneable
             playerWithWin = pn;
             System.err.println("DEBUG: Set playerWithWin = " + pn
                 + " -- in thread: " + Thread.currentThread().getName() + " --");
-            // force a stack trace
+
+            // force a stack trace, because this is called from several places
             {
                 int x = 10;
                 int y = 0;
