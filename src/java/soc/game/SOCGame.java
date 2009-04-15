@@ -261,6 +261,13 @@ public class SOCGame implements Serializable, Cloneable
     public int clientVersionLowest, clientVersionHighest;
 
     /**
+     * For use at server; lowest version of client which can connect to
+     * this game (based on game features added in a given version),
+     * or -1 if unknown
+     */
+    public int clientVersionMinRequired;
+
+    /**
      * true if the game came from a board reset
      */
     private boolean isFromBoardReset;
@@ -441,6 +448,8 @@ public class SOCGame implements Serializable, Cloneable
      */
     public SOCGame(String n, boolean a)
     {
+	// For places to initialize fields, see also resetAsCopy().
+
         active = a;
         inUse = false;
         name = n;
@@ -471,6 +480,7 @@ public class SOCGame implements Serializable, Cloneable
         forcingEndTurn = false;
         placingRobberForKnightCard = false;
         oldPlayerWithLongestRoad = new Stack();
+	clientVersionMinRequired = -1;
         if (active)
             startTime = new Date();
     }
@@ -3487,10 +3497,16 @@ public class SOCGame implements Serializable, Cloneable
     public SOCGame resetAsCopy()
     {
         SOCGame cp = new SOCGame(name, active);
+
         cp.isFromBoardReset = true;
         oldGameState = gameState;  // for getResetOldGameState()
         active = false;
         gameState = RESET_OLD;
+
+	// Game features
+	cp.clientVersionMinRequired = clientVersionMinRequired;
+
+	// Per-player state
         for (int i = 0; i < MAXPLAYERS; i++)
         {
             boolean wasRobot = false;
@@ -3514,6 +3530,7 @@ public class SOCGame implements Serializable, Cloneable
                     cp.seatLocks[i] = true;
             }
         }
+
         return cp;
     }
 
