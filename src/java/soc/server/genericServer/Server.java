@@ -209,10 +209,12 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     }
 
     /**
-     * DOCUMENT ME!
+     * Remove a queued incoming message from a client, and treat it.
+     * Called from the single 'treater' thread.
+     * <em>Do not block or sleep</em> because this is single-threaded.
      *
-     * @param str DOCUMENT ME!
-     * @param con DOCUMENT ME!
+     * @param str Contents of message from the client
+     * @param con Connection (client) sending this message
      */
     abstract public void processCommand(String str, StringConnection con);
 
@@ -225,8 +227,11 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * If the connection is accepted, it's added to a list ({@link #unnamedConns} or {@link #conns}).
      * Unless you override this method, always returns true.
      *<P>
+     * This method is called within a per-client thread.
+     *<P>
      * Should send a message to the client in either {@link #newConnection1(StringConnection)}
      * or {@link #newConnection2(StringConnection)}.
+     * You may also name the connection here by calling c.setData, which will help add to conns or unnamedConns.
      *<P>
      * Note that {@link #addConnection(StringConnection)} won't close the channel or
      * take other action to disconnect a rejected client.
@@ -249,12 +254,16 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      *  has been accepted and added to a connection list.
      *  Unlike {@link #newConnection1(StringConnection)},
      *  no connection-list locks are held when this method is called.
+     *<P>
+     * This method is called within a per-client thread.
      */
     protected void newConnection2(StringConnection c) {}
 
     /** placeholder for doing things when a connection is closed.
      *  called after connection is removed from conns collection,
      *  and after c.disconnect() has been called.
+     *<P>
+     * This method is called within a per-client thread.
      */
     protected void leaveConnection(StringConnection c) {}
 
@@ -281,6 +290,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * remove a connection from the system; synchronized on list of connections.
      * The callback {@link #leaveConnection(StringConnection)} will be called,
      * after calling {@link StringConnection#disconnect()} on c.
+     *<P>
+     * This method is called within a per-client thread.
      *
      * @param c Connection to remove; will call its disconnect() method
      *          and remove it from the server state.
@@ -314,6 +325,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /**
      * Add a connection to the system.
+     * Called within a per-client thread.
      * c.connect() is called at the start of this method.
      * Synchronized on unnamedConns, although named conns (getData not null) are
      * added to conns, not unnamedConns.
@@ -328,16 +340,16 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     public void addConnection(StringConnection c)
     {
-        Object cKey = c.getData();  // May be null
         boolean connAccepted;
 
         synchronized (unnamedConns)
         {
             if (c.connect())
             {
-                connAccepted = newConnection1(c);
+                connAccepted = newConnection1(c);  // <-- App-specific #1 --
                 if (connAccepted)
                 {
+                    Object cKey = c.getData();  // May be null
                     if (cKey != null)
                         conns.put(cKey, c);
                     else
@@ -357,7 +369,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         {
             numberOfConnections++;
             D.ebugPrintln(c.host() + " came (" + connectionCount() + ")  " + (new Date()).toString());
-            newConnection2(c);
+            newConnection2(c);  // <-- App-specific #2 --
         } else {
             D.ebugPrintln(c.host() + " came but rejected (" + connectionCount() + ")  " + (new Date()).toString());
         }
@@ -367,6 +379,10 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * Name a current connection to the system.
      * Can be called once per connection (once named, cannot be changed).
      * Synchronized on unnamedConns.
+     *<P>
+     * If you name the connection inside {@link #newConnection1(StringConnection)},
+     * you don't need to call nameConnection, because it hasn't yet been added
+     * to a connection list.
      *
      * @param c Connected client; its key data ({@link StringConnection#getData()}) must not be null
      * @throws IllegalArgumentException If c isn't already connected, if c.getData() returns null,

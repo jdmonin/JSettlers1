@@ -30,7 +30,7 @@ import java.util.Vector;
  * This message lists all the soc games currently on a server.
  * It's constructed for each connecting client.
  *<P>
- * Version 1.1.0x - Add marker for a game that the client can't join
+ * Version 1.1.06 - Add marker for a game that the client can't join
  *
  * @author Robert S Thomas
  */
@@ -45,7 +45,7 @@ public class SOCGames extends SOCMessage
      * This marker is not used in other message types, such as {@link SOCDeleteGame}.
      * The game name appears 'un-marked' in those other types.
      *
-     * @since 1.1.0x
+     * @since 1.1.06
      */
     public static final char MARKER_THIS_GAME_UNJOINABLE = '\0x7F';
 

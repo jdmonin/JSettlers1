@@ -100,8 +100,11 @@ public interface StringConnection
      *
      * This is anything your application wants to associate with the connection.
      * The StringConnection system uses this data to name the connection,
-     * so it should not change once set.  After setting, call
-     * {@link Server#nameConnection(StringConnection)}.
+     * so it should not change once set.
+     *<P>
+     * If you call setData after {@link #newConnection1(StringConnection)},
+     * please call {@link Server#nameConnection(StringConnection)} afterwards
+     * to ensure the name is tracked properly at the server.
      *
      * @param data The new key data, or null
      * @see #setAppData(Object)
