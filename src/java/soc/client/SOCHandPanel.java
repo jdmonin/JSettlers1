@@ -1560,6 +1560,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      * If a game reset request is in progress, don't show the offer, because
      * they use the same display component ({@link #offer}).  In that case
      * the trade offer will be refreshed after the reset is cancelled.
+     *<P>
+     * Does not display if playerIsClient.
      */
     public void updateCurrentOffer()
     {
@@ -1571,9 +1573,12 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 if (! (offerIsResetMessage || offerIsDiscardMessage))
                 {
-                    offer.setOffer(currentOffer);
-                    offer.setVisible(true);
-                    offer.repaint();
+                	if (! playerIsClient)
+                	{
+                        offer.setOffer(currentOffer);
+	                    offer.setVisible(true);
+	                    offer.repaint();
+                	}
                 }
                 else
                     offerIsMessageWasTrade = true;  // Will show after voting
@@ -1590,6 +1595,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void rejectOffer()
     {
+    	if (playerIsClient)
+    		return;
         offer.setMessage("No thanks.");
         offer.setVisible(true);
         //validate();
@@ -1670,7 +1677,9 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     private void tradeSetMessage(String message)
     {
-        if (message != null)
+    	if (playerIsClient)
+    		return;
+    	if (message != null)
         {
             offerIsMessageWasTrade = (offer.isVisible() && (offer.getMode() == TradeOfferPanel.OFFER_MODE));
             offer.setMessage(message);

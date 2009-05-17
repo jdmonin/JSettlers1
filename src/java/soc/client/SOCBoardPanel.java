@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@ import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Image;
@@ -2875,7 +2876,9 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         private int boxX, boxY;
         /** Requested X-offset from mouse pointer (used for robber placement) */
         private int offsetX;
-        /** Our size */
+        /** Our size.
+         *  If boxw == 0, also indicates need fontmetrics - see setHoverText, paint.
+         */
         private int boxW, boxH;
         
         private final int TEXT_INSET = 3;
@@ -2895,6 +2898,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             mouseX = 0;
             mouseY = 0;
             offsetX = 0;
+            boxW = 0;
         }
         
         /** Currently displayed text.
@@ -2957,9 +2961,20 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
                 return;
             }
 
-            FontMetrics fm = getFontMetrics(bpanel.getFont());           
-            boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
-            boxH = fm.getHeight();
+            final Font bpf = bpanel.getFont();
+            if (bpf == null)
+            {
+            	boxW = 0;  // Paint method will look it up
+            } else {
+	            final FontMetrics fm = getFontMetrics(bpf);
+	            if (fm == null)
+	            {
+	            	boxW = 0;
+	            } else {
+		            boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
+		            boxH = fm.getHeight();
+	            }
+            }
             positionToMouse(mouseX, mouseY);  // Also calls repaint
         }
         
@@ -2994,7 +3009,19 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             String ht = hoverText;  // cache against last-minute change in another thread
             if (ht == null)
                 return;
-            
+
+            if (boxW == 0)
+            {
+            	// Deferred fontmetrics lookup from earlier setHoverText
+                final Font bpf = bpanel.getFont();
+                if (bpf == null)
+                	return;
+	            final FontMetrics fm = getFontMetrics(bpf);
+	            if (fm == null)
+	            	return;
+	            boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
+	            boxH = fm.getHeight();           	
+            }
             g.setColor(Color.WHITE);
             g.fillRect(boxX, boxY, boxW - 1, boxH - 1);
             g.setColor(Color.BLACK);
