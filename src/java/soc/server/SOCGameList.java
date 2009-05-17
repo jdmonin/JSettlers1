@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2008 Jeremy D Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2008-2009 Jeremy D Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,9 @@ import java.util.Vector;
 
 
 /**
- * A class for creating and tracking the games
+ * A class for creating and tracking the games;
+ * contains each game's name, {@link #SOCGame} object,
+ * and clients ({@link #StringConnection}s).
  *
  * @author Robert S. Thomas
  */
@@ -186,11 +188,22 @@ public class SOCGameList
     }
 
     /**
-     * @return an enumeration of game names
+     * @return an enumeration of game names (Strings)
+     * @see #getGameObjects()
      */
     public Enumeration getGames()
     {
         return gameMembers.keys();
+    }
+
+    /**
+     * @return an enumeration of game data (SOCGames)
+     * @see #getGames()
+     * @since 1.1.06
+     */
+    public Enumeration getGamesData()
+    {
+        return gameData.elements();
     }
 
     /**

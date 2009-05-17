@@ -47,7 +47,16 @@ public class SOCGames extends SOCMessage
      *
      * @since 1.1.06
      */
-    public static final char MARKER_THIS_GAME_UNJOINABLE = '\0x7F';
+    public static final char MARKER_THIS_GAME_UNJOINABLE = '\077';  // 0x7F
+
+    /**
+     * Minimum version (1.1.06) of client/server which recognize
+     * and send {@link #MARKER_THIS_GAME_UNJOINABLE}.
+     *
+     * @since 1.1.06
+     */
+    public static final int VERSION_FOR_UNJOINABLE = 1106;
+
 
     /**
      * List of games (Strings)

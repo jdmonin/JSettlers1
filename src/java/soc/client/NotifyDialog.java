@@ -49,7 +49,7 @@ class NotifyDialog extends AskDialog
         throws IllegalArgumentException
     {
         NotifyDialog nd = new NotifyDialog
-	    (cli, gamePI, promptText, btnText, hasDefault, gaOver);
+	    (cli, gamePI, promptText, btnText, hasDefault);
         nd.show();      
     }
     
@@ -64,7 +64,7 @@ class NotifyDialog extends AskDialog
      * @param hasDefault  Button is default (responds to Enter)
      * @throws IllegalArgumentException If cli or btnText is null
      */
-    protected SOCQuitConfirmDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI, String promptText, String btnText, boolean hasDefault)
+    protected NotifyDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI, String promptText, String btnText, boolean hasDefault)
     {
         super(cli, gamePI, promptText, promptText,
             btnText, hasDefault);

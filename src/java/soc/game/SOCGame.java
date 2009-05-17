@@ -268,6 +268,38 @@ public class SOCGame implements Serializable, Cloneable
     public int clientVersionMinRequired;
 
     /**
+     * Size of board in coordinates (not in number of hexes across).
+     * Default size per BOARD_ENCODING_ORIGINAL is:
+	 *   Hexes: 11 to DD
+	 *   Nodes: 01 or 10, to FE or EF
+     *   Edges: 00 to EE
+     */
+    public int boardWidth, boardHeight;
+
+    /**
+     * Original format (1) for {@link #boardEncodingFormat}:
+     * Hexadecimal 0x00 to 0xFF.
+     * Coordinate range is 0 to 15:
+	 *   Hexes: 11 to DD
+	 *   Nodes: 01 or 10, to FE or EF
+     *   Edges: 00 to EE
+     *<P>
+     * See the Dissertation PDF for details.
+     */
+    public static final int BOARD_ENCODING_ORIGINAL = 1;
+
+    /**
+     * For use at server; encoding format of board coordinates,
+     * or {@link #BOARD_ENCODING_ORIGINAL} (default, original).
+     * The board size determines the required encoding format.
+     *<UL>
+     *<LI> 1 - Original format: hexadecimal 0x00 to 0xFF.
+     *       Coordinate range is 0 to 15.
+     *</UL>
+     */
+    public int boardEncodingFormat;
+
+    /**
      * true if the game came from a board reset
      */
     private boolean isFromBoardReset;
@@ -480,7 +512,10 @@ public class SOCGame implements Serializable, Cloneable
         forcingEndTurn = false;
         placingRobberForKnightCard = false;
         oldPlayerWithLongestRoad = new Stack();
-	clientVersionMinRequired = -1;
+		clientVersionMinRequired = -1;
+		boardWidth = 0xFF;
+		boardHeight = 0xFF;
+		boardEncodingFormat = BOARD_ENCODING_ORIGINAL;  // See javadoc of boardEncodingFormat
         if (active)
             startTime = new Date();
     }
@@ -3261,25 +3296,39 @@ public class SOCGame implements Serializable, Cloneable
     }
 
     /**
-     * perform the Monopoly card action
+     * perform the Monopoly card action.
+     * Resources are taken from players that have it.
+     * Game state becomes oldGameState (returns to state before monopoly pick).
      *
-     * @param pick  the type of resource to monopolize
+     * @param rtype  the type of resource to monopolize
+     * @return array (1 elem per player) of resource count taken from
+     *        each player. 0 for players with nothing taken.
+     *        0 for the current player (playing the monopoly card).
      */
-    public void doMonopolyAction(int pick)
+    public int[] doMonopolyAction(int rtype)
     {
         int sum = 0;
+	int[] monoResult = new int[MAXPLAYERS];
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
-            if (! isSeatVacant(i))
+            if ((i != currentPlayerNumber) && ! isSeatVacant(i))
             {
-                sum += players[i].getResources().getAmount(pick);
-                players[i].getResources().setAmount(0, pick);
-            }
+		int playerHas = players[i].getResources().getAmount(rtype);
+		if (playerHas > 0)
+		{
+			sum += playerHas;
+			players[i].getResources().setAmount(0, rtype);
+		}
+		monoResult[i] = playerHas;
+            } else {
+		monoResult[i] = 0;
+	    }
         }
 
-        players[currentPlayerNumber].getResources().setAmount(sum, pick);
+        players[currentPlayerNumber].getResources().add(sum, rtype);
         gameState = oldGameState;
+	return monoResult;
     }
 
     /**

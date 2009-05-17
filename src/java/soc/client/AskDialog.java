@@ -136,9 +136,11 @@ public abstract class AskDialog extends Dialog
         boolean hasDefault)
         throws IllegalArgumentException
     {
-        this (cli, parentFr, titlebar, prompt,
+        this (cli,
+              parentFr,
+              titlebar, prompt,
               btnText, null, null,
-              (hasDefault1 ? 1 : 0)
+              (hasDefault ? 1 : 0)
               );
     }
 
@@ -235,7 +237,7 @@ public abstract class AskDialog extends Dialog
             throw new IllegalArgumentException("defaultChoice out of range: " + defaultChoice);	
         if ((choice3 == null) && (defaultChoice == 3))
             throw new IllegalArgumentException("defaultChoice cannot be 3 when choice3 null");
-	if ((choice2 == null) && (defaultChoice > 1))
+		if ((choice2 == null) && (defaultChoice > 1))
             throw new IllegalArgumentException("defaultChoice must be 1 when choice2 null");
 
         pcli = cli;
@@ -245,12 +247,17 @@ public abstract class AskDialog extends Dialog
         setFont(new Font("Dialog", Font.PLAIN, 12));
 
         choice1But = new Button(choice1);
-	if (choice2 != null)
-	{
-	    choice2But = new Button(choice2);
-	    if (choice3 != null)
-		choice3But = new Button(choice3);
-	}
+		if (choice2 != null)
+		{
+		    choice2But = new Button(choice2);
+		    if (choice3 != null)
+		    	choice3But = new Button(choice3);
+		    else
+		    	choice3But = null;
+		} else {
+		    choice2But = null;
+		    choice3But = null;
+		}
         choiceDefault = defaultChoice;
         setLayout (new BorderLayout());
 

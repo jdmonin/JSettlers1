@@ -1372,6 +1372,8 @@ public class SOCServer extends Server
 
     /**
      * things to do when the connection c leaves
+     *<P>
+     * This method is called within a per-client thread.
      *
      * @param c  the connection
      */
@@ -1394,6 +1396,9 @@ public class SOCServer extends Server
      * If the connection is accepted, it's added to {@link #unnamedConns} until the
      * player "names" it by joining or creating a game under their player name.
      * Other communication is then done, in {@link #newConnection2(StringConnection)}.
+     *<P>
+     * This method is called within a per-client thread.
+     *<P>
      *  SYNCHRONIZATION NOTE: During the call to newConnection1, the monitor lock of
      *  {@link #unnamedConns} is held.  Thus, defer as much as possible until
      *  {@link #newConnection2(StringConnection)} (after the connection is accepted).
@@ -1479,6 +1484,8 @@ public class SOCServer extends Server
      * Also set client's "assumed version" to -1, until we have sent and
      * received a VERSION message.
      * Client's {@link SOCClientData} appdata is set here.
+     *<P>
+     * This method is called within a per-client thread.
      */
     protected void newConnection2(StringConnection c)
     {
@@ -1511,17 +1518,35 @@ public class SOCServer extends Server
         c.put(SOCChannels.toCmd(cl));
 
         // GAMES
+		int cliVers = -1;   // Need to know this before sending (TODO TODO)
+	
+		boolean cliCanKnow = (cliVers >= SOCGames.VERSION_FOR_UNJOINABLE);
+
+		// Based on version:
+		// If client is too old (< 1.1.06), it can't be told names of games
+		// that it isn't capable of joining.
+
         Vector gl = new Vector();
         gameList.takeMonitor();
 
         try
         {
-            Enumeration gaEnum = gameList.getGames();
-
-            while (gaEnum.hasMoreElements())
-            {
-                gl.addElement(gaEnum.nextElement());
-            }
+		    SOCGame g;
+	        Enumeration gaEnum = gameList.getGamesData();
+	
+	        while (gaEnum.hasMoreElements())
+	        {
+	            g = (SOCGame) gaEnum.nextElement();
+				if (cliVers >= g.clientVersionMinRequired)
+				    gl.addElement(g.getName());
+				else if (cliCanKnow)
+				{
+					StringBuffer sb = new StringBuffer();
+					sb.append(SOCGames.MARKER_THIS_GAME_UNJOINABLE);
+					sb.append(g.getName());
+				    gl.addElement(sb.toString());
+				}
+	        }
         }
         catch (Exception e)
         {
@@ -1582,6 +1607,9 @@ public class SOCServer extends Server
     /**
      * Treat the incoming messages.  Messages of unknown type are ignored.
      *<P>
+     * Called from the single 'treater' thread.
+     * <em>Do not block or sleep</em> because this is single-threaded.
+     *<P>
      * Note: When there is a choice, always use local information
      *       over information from the message.  For example, use
      *       the nickname from the connection to get the player
@@ -1590,8 +1618,8 @@ public class SOCServer extends Server
      *       messages making players do things they didn't want
      *       to do.
      *
-     * @param s    String containing the message
-     * @param c    the Connection that sent the Message
+     * @param s    Contents of message from the client
+     * @param c    Connection (client) sending this message
      */
     public void processCommand(String s, StringConnection c)
     {
@@ -4573,37 +4601,41 @@ public class SOCServer extends Server
                     {
                         if (ga.canDoMonopolyAction())
                         {
-                            ga.doMonopolyAction(mes.getResource());
+						    int[] monoPicks = ga.doMonopolyAction(mes.getResource());
 
-                            String message = (String) c.getData() + " monopolized ";
+						    final String monoPlayerName = (String) c.getData();
+
+                            String message = monoPlayerName + " monopolized";
+						    String resName = null;  // incl leading ' ', trailing '.'
 
                             switch (mes.getResource())
                             {
                             case SOCResourceConstants.CLAY:
-                                message += "clay.";
+                                resName = " clay.";
 
                                 break;
 
                             case SOCResourceConstants.ORE:
-                                message += "ore.";
+                                resName = " ore.";
 
                                 break;
 
                             case SOCResourceConstants.SHEEP:
-                                message += "sheep.";
+                                resName = " sheep.";
 
                                 break;
 
                             case SOCResourceConstants.WHEAT:
-                                message += "wheat.";
+                                resName = " wheat.";
 
                                 break;
 
                             case SOCResourceConstants.WOOD:
-                                message += "wood.";
+                                resName = " wood.";
 
                                 break;
                             }
+						    message += resName;
 
                             gameList.takeMonitorForGame(gaName);
                             messageToGameWithMon(gaName, new SOCGameTextMsg(gaName, SERVERNAME, message));
@@ -4620,6 +4652,22 @@ public class SOCServer extends Server
                                 messageToGameWithMon(gaName, new SOCPlayerElement(gaName, i, SOCPlayerElement.SET, mes.getResource(), ga.getPlayer(i).getResources().getAmount(mes.getResource())));
                             }
                             gameList.releaseMonitorForGame(gaName);
+
+						    /**
+						     * now that monitor is released, notify the
+						     * victim(s) of resource amounts taken.
+						     */
+                            for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
+                            {
+								if (monoPicks[i] == 0)
+								    continue;
+								String viName = ga.getPlayer(i).getName();
+								StringConnection viCon = getConnection(viName);
+								if (viCon != null)
+								    viCon.put(SOCGameTextMsg.toCmd
+								        (gaName, SERVERNAME,
+								         monoPlayerName + "'s Monopoly took your " + monoPicks[i] + resName));
+						    }
 
                             sendGameState(ga);
                         }
@@ -6548,16 +6596,16 @@ public class SOCServer extends Server
 
         try
         {
-            for (Enumeration k = gameList.getGames(); k.hasMoreElements();)
+            for (Enumeration k = gameList.getGamesData(); k.hasMoreElements();)
             {
-                String gameName = (String) k.nextElement();
-                SOCGame gameData = gameList.getGameData(gameName);
+            	SOCGame gameData = (SOCGame) k.nextElement();
                 long gameExpir = gameData.getExpiration();
 
                 // Start our text messages with ">>>" to mark as urgent to the client.
 
                 if (gameExpir <= System.currentTimeMillis())
                 {
+                	final String gameName = gameData.getName();
                     expired.addElement(gameName);
                     messageToGameUrgent(gameName, ">>> The time limit on this game has expired and will now be destroyed.");
                 }
@@ -6568,7 +6616,7 @@ public class SOCServer extends Server
                 if ((gameExpir - warn_ms) <= System.currentTimeMillis())
                 {
                     long minutes = ((gameExpir - System.currentTimeMillis()) / 60000);
-                    messageToGameUrgent(gameName, ">>> Less than "
+                    messageToGameUrgent(gameData.getName(), ">>> Less than "
                         + minutes + " minutes remaining.  Type *ADDTIME* to extend this game another 30 minutes.");
                 }
             }
@@ -6602,7 +6650,9 @@ public class SOCServer extends Server
         }
     }
 
-    /** this is a debugging command that gives a dev card to a player
+    /** this is a debugging command that gives a dev card to a player.
+     *  <PRE> dev: cardtype player </PRE>
+     *  For card-types numbers, see {@link SOCDevCardConstants}
      */
     protected void giveDevCard(String mes, SOCGame game)
     {
