@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -892,7 +892,7 @@ public class SOCServer extends Server
         if ((c != null) && c.isConnected())
             reportRsrcGainLoss(gaName, discard, true, cpn, -1, null, c);
         int totalRes = discard.getTotal();
-        messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes));
+        messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes), true);
         messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + " discarded " + totalRes + " resources."));
     }
 
@@ -1277,10 +1277,12 @@ public class SOCServer extends Server
      * @param gn  the name of the game
      * @param ex  the list of exceptions
      * @param mes the message
+     * @param takeMon Call {@link SOCGameList#takeMonitorForGame(String)} ?
      */
-    public void messageToGameExcept(String gn, Vector ex, SOCMessage mes)
+    public void messageToGameExcept(String gn, Vector ex, SOCMessage mes, boolean takeMon)
     {
-        gameList.takeMonitorForGame(gn);
+    	if (takeMon)
+    		gameList.takeMonitorForGame(gn);
 
         try
         {
@@ -1308,7 +1310,8 @@ public class SOCServer extends Server
             D.ebugPrintStackTrace(e, "Exception in messageToGameExcept");
         }
 
-        gameList.releaseMonitorForGame(gn);
+    	if (takeMon)
+    		gameList.releaseMonitorForGame(gn);
     }
 
     /**
@@ -1318,10 +1321,12 @@ public class SOCServer extends Server
      * @param gn  the name of the game
      * @param ex  the excluded connection, or null
      * @param mes the message
+     * @param takeMon Call {@link SOCGameList#takeMonitorForGame(String)} ?
      */
-    public void messageToGameExcept(String gn, StringConnection ex, SOCMessage mes)
+    public void messageToGameExcept(String gn, StringConnection ex, SOCMessage mes, boolean takeMon)
     {
-        gameList.takeMonitorForGame(gn);
+    	if (takeMon)
+    		gameList.takeMonitorForGame(gn);
 
         try
         {
@@ -1348,7 +1353,8 @@ public class SOCServer extends Server
             D.ebugPrintStackTrace(e, "Exception in messageToGameExcept");
         }
 
-        gameList.releaseMonitorForGame(gn);
+        if (takeMon)
+        	gameList.releaseMonitorForGame(gn);
     }
 
     /**
@@ -2300,7 +2306,9 @@ public class SOCServer extends Server
         catch (SQLException sqle)
         {
             // Indicates a db problem: don't authenticate empty password
-            c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
+            c.put(SOCStatusMessage.toCmd
+            		(SOCStatusMessage.SV_PROBLEM_WITH_DB,
+            	     "Problem connecting to database, please try again later."));
             return false;
         }
 
@@ -2308,14 +2316,18 @@ public class SOCServer extends Server
         {
             if (!userPassword.equals(password))
             {
-                c.put(SOCStatusMessage.toCmd("Incorrect password for '" + userName + "'."));
+                c.put(SOCStatusMessage.toCmd
+                		(SOCStatusMessage.SV_PW_WRONG,
+                		 "Incorrect password for '" + userName + "'."));
 
                 return false;
             }
         }
         else if (!password.equals(""))
         {
-            c.put(SOCStatusMessage.toCmd("No user with the nickname '" + userName + "' is registered with the system."));
+            c.put(SOCStatusMessage.toCmd
+            		(SOCStatusMessage.SV_NAME_NOT_FOUND,
+            		 "No user with the nickname '" + userName + "' is registered with the system."));
 
             return false;
         }
@@ -2395,7 +2407,7 @@ public class SOCServer extends Server
             if (c.getVersion() == -1)
             {
                 if (! setClientVersionOrReject(c, 1000))
-                    return;  // <--- Early return: Client too old ---
+                    return;  // <--- Discon and Early return: Client too old ---
             }
 
             /**
@@ -2403,7 +2415,9 @@ public class SOCServer extends Server
              */
             if ((c.getData() == null) && (!checkNickname(mes.getNickname())))
             {
-                c.put(SOCStatusMessage.toCmd(MSG_NICKNAME_ALREADY_IN_USE));
+                c.put(SOCStatusMessage.toCmd
+                  	  (SOCStatusMessage.SV_NAME_IN_USE,
+                  		MSG_NICKNAME_ALREADY_IN_USE));
 
                 return;
             }
@@ -2433,7 +2447,8 @@ public class SOCServer extends Server
              * Tell the client that everything is good to go
              */
             c.put(SOCJoinAuth.toCmd(mes.getNickname(), mes.getChannel()));
-            c.put(SOCStatusMessage.toCmd("Welcome to Java Settlers of Catan!"));
+            c.put(SOCStatusMessage.toCmd
+            	  (SOCStatusMessage.SV_OK, "Welcome to Java Settlers of Catan!"));
 
             /**
              * Add the StringConnection to the channel
@@ -2559,7 +2574,9 @@ public class SOCServer extends Server
              */
             if ((c.getData() == null) && (!checkNickname(mes.getNickname())))
             {
-                c.put(SOCStatusMessage.toCmd(MSG_NICKNAME_ALREADY_IN_USE));
+                c.put(SOCStatusMessage.toCmd
+                	  (SOCStatusMessage.SV_NAME_IN_USE,
+                		MSG_NICKNAME_ALREADY_IN_USE));
                 SOCRejectConnection rcCommand = new SOCRejectConnection(MSG_NICKNAME_ALREADY_IN_USE);
                 c.put(rcCommand.toCmd());
                 System.err.println("Robot login attempt, name already in use: " + mes.getNickname());
@@ -2576,7 +2593,8 @@ public class SOCServer extends Server
             try
             {
                 params = SOCDBHelper.retrieveRobotParams(mes.getNickname());
-                D.ebugPrintln("*** Robot Parameters for " + mes.getNickname() + " = " + params);
+                if (params != null)
+                	D.ebugPrintln("*** Robot Parameters for " + mes.getNickname() + " = " + params);
             }
             catch (SQLException sqle)
             {
@@ -2627,7 +2645,9 @@ public class SOCServer extends Server
              */
             if ((c.getData() == null) && (!checkNickname(mes.getNickname())))
             {
-                c.put(SOCStatusMessage.toCmd(MSG_NICKNAME_ALREADY_IN_USE));
+                c.put(SOCStatusMessage.toCmd
+                	  (SOCStatusMessage.SV_NAME_IN_USE,
+                	   MSG_NICKNAME_ALREADY_IN_USE));
 
                 return;
             }
@@ -2799,7 +2819,8 @@ public class SOCServer extends Server
                  */
                 //D.ebugPrintln("ga.isSeatVacant(mes.getPlayerNumber()) = "+ga.isSeatVacant(mes.getPlayerNumber()));
                 /**
-                 * make sure a person isn't sitting here already
+                 * make sure a person isn't sitting here already;
+                 * if a robot is sitting there, dismiss the robot.
                  */
                 ga.takeMonitor();
 
@@ -3576,7 +3597,7 @@ public class SOCServer extends Server
                         /**
                          * tell everyone else that the player discarded unknown resources
                          */
-                        messageToGameExcept(gn, c, new SOCPlayerElement(gn, pn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()));
+                        messageToGameExcept(gn, c, new SOCPlayerElement(gn, pn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, mes.getResources().getTotal()), true);
                         messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, (String) c.getData() + " discarded " + mes.getResources().getTotal() + " resources."));
 
                         /**
@@ -3758,7 +3779,7 @@ public class SOCServer extends Server
                 if ((c != null) && c.isConnected())
                     reportRsrcGainLoss(gaName, resGainLoss, true, cpn, -1, null, c);
                 int totalRes = resGainLoss.getTotal();
-                messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes));
+                messageToGameExcept(gaName, c, new SOCPlayerElement(gaName, cpn, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, totalRes), true);
                 messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + " discarded " + totalRes + " resources."));
             }
         }
@@ -3772,7 +3793,7 @@ public class SOCServer extends Server
             StringConnection c = getConnection(plName);
             if ((c != null) && c.isConnected())
                 messageToPlayer(c, new SOCDevCard(gaName, cpn, SOCDevCard.ADDOLD, card));
-            messageToGameExcept(gaName, c, new SOCDevCard(gaName, cpn, SOCDevCard.ADDOLD, SOCDevCardConstants.UNKNOWN));                       
+            messageToGameExcept(gaName, c, new SOCDevCard(gaName, cpn, SOCDevCard.ADDOLD, SOCDevCardConstants.UNKNOWN), true);                       
             messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, plName + "'s just-played development card was returned."));            
         }
 
@@ -4338,7 +4359,7 @@ public class SOCServer extends Server
                             gameList.releaseMonitorForGame(gaName);
                             messageToPlayer(c, new SOCDevCard(gaName, player.getPlayerNumber(), SOCDevCard.DRAW, card));
 
-                            messageToGameExcept(gaName, c, new SOCDevCard(gaName, player.getPlayerNumber(), SOCDevCard.DRAW, SOCDevCardConstants.UNKNOWN));
+                            messageToGameExcept(gaName, c, new SOCDevCard(gaName, player.getPlayerNumber(), SOCDevCard.DRAW, SOCDevCardConstants.UNKNOWN), true);
                             messageToGame(gaName, new SOCGameTextMsg(gaName, SERVERNAME, (String) c.getData() + " bought a development card."));
 
                             if (ga.getNumDevCards() > 1)
@@ -4638,7 +4659,7 @@ public class SOCServer extends Server
 						    message += resName;
 
                             gameList.takeMonitorForGame(gaName);
-                            messageToGameWithMon(gaName, new SOCGameTextMsg(gaName, SERVERNAME, message));
+                            messageToGameExcept(gaName, c, new SOCGameTextMsg(gaName, SERVERNAME, message), false);
 
                             /**
                              * just send all the player's resource counts for the
@@ -4655,20 +4676,25 @@ public class SOCServer extends Server
 
 						    /**
 						     * now that monitor is released, notify the
-						     * victim(s) of resource amounts taken.
+						     * victim(s) of resource amounts taken,
+						     * and tell the player how many they won.
 						     */
+                            int monoTotal = 0;
                             for (int i = 0; i < SOCGame.MAXPLAYERS; i++)
                             {
-								if (monoPicks[i] == 0)
+                            	int picked = monoPicks[i];
+								if (picked == 0)
 								    continue;
+								monoTotal += picked;
 								String viName = ga.getPlayer(i).getName();
 								StringConnection viCon = getConnection(viName);
 								if (viCon != null)
 								    viCon.put(SOCGameTextMsg.toCmd
 								        (gaName, SERVERNAME,
-								         monoPlayerName + "'s Monopoly took your " + monoPicks[i] + resName));
+								         monoPlayerName + "'s Monopoly took your " + picked + resName));
 						    }
 
+                            c.put(SOCGameTextMsg.toCmd(gaName, SERVERNAME, "You monopolized " + monoTotal + resName));
                             sendGameState(ga);
                         }
                         else
@@ -4980,13 +5006,17 @@ public class SOCServer extends Server
         catch (SQLException sqle)
         {
             // Indicates a db problem: don't continue
-            c.put(SOCStatusMessage.toCmd("Problem connecting to database, please try again later."));
+            c.put(SOCStatusMessage.toCmd
+            		(SOCStatusMessage.SV_PROBLEM_WITH_DB,
+            	     "Problem connecting to database, please try again later."));
             return;
         }
 
         if (userPassword != null)
         {
-            c.put(SOCStatusMessage.toCmd("The nickname '" + mes.getNickname() + "' is already in use."));
+            c.put(SOCStatusMessage.toCmd
+            		(SOCStatusMessage.SV_NAME_IN_USE,
+            	     "The nickname '" + mes.getNickname() + "' is already in use."));
 
             return;
         }
@@ -5009,11 +5039,15 @@ public class SOCServer extends Server
 
         if (success)
         {
-            c.put(SOCStatusMessage.toCmd("Account created for '" + mes.getNickname() + "'."));
+            c.put(SOCStatusMessage.toCmd
+            		(SOCStatusMessage.SV_ACCT_CREATED_OK,
+            		 "Account created for '" + mes.getNickname() + "'."));
         }
         else
         {
-            c.put(SOCStatusMessage.toCmd("Account not created due to error."));
+            c.put(SOCStatusMessage.toCmd
+            		(SOCStatusMessage.SV_ACCT_NOT_CREATED_ERR,
+            		 "Account not created due to error."));
         }
     }
 
@@ -5032,7 +5066,9 @@ public class SOCServer extends Server
         if (! isReset)
         {
             c.put(SOCJoinGameAuth.toCmd(gameName));
-            c.put(SOCStatusMessage.toCmd("Welcome to Java Settlers of Catan!"));
+            c.put(SOCStatusMessage.toCmd
+            	  (SOCStatusMessage.SV_OK,
+            	   "Welcome to Java Settlers of Catan!"));
         }
 
         //c.put(SOCGameState.toCmd(gameName, gameData.getGameState()));
@@ -5513,15 +5549,15 @@ public class SOCServer extends Server
             exceptions.addElement(viCon);
             gainUnknown = new SOCPlayerElement(gaName, pePN, SOCPlayerElement.GAIN, SOCPlayerElement.UNKNOWN, 1);
             loseUnknown = new SOCPlayerElement(gaName, viPN, SOCPlayerElement.LOSE, SOCPlayerElement.UNKNOWN, 1);
-            messageToGameExcept(gaName, exceptions, gainUnknown);
-            messageToGameExcept(gaName, exceptions, loseUnknown);
+            messageToGameExcept(gaName, exceptions, gainUnknown, true);
+            messageToGameExcept(gaName, exceptions, loseUnknown, true);
 
             /**
              * send the text messages
              */
             messageToPlayer(peCon, new SOCGameTextMsg(gaName, SERVERNAME, mes1.toString()));
             messageToPlayer(viCon, new SOCGameTextMsg(gaName, SERVERNAME, mes2.toString()));
-            messageToGameExcept(gaName, exceptions, new SOCGameTextMsg(gaName, SERVERNAME, peName + " stole a resource from " + viName));
+            messageToGameExcept(gaName, exceptions, new SOCGameTextMsg(gaName, SERVERNAME, peName + " stole a resource from " + viName), true);
         }
     }
 
@@ -6228,11 +6264,13 @@ public class SOCServer extends Server
      *    Humans will reset their copy of the game.
      *    Robots will leave the game and request to re-join.
      *    (This simplifies the robot client.)
+     *    If the game was already over at reset time, different robots will
+     *    be randomly chosen to join the reset game.
      * <LI value=3> Send messages as if each human player has clicked "join" (except JoinGameAuth)
      * <LI value=4> Send as if each human player has clicked "sit here"
      * <LI value=5a> If no robots, send to game as if someone else has
      *              clicked "start game", and set up state to begin game play.
-     * <LI value=5b>  If there are robots, If there are robots, set up wait-request
+     * <LI value=5b>  If there are robots, set up wait-request
      *     queue (robotJoinRequests). Game will wait for robots to send
      *     JOINGAME and SITDOWN, as they do when joining a newly created game.
      *     Once all robots have re-joined, the game will begin.
@@ -6241,7 +6279,7 @@ public class SOCServer extends Server
      * or (race condition) the robots may ask to join before we've
      * set up robotJoinRequests. 
      */
-    private void resetBoardAndNotify (String gaName, int requestingPlayer)
+    private void resetBoardAndNotify (final String gaName, final int requestingPlayer)
     {
         /**
          * 1. Reset the board, remember player positions.
@@ -6264,6 +6302,9 @@ public class SOCServer extends Server
                 + plName);
         }
 
+        // If game was over, we'll shuffle the robots
+        final boolean gameWasOverAtReset = (SOCGame.OVER == reBoard.oldGameState);
+
         /**
          * Player connection data:
          * - Humans are copied from old to new game
@@ -6285,7 +6326,12 @@ public class SOCServer extends Server
             if (huConns[pn] != null)
                 messageToPlayer(huConns[pn], resetMsg);
             else if (roConns[pn] != null)
-                messageToPlayer(roConns[pn], resetMsg);
+            {
+            	if (! gameWasOverAtReset)
+            		messageToPlayer(roConns[pn], resetMsg);
+            	else
+            		messageToPlayer(roConns[pn], new SOCRobotDismiss(gaName));
+            }
         }
 
         /**
@@ -6323,7 +6369,8 @@ public class SOCServer extends Server
         else
         {
             reGame.setGameState(SOCGame.READY);
-            readyGameAskRobotsJoin(reGame, reBoard.robotConns);
+            readyGameAskRobotsJoin
+              (reGame, gameWasOverAtReset ? null : reBoard.robotConns);
         }
 
         // All set.

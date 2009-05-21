@@ -20,91 +20,79 @@
  **/
 package soc.client;
 
-
-/////////////////////////////////////////////////////// SNIPPING TEXT AREA 
-// 
-// SnippingTextArea.java 
-// Brian Davies 
-// Written 1/21/99 
-// 
-///////////
-/////////////////////////////////////////////////////// PACKAGES
 import java.awt.TextArea;
+import java.util.StringTokenizer;
 
+/*
+ * SnippingTextArea.java 
+ * Brian Davies 
+ * Written 1/21/99 
+ */
 
-/////////////////////////////////////////////////////// CLASS DEFINITION
+/**
+ * Limits lines displayed to MaximumLines.  Note that the empty string is also
+ * considered a line.
+ */
 public class SnippingTextArea extends TextArea
 {
+    /**
+     * A bug in Java 1.4.2: the first time replaceRange() is called, it
+     * deletes one char beyond what is requested, but only because it's a
+     * newline (java bug 5025532 and possibly 4910757).  Afterwards it
+     * appears to work normally, resulting in the oldest line in the display
+     * will be short 1 char. To avoid we work on the text itself for 1.4.2. It
+     * flickers, but works.
+     */
+    static final boolean isJava142 =
+        true; // JM TESTING - System.getProperty("java.version").startsWith("1.4.2");
+
     int maximumLines = 100;
     int lines = 0;
 
-    /////////////////////////////////////////////////// CONSTRUCTORS
-    public SnippingTextArea(int height, int width, int maxLines)
+
+    /**
+     * Creates a SnippingTextArea which limits hard line breaks to maxLines,
+     * and uses SCROLLBARS_VERTICAL_ONLY.
+     */
+    public SnippingTextArea(int rows, int columns, int maxLines)
     {
-        super(height, width);
-        maximumLines = maxLines;
+        this("", rows, columns, SCROLLBARS_VERTICAL_ONLY, maxLines);
     }
 
     /**
-     * Creates a new SnippingTextArea object.
-     *
-     * @param contents DOCUMENT ME!
-     * @param maxLines DOCUMENT ME!
+     * Creates a new SnippingTextArea object with specified text, which limits
+     * hard line breaks to maxLines, and uses SCROOBARS_VERTICAL_ONLY.
      */
-    public SnippingTextArea(String contents, int maxLines)
+    public SnippingTextArea(String text, int maxLines)
     {
-        super(contents);
-        maximumLines = maxLines;
-        lines = countLines(contents);
-
-        // snipText();
+        this("", 40, 80, SCROLLBARS_VERTICAL_ONLY, maxLines);
     }
 
     /**
-     * Creates a new SnippingTextArea object.
-     *
-     * @param contents DOCUMENT ME!
-     * @param height DOCUMENT ME!
-     * @param width DOCUMENT ME!
-     * @param maxLines DOCUMENT ME!
+     * Creates a new SnippingTextArea object with specified text, rows,
+     * columns, and scroll bar visibility, which limits hard line breaks to
+     * maxLines.
      */
-    public SnippingTextArea(String contents, int height, int width, int maxLines)
+    public SnippingTextArea(String text, int rows, int columns,
+                            int scrollbars, int maxLines)
     {
-        super(contents, height, width);
+        super(text, rows, columns, scrollbars);
         maximumLines = maxLines;
-        lines = countLines(contents);
-
-        // snipText();
+        lines = 1; // the empty string is a line, text==null results in empty string
+        lines += countNewLines(text);
     }
 
     /**
-     * Creates a new SnippingTextArea object.
-     *
-     * @param contents DOCUMENT ME!
-     * @param height DOCUMENT ME!
-     * @param width DOCUMENT ME!
-     * @param scrollType DOCUMENT ME!
-     * @param maxLines DOCUMENT ME!
+     * Maximum lines this text area will display.
      */
-    public SnippingTextArea(String contents, int height, int width, int scrollType, int maxLines)
-    {
-        super(contents, height, width, scrollType);
-        maximumLines = maxLines;
-        lines = countLines(contents);
-
-        // snipText();
-    }
-
-    /////////////////////////////////////////////////// ACCESSORS
     public int getMaximumLines()
     {
         return maximumLines;
     }
 
     /**
-     * DOCUMENT ME!
-     *
-     * @param newMax DOCUMENT ME!
+     * Set the maximum lines this text area will display, contents are snipped
+     * if neccissary.
      */
     public void setMaximumLines(int newMax)
     {
@@ -112,94 +100,89 @@ public class SnippingTextArea extends TextArea
         snipText();
     }
 
-    /////////////////////////////////////////////////// OVERWRITTEN METHODS
     /**
-     * DOCUMENT ME!
-     *
-     * @param newString DOCUMENT ME!
+     * Return current number of lines in text
      */
-    public void setText(String newString)
+    public int lines() {
+        return lines;
+    }
+
+    // inherit javadoc from TextArea
+    public synchronized void setText(String newString)
     {
         super.setText(newString);
-
-        // lines += countLines(newString);
-        // snipText (); 
+        lines = countNewLines(newString);
+        snipText(); 
     }
-    /**
-     * DOCUMENT ME!
-     *
-     * @param newString DOCUMENT ME!
-     * @param x DOCUMENT ME!
-     * @param y DOCUMENT ME!
-     */
+
+    // inherit javadoc from TextArea
     public synchronized void replaceRange(String newString, int x, int y)
     {
+        lines -= countNewLines(getText().substring(x,y));
         super.replaceRange(newString, x, y);
-
-        // lines += countLines(newString);
-        // snipText (); 
+        lines += countNewLines(newString);
+        snipText (); 
     }
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @param newString DOCUMENT ME!
-     * @param x DOCUMENT ME!
-     */
+    // inherit javadoc from TextArea
     public synchronized void insert(String newString, int x)
     {
         super.insert(newString, x);
-
-        // lines += countLines(newString);
-        // snipText (); 
-    }
-
-    /**
-     * DOCUMENT ME!
-     *
-     * @param newString DOCUMENT ME!
-     */
-    public synchronized void append(String newString)
-    {
-        super.append(newString);
-        lines += countLines(newString);
+        lines += countNewLines(newString);
         snipText();
     }
 
-    /////////////////////////////////////////////////// SNIPPING
-    protected int countLines(String s)
+    // inherit javadoc from TextArea
+    public synchronized void append(String newString)
+    {
+        super.append(newString);
+        lines += countNewLines(newString);
+        // JM TEST // snipText();
+    }
+
+    /** Count the lines in a string of text. */
+    protected  int countNewLines(String s)
     {
         int lines = 0;
-        int end = s.length();
-
-        for (int idx = 0; idx < end; idx++)
-        {
-            if (s.charAt(idx) == '\n')
-            {
-                lines++;
-            }
-        }
+        int last = -1;
+        
+        while ( (last = s.indexOf('\n', last+1)) > -1)
+            lines++;
 
         return lines;
     }
 
     /**
-     * DOCUMENT ME!
+     * Remove lines at the beginning of the text, until there are only maxLines
+     * in the component.
      */
     public void snipText()
     {
-        // //D.ebugPrintln("LINES = "+lines);
+    	if (lines > maximumLines)
+    		System.err.println("L162: snipping");
         while (lines > maximumLines)
         {
             String s = getText();
-            super.replaceRange("", 0, s.indexOf('\n') + 1);
+            int nextLine = s.indexOf('\n') + 1;
+            
+    		System.err.println("L168: calling");
+            if (isJava142) // see comment for isJava142
+                super.setText(s.substring(nextLine));
+            else
+                super.replaceRange("", 0, nextLine);
+            
             lines--;
         }
+        // java 1.2 deprecated getPeer, adding isDisplayable()
+		System.err.println("L169: done");
 
-        if (isDisplayable())
-            super.setCaretPosition(getText().length());
-    }
+		if (getPeer() != null)
+        {
+    		System.err.println("L169: calling");
+            setCaretPosition(getText().length());
+    		System.err.println("L169: done2");
+        }
+     }
 }
 
 
-/////////////////////////////////////////////////////// END

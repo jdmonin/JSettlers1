@@ -819,7 +819,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
     }
 
     /**
-     * print text in the text window
+     * print text in the text window.
+     * For dice-roll message, combine lines to reduce clutter.
      *
      * @param s  the text
      */
