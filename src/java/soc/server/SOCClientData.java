@@ -26,6 +26,7 @@ package soc.server;
  * session, not persistent across disconnects/reconnects by clients.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
+ * @since 1.1.04
  */
 public class SOCClientData
 {
