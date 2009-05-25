@@ -48,6 +48,8 @@ import java.util.Vector;
  *<P>
  *  The first message over the connection should be from the server to the client,
  *  in {@link #newConnection1(StringConnection)} or {@link #newConnection2(StringConnection)}.
+ *  You can send to client, but can't yet receive messages from them,
+ *  until after newConnection2 returns.
  *<P>
  *  @version 1.5
  *  @author Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A> <br>
@@ -228,6 +230,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * Unless you override this method, always returns true.
      *<P>
      * This method is called within a per-client thread.
+     * You can send to client, but can't yet receive messages from them.
      *<P>
      * Should send a message to the client in either {@link #newConnection1(StringConnection)}
      * or {@link #newConnection2(StringConnection)}.
@@ -256,6 +259,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      *  no connection-list locks are held when this method is called.
      *<P>
      * This method is called within a per-client thread.
+     * You can send to client, but can't yet receive messages from them.
      */
     protected void newConnection2(StringConnection c) {}
 

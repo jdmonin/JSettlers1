@@ -66,7 +66,11 @@ class NotifyDialog extends AskDialog
      */
     protected NotifyDialog(SOCPlayerClient cli, SOCPlayerInterface gamePI, String promptText, String btnText, boolean hasDefault)
     {
-        super(cli, gamePI, promptText, promptText,
+        super(cli,
+       	     ((gamePI != null)
+       		      ? getParentFrame(gamePI)
+       		      : getParentFrame(cli)),
+        	promptText, promptText,
             btnText, hasDefault);
     }
 

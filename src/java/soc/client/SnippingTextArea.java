@@ -1,6 +1,8 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
+ * This file appears (by its comments) to be (C) 1999 Brian Davies
+ * Portions of this file Copyright (C) 2009 Jeremy D Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,9 +44,23 @@ public class SnippingTextArea extends TextArea
      * appears to work normally, resulting in the oldest line in the display
      * will be short 1 char. To avoid we work on the text itself for 1.4.2. It
      * flickers, but works.
+     * Added 2004-06-24 by Chad McHenry - JSettlers 1.1 CVS
      */
     static final boolean isJava142 =
-        true; // JM TESTING - System.getProperty("java.version").startsWith("1.4.2");
+        System.getProperty("java.version").startsWith("1.4.2");
+
+    /**
+     * Bug in Mac OS X 10.5 java display: If multiple threads try to update display at once,
+     * can hang the GUI (with rainbow "beach ball"). Non-display threads continue execution.
+     * We avoid this by not snipping our text area's length. - JDM 2009-05-21
+     * To identify osx from within java, see technote TN2110:
+     * http://developer.apple.com/technotes/tn2002/tn2110.html
+     *
+     * @since 1.1.06
+     */
+    static final boolean isJavaOnOSX105 =
+    	(System.getProperty("os.name").toLowerCase().startsWith("mac os x"))
+    	&& (System.getProperty("os.version").startsWith("10.5."));
 
     int maximumLines = 100;
     int lines = 0;
@@ -92,7 +108,7 @@ public class SnippingTextArea extends TextArea
 
     /**
      * Set the maximum lines this text area will display, contents are snipped
-     * if neccissary.
+     * if necessary.
      */
     public void setMaximumLines(int newMax)
     {
@@ -101,7 +117,7 @@ public class SnippingTextArea extends TextArea
     }
 
     /**
-     * Return current number of lines in text
+     * @return current number of lines in text
      */
     public int lines() {
         return lines;
@@ -137,7 +153,7 @@ public class SnippingTextArea extends TextArea
     {
         super.append(newString);
         lines += countNewLines(newString);
-        // JM TEST // snipText();
+        snipText();
     }
 
     /** Count the lines in a string of text. */
@@ -158,14 +174,14 @@ public class SnippingTextArea extends TextArea
      */
     public void snipText()
     {
-    	if (lines > maximumLines)
-    		System.err.println("L162: snipping");
+    	if (isJavaOnOSX105)
+    		return;
+
         while (lines > maximumLines)
         {
             String s = getText();
             int nextLine = s.indexOf('\n') + 1;
             
-    		System.err.println("L168: calling");
             if (isJava142) // see comment for isJava142
                 super.setText(s.substring(nextLine));
             else
@@ -174,13 +190,10 @@ public class SnippingTextArea extends TextArea
             lines--;
         }
         // java 1.2 deprecated getPeer, adding isDisplayable()
-		System.err.println("L169: done");
 
 		if (getPeer() != null)
         {
-    		System.err.println("L169: calling");
             setCaretPosition(getText().length());
-    		System.err.println("L169: done2");
         }
      }
 }

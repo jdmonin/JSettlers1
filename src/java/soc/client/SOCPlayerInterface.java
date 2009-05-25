@@ -826,7 +826,8 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public void print(String s)
     {
-        if (textDisplayRollExpected > 0)
+
+    	if (textDisplayRollExpected > 0)
         {
             /*
              * Special case: Roll message.  Reduce clutter.
@@ -834,9 +835,12 @@ public class SOCPlayerInterface extends Frame implements ActionListener
              * change the textDisplay contents (if matching):
              *   replace: * It's Player's turn to roll the dice. \n * Player rolled a 4 and a 5.
              *   with:    * It's Player's turn to roll. Rolled a 9.
+             * 
+             * JM 2009-05-21: Don't do this on Mac OS X 10.5; it can lead to a GUI hang/race condition.
              */
 
-            if ((s.startsWith("* ")) && (s.indexOf(" rolled a ") > 0))
+            if (( ! SnippingTextArea.isJavaOnOSX105)
+                 && (s.startsWith("* ")) && (s.indexOf(" rolled a ") > 0))
             {
                 String currentText = textDisplay.getText();
                 int L = currentText.length();

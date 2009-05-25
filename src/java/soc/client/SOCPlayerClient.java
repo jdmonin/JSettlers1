@@ -477,7 +477,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
-        // Row 5
+        // Row 5 (join channel, practice, join game)
 
         localTCPPortLabel = new Label();
         c.gridwidth = 1;
@@ -1752,7 +1752,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Handle the "version" message, server's version report.
      * Reply with client's version.
-     * If remote, store the server's version for {@link #getServerVersion(SOCGame)}.
+     * If remote, store the server's version for {@link #getServerVersion(SOCGame)}
+     * and display the version on the main panel.
      * (Local server's version is always {@link Version#versionNumber()}.)
      *
      * @param isLocal Is the server local, or remote?  Client can be connected
@@ -1764,7 +1765,17 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         D.ebugPrintln("handleVERSION: " + mes);
         int vers = mes.getVersionNumber();
         if (! isLocal)
+	{
             sVersion = vers;
+
+	    // Display the version on main panel
+	    localTCPPortLabel.setText("v " + mes.getVersionString());
+	    new AWTToolTip ("Server version is " + mes.getVersionString()
+			    + " build " + mes.getBuild()
+                            + "; client is " + Version.version()
+			    + " bld " + Version.buildnum(),
+			    localTCPPortLabel);
+	}
 
         // If we ever require a minimum server version, would check that here.
 

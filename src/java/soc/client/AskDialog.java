@@ -21,9 +21,12 @@
  **/
 package soc.client;
 
+import java.applet.Applet;
 import java.awt.BorderLayout;
 import java.awt.Button;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -130,6 +133,7 @@ public abstract class AskDialog extends Dialog
     /**
      * Creates a new AskDialog with one button, not about a specific game.
      * For use by {@link NotifyDialog}.
+     * parentFr cannot be null; use {@link #getParentFrame(Component)} to find it.
      */
     protected AskDialog(SOCPlayerClient cli, Frame parentFr,
         String titlebar, String prompt, String btnText,
@@ -545,5 +549,26 @@ public abstract class AskDialog extends Dialog
 
     /** Stub required by MouseListener */
     public void mouseReleased(MouseEvent e) {}
+
+    /**
+     * Gets the top-level frame of c.
+     * All windows and applets should have one.
+     * @param c The Component.
+     * @return The parent-frame, or null.
+     * @since 1.1.06
+     */
+    public static Frame getParentFrame( Component c )
+    {
+      Component last;
+      while (! (c instanceof Frame))
+      {
+        last = c;
+        c = c.getParent();
+        if (c == null)
+          throw new IllegalStateException("Assert failed, parent should not be null; last: "
+                  + last.getClass().getName() + " " + last );
+      }
+      return (Frame) c;
+    }
 
 }
