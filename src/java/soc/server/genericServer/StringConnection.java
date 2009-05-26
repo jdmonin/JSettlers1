@@ -1,6 +1,6 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.4.
- * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
+ * Local (StringConnection) network system.  Version 1.0.5.
+ * Copyright (C) 2007-2009 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,6 +35,7 @@ import java.util.Date;
  *  1.0.2 - 2008-07-30 - no change in this file
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
+ *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool)
  *</PRE>
  */
 public interface StringConnection
@@ -146,6 +147,27 @@ public interface StringConnection
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
      * @param version Version number, or 0 if unknown.
+     *                If version is greater than 0, future calls to {@link #isVersionKnown()}
+     *                should return true.
      */
     public abstract void setVersion(int version);
+
+    /**
+     * Set the version number of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @param version Version number, or 0 if unknown.
+     * @param isKnown Should this version be considered confirmed/known by {@link #isVersionKnown()}?
+     * @since 1.0.5
+     */
+    public abstract void setVersion(int version, boolean isKnown);
+
+    /**
+     * Is the version known of the remote end of this connection?
+     * We may have just assumed it, or taken a default.
+     * To confirm, call {@link #setVersion(int, boolean)}.
+     * @return True if we've confirmed the version, false if it's assumed or default.
+     * @since 1.0.5
+     */
+    public abstract boolean isVersionKnown();
+
 }

@@ -55,6 +55,7 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Random;
 import java.util.StringTokenizer;
+import java.util.Timer;
 import java.util.Vector;
 
 /**
@@ -75,7 +76,7 @@ public class SOCServer extends Server
     /**
      * Minimum required client version, to connect and play a game.
      * Same format as {@link soc.util.Version#versionNumber()}.
-     * Currently there is no minimum.
+     * Currently there is no enforced minimum (0000).
      * @see #setClientVersionOrReject(StringConnection, int)
      */
     public static final int CLI_VERSION_MIN = 0000;
@@ -86,6 +87,19 @@ public class SOCServer extends Server
      * @see #setClientVersionOrReject(StringConnection, int)
      */
     public static final String CLI_VERSION_MIN_DISPLAY = "0.0.00";
+
+    /**
+     * If client never tells us their version, assume they are version 1.0.0 (1000).
+     * @see #CLI_VERSION_TIMER_FIRE_MS
+     */
+    public static final int CLI_VERSION_ASSUMED_GUESS = 1000;
+
+    /**
+     * Client version is guessed after this many milliseconds (1200) if the client
+     * hasn't yet sent it to us.
+     * @see #CLI_VERSION_ASSUMED_GUESS
+     */
+    public static final int CLI_VERSION_TIMER_FIRE_MS = 1200;
 
     /**
      * If game will expire in this or fewer minutes, warn the players. Default 10.
@@ -218,6 +232,12 @@ public class SOCServer extends Server
     String databasePassword;
 
     /**
+     * Timer at client connect, to receive client version
+     * before we assume it's too old to tell us.
+     */
+    Timer cliConnectTimer;  // package access, for SOCClientData's use
+
+    /**
      * Create a Settlers of Catan server listening on port p.
      * You must start its thread yourself.
      *
@@ -291,6 +311,7 @@ public class SOCServer extends Server
         gameTimeoutChecker.start();
         this.databaseUserName = databaseUserName;
         this.databasePassword = databasePassword;
+	cliConnectTimer = new Timer(true);  // use daemon thread
     }
 
     /**
@@ -377,7 +398,8 @@ public class SOCServer extends Server
     }
 
     /**
-     * Adds a connection to a game.  If the game doesn't yet exist, create it.
+     * Adds a connection to a game.  If the game doesn't yet exist, create it,
+     * and announce the new game to all clients.
      *
      * @param c    the Connection to be added; its name and version should already be set.
      * @param ga   the name of the game
@@ -1404,6 +1426,7 @@ public class SOCServer extends Server
      * Other communication is then done, in {@link #newConnection2(StringConnection)}.
      *<P>
      * This method is called within a per-client thread.
+     * You can send to client, but can't yet receive messages from them.
      *<P>
      *  SYNCHRONIZATION NOTE: During the call to newConnection1, the monitor lock of
      *  {@link #unnamedConns} is held.  Thus, defer as much as possible until
@@ -1465,8 +1488,10 @@ public class SOCServer extends Server
                 {
                     /**
                      * Accept this connection.
-                     * Once it's added to the list, send the list of channels and games
-                     * from {@link #newConnection2(StringConnection)}.
+                     * Once it's added to the list,
+                     * {@link #newConnection2(StringConnection)} will
+                     * try to wait for client version, and
+                     * will send the list of channels and games.
                      */
                     return true;
                 }
@@ -1492,13 +1517,15 @@ public class SOCServer extends Server
      * Client's {@link SOCClientData} appdata is set here.
      *<P>
      * This method is called within a per-client thread.
+     * You can send to client, but can't yet receive messages from them.
      */
     protected void newConnection2(StringConnection c)
     {
+        SOCClientData cdata = new SOCClientData();
+        c.setAppData(cdata);
         c.setVersion(-1);
-        c.setAppData(new SOCClientData());
 
-        // VERSION
+        // VERSION of server
         c.put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
 
         // CHANNELS
@@ -1524,43 +1551,175 @@ public class SOCServer extends Server
         c.put(SOCChannels.toCmd(cl));
 
         // GAMES
-		int cliVers = -1;   // Need to know this before sending (TODO TODO)
-	
-		boolean cliCanKnow = (cliVers >= SOCGames.VERSION_FOR_UNJOINABLE);
 
-		// Based on version:
-		// If client is too old (< 1.1.06), it can't be told names of games
-		// that it isn't capable of joining.
+	// Games will be sent once we know the client's version, or have guessed
+	// that it's too old (if the client doesn't tell us soon enough).
+	// Client data's version timer will call srv.sendGameList().
+
+	cdata.setVersionTimer(this, c);
+
+	// TODO if we know right now, can sendGameList right now
+
+    }  // newConnection2
+
+    /**
+     * Send the list of games to this client; this is sent once per connecting client.
+     * Or, send the list of changed games, if the client's guessed version was wrong.
+     *<P>
+     * Two possible scenarios for when this method is called:
+     *<P>
+     * - (A) Sending game list to client, for the first time:
+     *    Iterate through all games, looking for ones the client's version
+     *    is capable of joining.  If not capable, mark the game name as such
+     *    before sending it to the client.  (As a special case, very old
+     *    client versions "can't know" about the game they can't join, because
+     *    they don't recognize the marker.)
+     *    Also set the client data's hasSentGameList flag.
+     *<P>
+     * - (B) The client didn't give its version, and was thus
+     *    identified as an old version.  Now we know its newer true version,
+     *    so we must tell it about games that it can now join,
+     *    which couldn't have been joined by the older assumed version.
+     *    So:  Look for games with those criteria.
+     *<P>
+     * Sending the list is done here, and not in newConnection2, because we must first
+     * know the client's version.
+     *<P>
+     * <b>Locks:</b> Will call {@link SOCGameList#takeMonitor()} / releaseMonitor
+     * @param c Client's connection; will call getVersion() on it
+     * @param prevVers  Previously assumed version of this client;
+     *                  if re-sending the list, should be less than c.getVersion.
+     * @since 1.1.06
+     */
+    public void sendGameList(StringConnection c, int prevVers)
+    {
+	final int cliVers = c.getVersion();   // Need to know this before sending
+
+        // Before send list of games, try for a client version.
+		// Give client 1 second to send it,
+		// before we assume it's old.
+
+		// JM TODO - STATE - can't read from client yet here
+		/*
+		int cliVers = c.getVersion(); 
+		for (int i = 3; (i > 0) && (cliVers <= 0); --i)
+		{
+			try
+			{
+				Thread.sleep(300);
+			}
+			catch (InterruptedException e) {}
+			cliVers = c.getVersion();
+		}
+		 */
+
+	// GAMES
+
+	// Based on version:
+	// If client is too old (< 1.1.06), it can't be told names of games
+	// that it isn't capable of joining.
+
+        boolean cliCanKnow = (cliVers >= SOCGames.VERSION_FOR_UNJOINABLE);
+	final boolean cliCouldKnow = (prevVers >= SOCGames.VERSION_FOR_UNJOINABLE);
 
         Vector gl = new Vector();
         gameList.takeMonitor();
+	boolean alreadySent =
+		((SOCClientData) c.getAppData()).hasSentGameList();  // Check while gamelist monitor is held
+	boolean cliVersionChange = (! alreadySent) && (cliVers > prevVers);
+
+	if (alreadySent && ! cliVersionChange)
+	{
+	    // Release lock and do nothing.
+	    gameList.releaseMonitor();
+
+	    return;  // <---- Early return: Nothing to do ----
+	}
+
+	if (! alreadySent)
+	{
+	    ((SOCClientData) c.getAppData()).setSentGameList();  // Set while gamelist monitor is held
+	}
+
+	/**
+	 * We release the monitor as soon as we can, even though we haven't yet
+	 * sent the list to the client.  It's theoretically possible the client will get
+	 * a NEWGAME message, which is OK, or a DELETEGAME message, before it receives the list
+	 * we're building.  
+	 * NEWGAME is OK because the GAMES message won't clear the list contents at client.
+	 * DELETEGAME is less OK, but it's not very likely.
+	 * If the game is deleted, and then they see it in the list, trying to join that game
+	 * will create a new empty game with that name.
+	 */
+	SOCGame g;
+	Enumeration gaEnum = gameList.getGames();
+	gameList.releaseMonitor();
+
+	if (cliVersionChange && cliCouldKnow)
+	{
+	    // If they already have the names of games they can't join,
+	    // no need to re-send those names.
+	    cliCanKnow = false;
+	}
 
         try
         {
-		    SOCGame g;
-	        Enumeration gaEnum = gameList.getGamesData();
+	    // Build the list of game names.  This loop is used for
+	    // the initial list, or just the delta after the version fix.
 	
-	        while (gaEnum.hasMoreElements())
-	        {
-	            g = (SOCGame) gaEnum.nextElement();
-				if (cliVers >= g.clientVersionMinRequired)
-				    gl.addElement(g.getName());
-				else if (cliCanKnow)
-				{
-					StringBuffer sb = new StringBuffer();
-					sb.append(SOCGames.MARKER_THIS_GAME_UNJOINABLE);
-					sb.append(g.getName());
-				    gl.addElement(sb.toString());
-				}
-	        }
+	    while (gaEnum.hasMoreElements())
+	    {
+	        g = (SOCGame) gaEnum.nextElement();
+		int gameVers = g.clientVersionMinRequired;
+
+		if (cliVersionChange && (prevVers >= gameVers))
+		{
+		    continue;  // No need to re-announce, they already
+		               // could join it with lower (prev-assumed) version
+		}
+
+		if (cliVers >= gameVers)
+		{
+		    gl.addElement(g.getName());  // Can join
+		} else if (cliCanKnow)
+		{
+		    //  Cannot join, but can see it
+		    StringBuffer sb = new StringBuffer();
+		    sb.append(SOCGames.MARKER_THIS_GAME_UNJOINABLE);
+		    sb.append(g.getName());
+		    gl.addElement(sb.toString());
+		}
+		// else
+		//   can't join, and won't see it
+
+	    }
+
+	    // We now have the list of game names.
+
+	    if (! alreadySent)
+	    {
+		// send the full list as 1 message
+		c.put(SOCGames.toCmd(gl));
+	    } else {
+		// send deltas only
+		for (int i = 0; i < gl.size(); ++i)
+		{
+		    g = (SOCGame) gl.elementAt(i);
+		    final String gaName = g.getName();
+		    if (cliCouldKnow)
+		    {
+			// first send delete, if it's on their list already
+			c.put(SOCDeleteGame.toCmd(gaName));
+		    }
+		    // announce as 'new game' to client
+		    c.put(SOCNewGame.toCmd(gaName));
+		}
+	    }
         }
         catch (Exception e)
         {
-            D.ebugPrintStackTrace(e, "Exception in newConnection (gameList)");
+            D.ebugPrintStackTrace(e, "sendgamelist");
         }
-
-        gameList.releaseMonitor();
-        c.put(SOCGames.toCmd(gl));
 
         /*
            gaEnum = gameList.getGames();
@@ -1586,7 +1745,8 @@ public class SOCServer extends Server
            c.put(SOCGameStats.toCmd(gameName, scores, robots));
            }
          */        
-    }
+
+    }  // sendGameList
 
     /**
      * check if a name is ok
@@ -2348,6 +2508,7 @@ public class SOCServer extends Server
     /**
      * Handle the "version" message, client's version report.
      * May ask to disconnect, if version is too old.
+     * If we've already sent the game list, send changes based on true version.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2357,12 +2518,15 @@ public class SOCServer extends Server
         if (c == null)
             return;
 
+	((SOCClientData) c.getAppData()).clearVersionTimer();
         setClientVersionOrReject(c, mes.getVersionNumber());
     }
 
     /**
      * Set client's version, and check against minimum required version {@link #CLI_VERSION_MIN}.
      * If version is too low, send {@link SOCRejectConnection}.
+     * If we haven't yet sent the game list, send now.
+     * If we've already sent the game list, send changes based on true version.
      * 
      * @param c     Client's connection
      * @param cvers Version reported by client, or assumed if no report
@@ -2370,6 +2534,8 @@ public class SOCServer extends Server
      */
     private boolean setClientVersionOrReject(StringConnection c, int cvers)
     {
+	final int prevVers = c.getVersion();
+
         c.setVersion(cvers);
         if (cvers < CLI_VERSION_MIN)
         {
@@ -2385,6 +2551,13 @@ public class SOCServer extends Server
             System.out.println("Rejected client: Version " + cvers + " too old");
             return false;
         }
+
+	// Send game list?
+	// Will check c.getAppData().hasSentGameList() flag.
+	// prevVers is ignored unless already sent game list.
+	sendGameList(c, prevVers);
+
+	// This client version is OK to connect
         return true;
     }
 

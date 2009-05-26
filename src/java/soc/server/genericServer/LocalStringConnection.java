@@ -1,6 +1,6 @@
 /**
- * Local (StringConnection) network system.  Version 1.0.4.
- * Copyright (C) 2007-2008 Jeremy D Monin <jeremy@nand.net>.
+ * Local (StringConnection) network system.  Version 1.0.5.
+ * Copyright (C) 2007-2009 Jeremy D Monin <jeremy@nand.net>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,6 +43,7 @@ import soc.disableDebug.D;
  *  1.0.2 - 2008-07-30 - check if s already null in disconnect
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
+ *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool)
  *</PRE>
  */
 public class LocalStringConnection
@@ -61,6 +62,7 @@ public class LocalStringConnection
     protected Exception error;
     protected Date connectTime;
     protected int  remoteVersion;
+    protected boolean remoteVersionKnown;
 
     /**
      * the arbitrary key data associated with this connection.
@@ -94,6 +96,9 @@ public class LocalStringConnection
         ourServer = null;
         error = null;
         connectTime = new Date();
+	appData = null;
+	remoteVersion = 0;
+	remoteVersionKnown = false;
     }
 
     /**
@@ -128,6 +133,9 @@ public class LocalStringConnection
         this.ourPeer = peer;
         error = null;
         connectTime = new Date();
+	appData = null;
+	remoteVersion = 0;
+	remoteVersionKnown = false;
     }
 
     /**
@@ -490,10 +498,34 @@ public class LocalStringConnection
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
      * @param version Version number, or 0 if unknown.
+     *                If version is greater than 0, future calls to {@link #isVersionKnown()}
+     *                should return true.
      */
     public void setVersion(int version)
     {
+        setVersion(version, version > 0);
+    }
+
+    /**
+     * Set the version number of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @param version Version number, or 0 if unknown.
+     * @param isKnown Should this version be considered confirmed/known by {@link #isVersionKnown()}?
+     */
+    public void setVersion(int version, boolean isKnown)
+    {
         remoteVersion = version;
+        remoteVersionKnown = isKnown;
+    }
+
+    /**
+     * Is the version known of the remote end of this connection?
+     * We may have just assumed it, or taken a default.
+     * @return True if we've confirmed the version, false if it's assumed or default.
+     */
+    public boolean isVersionKnown()
+    {
+        return remoteVersionKnown;
     }
 
     /**

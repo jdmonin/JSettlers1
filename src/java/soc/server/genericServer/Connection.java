@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,6 +65,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     public Thread reader;
     protected String hst;
     protected int remoteVersion;
+    protected boolean remoteVersionKnown;
     protected Exception error = null;
     protected Date connectTime = new Date();
     protected boolean connected = false;
@@ -82,6 +83,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         reader = null;
         data = null;
         remoteVersion = 0;
+        remoteVersionKnown = false;
         
         /* Thread name for debugging */
         if (hst != null)
@@ -403,10 +405,34 @@ public final class Connection extends Thread implements Runnable, Serializable, 
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
      * @param version Version number, or 0 if unknown.
+     *                If version is greater than 0, future calls to {@link #isVersionKnown()}
+     *                should return true.
      */
     public void setVersion(int version)
     {
+        setVersion(version, version > 0);
+    }
+
+    /**
+     * Set the version number of the remote end of this connection.
+     * The meaning of this number is application-defined.
+     * @param version Version number, or 0 if unknown.
+     * @param isKnown Should this version be considered confirmed/known by {@link #isVersionKnown()}?
+     */
+    public void setVersion(int version, boolean isKnown)
+    {
         remoteVersion = version;
+        remoteVersionKnown = isKnown;
+    }
+
+    /**
+     * Is the version known of the remote end of this connection?
+     * We may have just assumed it, or taken a default.
+     * @return True if we've confirmed the version, false if it's assumed or default.
+     */
+    public boolean isVersionKnown()
+    {
+        return remoteVersionKnown;
     }
 
     class Putter extends Thread
@@ -446,7 +472,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
                 if (c != null)
                 {
-                    boolean rv = con.putForReal(c);
+                    /* boolean rv = */ con.putForReal(c);
 
                     // rv ignored because handled by putForReal
                 }
