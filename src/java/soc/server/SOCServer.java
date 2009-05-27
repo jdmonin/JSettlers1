@@ -1425,6 +1425,9 @@ public class SOCServer extends Server
      * player "names" it by joining or creating a game under their player name.
      * Other communication is then done, in {@link #newConnection2(StringConnection)}.
      *<P>
+     * Also set client's "assumed version" to -1, until we have sent and
+     * received a VERSION message.
+     *<P>
      * This method is called within a per-client thread.
      * You can send to client, but can't yet receive messages from them.
      *<P>
@@ -1493,6 +1496,7 @@ public class SOCServer extends Server
                      * try to wait for client version, and
                      * will send the list of channels and games.
                      */
+                    c.setVersion(-1);
                     return true;
                 }
             }
@@ -1512,8 +1516,6 @@ public class SOCServer extends Server
      * Unlike {@link #newConnection1(StringConnection)},
      * no connection-list locks are held when this method is called.
      *<P>
-     * Also set client's "assumed version" to -1, until we have sent and
-     * received a VERSION message.
      * Client's {@link SOCClientData} appdata is set here.
      *<P>
      * This method is called within a per-client thread.
@@ -1523,7 +1525,6 @@ public class SOCServer extends Server
     {
         SOCClientData cdata = new SOCClientData();
         c.setAppData(cdata);
-        c.setVersion(-1);
 
         // VERSION of server
         c.put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
@@ -1652,7 +1653,7 @@ public class SOCServer extends Server
 	 * will create a new empty game with that name.
 	 */
 	SOCGame g;
-	Enumeration gaEnum = gameList.getGames();
+	Enumeration gaEnum = gameList.getGamesData();
 	gameList.releaseMonitor();
 
 	if (cliVersionChange && cliCouldKnow)

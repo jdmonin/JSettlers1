@@ -43,7 +43,7 @@ import soc.disableDebug.D;
  *  1.0.2 - 2008-07-30 - check if s already null in disconnect
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool)
+ *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool), setVersionTracking
  *</PRE>
  */
 public class LocalStringConnection
@@ -58,11 +58,12 @@ public class LocalStringConnection
     protected boolean accepted;
     private LocalStringConnection ourPeer;
 
-    protected Server ourServer;  // Optional. Notifies at EOF (calls removeConnection).
+    protected Server ourServer;  // Is set at server-side. Notifies at EOF (calls removeConnection).
     protected Exception error;
     protected Date connectTime;
     protected int  remoteVersion;
     protected boolean remoteVersionKnown;
+    protected boolean remoteVersionTrack;
 
     /**
      * the arbitrary key data associated with this connection.
@@ -99,6 +100,7 @@ public class LocalStringConnection
 	appData = null;
 	remoteVersion = 0;
 	remoteVersionKnown = false;
+        remoteVersionTrack = false;
     }
 
     /**
@@ -429,8 +431,9 @@ public class LocalStringConnection
 
     /**
      * Server-side: Set the generic server for this connection.
-     * If a server is set, its removeConnection method is called if our input reaches EOF.
-     * Call this before calling run().
+     * This is how the code knows it's on the server (not client) side.
+     * If a server is set, its removeConnection method is called if our input reaches EOF,
+     * and it's notified if our version changes.
      * 
      * @param srv The new server, or null
      */
@@ -514,8 +517,14 @@ public class LocalStringConnection
      */
     public void setVersion(int version, boolean isKnown)
     {
+        final int prevVers = remoteVersion;
         remoteVersion = version;
         remoteVersionKnown = isKnown;
+        if (remoteVersionTrack && (ourServ != null) && (prevVers != version))
+        {
+            ourServ.clientVersionRem(prevVers);
+            ourServ.clientVersionAdd(version);
+        }
     }
 
     /**
@@ -526,6 +535,21 @@ public class LocalStringConnection
     public boolean isVersionKnown()
     {
         return remoteVersionKnown;
+    }
+
+    /**
+     * For server-side use, should we notify the server when our version
+     * is changed by setVersion calls?
+     * @param doTracking true if we should notify server, false otherwise.
+     *        If true, please call both setVersion and
+     *        {@link Server#clientVersionAdd(int)} before calling setVersionTracking.
+     *        If false, please call {@link Server#clientVersionRem(int)} before
+     *        calling setVersionTracking.
+     * @since 1.0.5
+     */
+    public void setVersionTracking(boolean doTracking)
+    {
+        remoteVersionTrack = doTracking;
     }
 
     /**

@@ -35,7 +35,7 @@ import java.util.Date;
  *  1.0.2 - 2008-07-30 - no change in this file
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool)
+ *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool), setVersionTracking
  *</PRE>
  */
 public interface StringConnection
@@ -169,5 +169,17 @@ public interface StringConnection
      * @since 1.0.5
      */
     public abstract boolean isVersionKnown();
+
+    /**
+     * For server-side use, should we notify the server when our version
+     * is changed by setVersion calls?
+     * @param doTracking true if we should notify server, false otherwise.
+     *        If true, please call both setVersion and
+     *        {@link Server#clientVersionAdd(int)} before calling setVersionTracking.
+     *        If false, please call {@link Server#clientVersionRem(int)} before
+     *        calling setVersionTracking.
+     * @since 1.0.5
+     */
+    public abstract void setVersionTracking(boolean doTracking);
 
 }

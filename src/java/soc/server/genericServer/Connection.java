@@ -66,6 +66,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected String hst;
     protected int remoteVersion;
     protected boolean remoteVersionKnown;
+    protected boolean remoteVersionTrack;
     protected Exception error = null;
     protected Date connectTime = new Date();
     protected boolean connected = false;
@@ -84,6 +85,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         data = null;
         remoteVersion = 0;
         remoteVersionKnown = false;
+        remoteVersionTrack = false;
         
         /* Thread name for debugging */
         if (hst != null)
@@ -421,8 +423,14 @@ public final class Connection extends Thread implements Runnable, Serializable, 
      */
     public void setVersion(int version, boolean isKnown)
     {
+        final int prevVers = remoteVersion;
         remoteVersion = version;
         remoteVersionKnown = isKnown;
+        if (remoteVersionTrack && (sv != null) && (prevVers != version))
+        {
+            sv.clientVersionRem(prevVers);
+            sv.clientVersionAdd(version);
+        }
     }
 
     /**
@@ -433,6 +441,20 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     public boolean isVersionKnown()
     {
         return remoteVersionKnown;
+    }
+
+    /**
+     * For server-side use, should we notify the server when our version
+     * is changed by setVersion calls?
+     * @param doTracking true if we should notify server, false otherwise.
+     *        If true, please call both setVersion and
+     *        {@link Server#clientVersionAdd(int)} before calling setVersionTracking.
+     *        If false, please call {@link Server#clientVersionRem(int)} before
+     *        calling setVersionTracking.
+     */
+    public void setVersionTracking(boolean doTracking)
+    {
+        remoteVersionTrack = doTracking;
     }
 
     class Putter extends Thread

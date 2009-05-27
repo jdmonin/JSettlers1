@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,6 +50,8 @@ import java.util.Vector;
  *  in {@link #newConnection1(StringConnection)} or {@link #newConnection2(StringConnection)}.
  *  You can send to client, but can't yet receive messages from them,
  *  until after newConnection2 returns.
+ *  The client should ideally be named and versioned in newConnection1, but this
+ *  can also be done later.
  *<P>
  *  @version 1.5
  *  @author Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A> <br>
@@ -71,11 +73,34 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /** the named connections */
     protected Hashtable conns = new Hashtable();
+
     /** the newly connected, unnamed connections.
-     *  Adding/removing/naming connections synchronizes on this Vector. */
+     *  Adding/removing/naming connections synchronizes on this Vector.
+     */
     protected Vector unnamedConns = new Vector();
+
     /** in process of connecting */
     public Vector inQueue = new Vector();
+
+    /**
+     * Versions of currently connected clients, according to
+     * {@link StringConnection#getVersion()}.
+     * Key = Integer(version). Value = ConnVersionSetMember.
+     * Synchronized on {@link #unnamedConns}, like many other
+     * client-related structures.
+     * @see #clientVersionAdd()
+     * @see #clientVersionRem()
+     * @since 1.1.06
+     */
+    private TreeMap cliVersionsConnected;
+
+    /**
+     * Minimum and maximum client version currently connected.
+     * Meaningless if {@linkplain #numberOfConnections} is 0.
+     * @see #cliVersionsConnected
+     * @since 1.1.06
+     */
+    private int cliVersionMin, cliVersionMax;
 
     /** start listening to the given port */
     public Server(int port)
@@ -83,6 +108,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         this.port = port;
         this.strSocketName = null;
         numberOfConnections = 0;
+        cliVersionsConnected = new TreeMap();
 
         try
         {
@@ -93,7 +119,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             System.err.println("Could not listen to port " + port + ": " + e);
             error = e;
         }
-        
+
         setName("server-" + port);  // Thread name for debugging
     }
 
@@ -106,6 +132,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         this.port = -1;
         this.strSocketName = stringSocketName;
         numberOfConnections = 0;
+        cliVersionsConnected = new TreeMap();
         ss = new LocalStringServerSocket(stringSocketName);
         setName("server-localstring-" + stringSocketName);  // Thread name for debugging
     }
@@ -123,11 +150,19 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             return null;
     }
 
+    /**
+     * @return the list of named connections: StringConnections where {@link StringConnection#getData()}
+     *         is not null
+     */
     protected Enumeration getConnections()
     {
         return conns.elements();
     }
 
+    /**
+     * @return the count of named connections: StringConnections where {@link StringConnection#getData()}
+     *         is not null
+     */
     protected synchronized int connectionCount()
     {
         return conns.size();
@@ -226,8 +261,11 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /**
      * placeholder for doing things when a new connection comes, part 1 -
      * decide whether to accept.
-     * If the connection is accepted, it's added to a list ({@link #unnamedConns} or {@link #conns}).
      * Unless you override this method, always returns true.
+     *<P>
+     * If the connection is accepted in newConnection1, it's added to a list
+     * ({@link #unnamedConns} or {@link #conns}),
+     * and also added to the version collection.
      *<P>
      * This method is called within a per-client thread.
      * You can send to client, but can't yet receive messages from them.
@@ -235,6 +273,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * Should send a message to the client in either {@link #newConnection1(StringConnection)}
      * or {@link #newConnection2(StringConnection)}.
      * You may also name the connection here by calling c.setData, which will help add to conns or unnamedConns.
+     * This is also where the version should be set.
      *<P>
      * Note that {@link #addConnection(StringConnection)} won't close the channel or
      * take other action to disconnect a rejected client.
@@ -264,7 +303,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     protected void newConnection2(StringConnection c) {}
 
     /** placeholder for doing things when a connection is closed.
-     *  called after connection is removed from conns collection,
+     *  called after connection is removed from conns collection
+     *  and version collection,
      *  and after c.disconnect() has been called.
      *<P>
      * This method is called within a per-client thread.
@@ -317,6 +357,9 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             {
                 unnamedConns.removeElement(c);
             }
+
+            clientVersionRem(c.getVersion());  // One less of the cli's version
+            c.setVersionTracking(false);
         }
 
         c.disconnect();
@@ -337,6 +380,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * App-specific work should be done by overriding
      * {@link #newConnection1(StringConnection)} and
      * {@link #newConnection2(StringConnection)}.
+     * The connection naming and version is checked here after newConnection1.
      *
      * @param c Connecting client; its key data ({@link StringConnection#getData()}) must not be null.
      * @see #nameConnection(StringConnection)
@@ -358,6 +402,9 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                         conns.put(cKey, c);
                     else
                         unnamedConns.add(c);
+
+                    clientVersionAdd(c.getVersion());  // Note the cli's version
+                    c.setVersionTracking(true);
                 }
                 else
                 {
@@ -411,6 +458,104 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 throw new IllegalArgumentException("was not connected and unnamed");
             }
         }
+    }
+
+    /**
+     * Add 1 client, with this version, to {@linkplain #cliVersionsConnected}.
+     * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     * @see #clientVersionRem(int)
+     * @see #getMinConnectedCliVersion()
+     * @see #getMaxConnectedCliVersion()
+     */
+    public void clientVersionAdd(final int cvers)
+    {
+        Integer cvkey = new Integer(cvers);
+        ConnVersionSetMember cv = cliVersionsConnected.get(cvkey);
+        if (cv == null)
+        {
+            cv = new ConnVersionSetMember(cvers);
+            cliVersionsConnected.put (cvkey, cv);
+        }
+        cv.cliCount++;
+
+        if (0 == numberOfConnections)
+        {
+            // This will be the first connection.
+            // Use its version# as the min/max.
+            cliVersionMin = cvers;
+            cliVersionMax = cvers;
+        } else {
+            if (cvers < cliVersionMin)
+                cliVersionMin = cvers;
+            else if (cvers > cliVersionMax)
+                cliVersionMax = cvers;
+        }
+    }
+
+    /**
+     * Remove 1 client, with this version, from {@linkplain #cliVersionsConnected}.
+     * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     * @see #clientVersionAdd(int)
+     * @see #getMinConnectedCliVersion()
+     * @see #getMaxConnectedCliVersion()
+     */
+    public void clientVersionRem(final int cvers)
+    {
+        Integer cvkey = new Integer(cvers);
+        ConnVersionSetMember cv = cliVersionsConnected.get(cvkey);
+        if (cv == null)
+        {
+            // TODO not found - must rebuild
+        } else {
+            cv.cliCount--;
+            if (cv.cliCount > 0)
+            {
+                return;  // <---- Early return: Nothing else to do ----
+            }
+
+            // We've removed the last client of a particular version.
+            // Update min/max if needed.
+            // (If there are not any clients connected, doesn't matter.)
+
+            cliVersionsConnected.remove(cvkey);
+        }
+
+        if (cliVersionsConnected.size() == 0)
+        {
+            return;  // <---- Early return: No other clients ----
+        }
+
+        if (cvers == cliVersionMin)
+        {
+            cliVersionMin = ((Integer) cliVersionsConnected.firstKey()).intValue();
+        }
+        else if (cvers == cliVersionMax)
+        {
+            cliVersionMax = ((Integer) cliVersionsConnected.lastKey()).intValue();
+        }
+
+        if (cv.cliCount < 0)
+        {
+            // TODO must rebuild - got below 0 somehow
+        }
+    }
+
+    /**
+     * @return the version number of the oldest-version client
+     *         that is currently connected
+     */
+    public int getMinConnectedCliVersion()
+    {
+        return cliVersionMin;
+    }
+
+    /**
+     * @return the version number of the newest-version client
+     *         that is currently connected
+     */
+    public int getMaxConnectedCliVersion()
+    {
+        return cliVersionMax;
     }
 
     /**
@@ -529,5 +674,35 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             implServSocket.close();
         }
     }
+
+    /**
+     * Hold info about 1 version of connected clients; for use in TreeMap
+     *
+     * @since 1.1.06
+     */
+    protected static class ConnVersionSetMember implements Comparable
+    {
+        public final int vers;
+        public int cliCount;
+
+        public ConnVersionSetMember(final int version)
+        {
+            vers = version;
+            cliCount = 0;
+        }
+
+        public int equals(Object o)
+        {
+            return (o instanceof ConnVersionSetMember)
+                && (this.vers == o.vers);
+        }
+
+        public int compareTo(Object o)
+            throws ClassCastException
+        {
+            return (this.vers - ((ConnVersionSetMember) o).vers);
+        }
+
+    }  // ConnVersionSetMember
 
 }
