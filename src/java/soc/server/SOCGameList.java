@@ -348,14 +348,13 @@ public class SOCGameList
     }
 
     /**
-     * create a new game, and add to the list; game will expire in GAME_EXPIRE_MINUTES.
+     * create a new game, and add to the list; game will expire in {@link #GAME_EXPIRE_MINUTES} minutes.
      * If a game already exists (per {@link #isGame(String)}), do nothing.
      *
      * @param gaName  the name of the game
-     *
-     * @see #GAME_EXPIRE_MINUTES
+     * @return new game object, or null if it already existed
      */
-    public synchronized void createGame(String gaName)
+    public synchronized SOCGame createGame(String gaName)
     {
         if (!isGame(gaName))
         {
@@ -370,7 +369,11 @@ public class SOCGameList
             // set the expiration to 90 min. from now
             game.setExpiration(game.getStartTime().getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
             gameData.put(gaName, game);
+
+	    return game;
         }
+
+        return null;
     }
 
     /**

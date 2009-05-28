@@ -65,6 +65,17 @@ import java.util.Vector;
  *
  * Note: This is an attempt at being more modular. 5/13/99 RST
  * Note: Hopfully fixed all of the deadlock problems. 12/27/01 RST
+ *<P>
+ *<b>Network traffic:</b>
+ * The first message over the connection is our version
+ * and the second is the server's response:
+ * Either {@link SOCRejectConnection}, or the lists of
+ * channels and games ({@link SOCChannels}, {@link SOCGames}).
+ * See {@link SOCMessage} for details of the client/server protocol.
+ * See {@link Server} for details of the server threading and processing.
+ *<P>
+ * Before 1.1.06, the server's response was first,
+ * and version was sent in reply to server's version.
  */
 public class SOCServer extends Server
 {
@@ -460,14 +471,31 @@ public class SOCServer extends Server
 
                 try
                 {
-                    gameList.createGame(ga);  // Create new game, expiring in SOCGameList.GAME_EXPIRE_MINUTES .
+		    // Create new game, expiring in SOCGameList.GAME_EXPIRE_MINUTES .
+                    SOCGame ng = gameList.createGame(ga);  
                     gameList.addMember(c, ga);
 
                     // must release monitor before we broadcast
                     gameList.releaseMonitor();
                     monitorReleased = true;
-                    broadcast(SOCNewGame.toCmd(ga));
+
                     result = true;
+
+		    // check version before we broadcast
+		    final String newGameMsg = SOCNewGame.toCmd(ga);
+		    final int gvers = ng.clientVersionMinRequired;
+		    final int cversMin = getMinConnectedCliVersion();
+		    if (gvers <= cversMin)
+		    {
+		        broadcast(newGameMsg);  // All clients can join it
+		    } else {
+			broadcastToVers(newGameMsg, gvers, Integer.MAX_VALUE);
+
+			StringBuffer sb = new StringBuffer();
+			sb.append(SOCGames.MARKER_THIS_GAME_UNJOINABLE);
+			sb.append(ga);
+			broadcastToVers(sb.toString(), SOCGames.VERSION_FOR_UNJOINABLE, gvers-1);
+		    }
                 }
                 catch (Exception e)
                 {
@@ -1553,13 +1581,21 @@ public class SOCServer extends Server
 
         // GAMES
 
-	// Games will be sent once we know the client's version, or have guessed
-	// that it's too old (if the client doesn't tell us soon enough).
-	// Client data's version timer will call srv.sendGameList().
-
-	cdata.setVersionTimer(this, c);
-
-	// TODO if we know right now, can sendGameList right now
+	/**
+	 * Has the client sent us its VERSION message, as the first inbound message?
+	 * Games will be sent once we know the client's version, or have guessed
+	 * that it's too old (if the client doesn't tell us soon enough).
+	 * So: Check if input is waiting for us. If it turns out
+	 * the waiting message is something other than VERSION,
+	 * server callback {@link #processFirstCommand} will set up the version TimerTask
+	 * using {@link SOCClientData#setVersionTimer}.
+	 * The version timer will call {@link #sendGameList} when it expires.
+	 * If no input awaits us right now, set up the timer here.
+	 */
+	if (! c.isInputAvailable())
+	{
+	    cdata.setVersionTimer(this, c);
+	} 
 
     }  // newConnection2
 
@@ -1586,6 +1622,9 @@ public class SOCServer extends Server
      * Sending the list is done here, and not in newConnection2, because we must first
      * know the client's version.
      *<P>
+     * The minimum version which recognizes the "can't join" marker is
+     * 1.1.06 ({@link SOCGames#VERSION_FOR_UNJOINABLE}).
+     *<P>
      * <b>Locks:</b> Will call {@link SOCGameList#takeMonitor()} / releaseMonitor
      * @param c Client's connection; will call getVersion() on it
      * @param prevVers  Previously assumed version of this client;
@@ -1597,22 +1636,9 @@ public class SOCServer extends Server
 	final int cliVers = c.getVersion();   // Need to know this before sending
 
         // Before send list of games, try for a client version.
-		// Give client 1 second to send it,
-		// before we assume it's old.
-
-		// JM TODO - STATE - can't read from client yet here
-		/*
-		int cliVers = c.getVersion(); 
-		for (int i = 3; (i > 0) && (cliVers <= 0); --i)
-		{
-			try
-			{
-				Thread.sleep(300);
-			}
-			catch (InterruptedException e) {}
-			cliVers = c.getVersion();
-		}
-		 */
+	// Give client 1 second to send it, before we assume it's old
+	// (too old to know VERSION)
+	// This waiting is done from SOCClientData.setVersionTimer .
 
 	// GAMES
 
@@ -1625,13 +1651,12 @@ public class SOCServer extends Server
 
         Vector gl = new Vector();
         gameList.takeMonitor();
-	boolean alreadySent =
+	final boolean alreadySent =
 		((SOCClientData) c.getAppData()).hasSentGameList();  // Check while gamelist monitor is held
-	boolean cliVersionChange = (! alreadySent) && (cliVers > prevVers);
+	boolean cliVersionChange = alreadySent && (cliVers > prevVers);
 
 	if (alreadySent && ! cliVersionChange)
 	{
-	    // Release lock and do nothing.
 	    gameList.releaseMonitor();
 
 	    return;  // <---- Early return: Nothing to do ----
@@ -1652,7 +1677,6 @@ public class SOCServer extends Server
 	 * If the game is deleted, and then they see it in the list, trying to join that game
 	 * will create a new empty game with that name.
 	 */
-	SOCGame g;
 	Enumeration gaEnum = gameList.getGamesData();
 	gameList.releaseMonitor();
 
@@ -1665,6 +1689,8 @@ public class SOCServer extends Server
 
         try
         {
+	    SOCGame g;
+
 	    // Build the list of game names.  This loop is used for
 	    // the initial list, or just the delta after the version fix.
 	
@@ -1770,6 +1796,41 @@ public class SOCServer extends Server
 
         return true;
     }
+
+    /**
+     * Callback to process the client's first message command specially.
+     * Look for VERSION message; if none is received, set up a timer to wait
+     * for version and (if never received) send out the game list soon.
+     *
+     * @param str Contents of first message from the client
+     * @param con Connection (client) sending this message
+     * @return true if processed here (VERSION), false if this message should be
+     *         queued up and processed by the normal {@link #processCommand(String, StringConnection)}.
+     */
+    public boolean processFirstCommand(String str, StringConnection con)
+    {
+	try
+	{
+            SOCMessage mes = SOCMessage.toMsg(str);
+	    if ((mes != null) && (mes.getType() == SOCMessage.VERSION))
+	    {
+		handleVERSION(con, (SOCVersion) mes);
+
+		return true;  // <--- Early return: Version was handled ---
+	    }
+	}
+        catch (Throwable e)
+        {
+            D.ebugPrintStackTrace(e, "ERROR -> processFirstCommand");
+        }
+
+	// It wasn't version, it was something else.  Set the
+	// timer to wait for version, and return false for normal
+	// processing of the message.
+
+	((SOCClientData) con.getAppData()).setVersionTimer(this, con);
+	return false;
+     }
 
     /**
      * Treat the incoming messages.  Messages of unknown type are ignored.

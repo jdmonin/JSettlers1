@@ -35,7 +35,8 @@ import java.util.Date;
  *  1.0.2 - 2008-07-30 - no change in this file
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool), setVersionTracking
+ *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool),
+ *                       setVersionTracking, isInputAvailable
  *</PRE>
  */
 public interface StringConnection
@@ -181,5 +182,12 @@ public interface StringConnection
      * @since 1.0.5
      */
     public abstract void setVersionTracking(boolean doTracking);
+
+    /**
+     * Is input available now, without blocking?
+     * Same idea as {@link java.io.DataInputStream#available()}.
+     * @since 1.0.5
+     */
+    public abstract boolean isInputAvailable();
 
 }

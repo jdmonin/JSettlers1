@@ -657,6 +657,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
     /**
      * Connect and give feedback by showing MESSAGE_PANEL.
+     * For more details, see {@link #connect()}.
      * @param chost Hostname to connect to, or null for localhost
      * @param cport Port number to connect to
      * @param cuser User nickname
@@ -675,9 +676,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Attempts to connect to the server. See {@link #connected} for success or
      * failure. Once connected, starts a {@link #reader} thread.
-     * The first message over the connection is the server's response:
+     * The first message over the connection is our version
+     * and the second is the server's response:
      * Either {@link SOCRejectConnection}, or the lists of
      * channels and games ({@link SOCChannels}, {@link SOCGames}).
+     *<P>
+     * Before 1.1.06, the server's response was first,
+     * and version was sent in reply to server's version.
      *
      * @throws IllegalStateException if already connected
      * @see soc.server.SOCServer#newConnection1(StringConnection)
@@ -701,6 +706,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             out = new DataOutputStream(s.getOutputStream());
             connected = true;
             (reader = new Thread(this)).start();
+            // send VERSION right away (1.1.06 and later)
+            putNet(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
         }
         catch (Exception e)
         {
@@ -1768,20 +1775,24 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 	{
             sVersion = vers;
 
-	    // Display the version on main panel
-	    localTCPPortLabel.setText("v " + mes.getVersionString());
-	    new AWTToolTip ("Server version is " + mes.getVersionString()
-			    + " build " + mes.getBuild()
-                            + "; client is " + Version.version()
-			    + " bld " + Version.buildnum(),
-			    localTCPPortLabel);
+	    // Display the version on main panel, unless we're running a server.
+            // (If so, want to display its listening port# instead)
+            if (null == localTCPServer)
+            {
+		        localTCPPortLabel.setForeground(new Color(252, 251, 243)); // off-white
+			    localTCPPortLabel.setText("v " + mes.getVersionString());
+			    new AWTToolTip ("Server version is " + mes.getVersionString()
+					    + " build " + mes.getBuild()
+		                            + "; client is " + Version.version()
+					    + " bld " + Version.buildnum(),
+					    localTCPPortLabel);
+            }
 	}
 
         // If we ever require a minimum server version, would check that here.
 
         // Reply with our client version.
-        put(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()),
-            isLocal);
+        // (This is sent in connect() in 1.1.06 and later)
     }
 
     /**
@@ -3953,8 +3964,10 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             try
             {
                 prCli = LocalStringServerSocket.connectTo(SOCServer.PRACTICE_STRINGPORT);
-                new SOCPlayerLocalStringReader((LocalStringConnection)prCli);
-                // Reader will start its own thread
+                new SOCPlayerLocalStringReader((LocalStringConnection) prCli);
+                // Reader will start its own thread.
+                // Send VERSION right away (1.1.06 and later)
+                putLocal(SOCVersion.toCmd(Version.versionNumber(), Version.version(), Version.buildnum()));
             }
             catch (ConnectException e)
             {

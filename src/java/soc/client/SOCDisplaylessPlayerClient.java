@@ -184,7 +184,8 @@ public class SOCDisplaylessPlayerClient implements Runnable
     }
 
     /**
-     * Constructor for connecting to the specified host, on the specified port
+     * Constructor for connecting to the specified host, on the specified port.
+     * Does not actually connect; subclass must connect, such as {@link soc.robot.SOCRobotClient#init()}
      *
      * @param h  host
      * @param p  port
@@ -200,6 +201,7 @@ public class SOCDisplaylessPlayerClient implements Runnable
 
     /**
      * Constructor for connecting to a local game (practice) on a local stringport.
+     * Does not actually connect; subclass must connect, such as {@link soc.robot.SOCRobotClient#init()}
      *
      * @param s    the stringport that the server listens on
      * @param visual  true if this client is visual

@@ -67,6 +67,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected int remoteVersion;
     protected boolean remoteVersionKnown;
     protected boolean remoteVersionTrack;
+
     protected Exception error = null;
     protected Date connectTime = new Date();
     protected boolean connected = false;
@@ -142,6 +143,20 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         return true;
     }
 
+    /**
+     * Is input available now, without blocking?
+     * Same idea as {@link java.io.DataInputStream#available()}.
+     */
+    public boolean isInputAvailable()
+    {
+    	try
+    	{
+    		return inputConnected && (0 < in.available());
+    	} catch (IOException e) {
+    		return false;
+    	}
+    }
+
     /** continuously read from the net */
     public void run()
     {
@@ -149,6 +164,13 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
         try
         {
+	    if (inputConnected)
+	    {
+		String firstMsg = in.readUTF();
+		if (! sv.processFirstCommand(firstMsg, this))
+		    sv.treat(firstMsg, this);
+	    }
+
             while (inputConnected)
             {
                 // readUTF max message size is 65535 chars, modified utf-8 format
@@ -431,7 +453,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
             sv.clientVersionRem(prevVers);
             sv.clientVersionAdd(version);
         }
-    }
+ }
 
     /**
      * Is the version known of the remote end of this connection?

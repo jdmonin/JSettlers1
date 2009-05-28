@@ -43,7 +43,9 @@ import soc.disableDebug.D;
  *  1.0.2 - 2008-07-30 - check if s already null in disconnect
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool), setVersionTracking
+ *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool), setVersionTracking,
+ *                       isInputAvailable, callback to processFirstCommand;
+ *                       common constructor code moved to init().
  *</PRE>
  */
 public class LocalStringConnection
@@ -58,7 +60,7 @@ public class LocalStringConnection
     protected boolean accepted;
     private LocalStringConnection ourPeer;
 
-    protected Server ourServer;  // Is set at server-side. Notifies at EOF (calls removeConnection).
+    protected Server ourServer;  // Is set if server-side. Notifies at EOF (calls removeConnection).
     protected Exception error;
     protected Date connectTime;
     protected int  remoteVersion;
@@ -90,17 +92,7 @@ public class LocalStringConnection
     {
         in = new Vector();
         out = new Vector();
-        in_reachedEOF = false;
-        out_setEOF = false;
-        accepted = false;
-        data = null;
-        ourServer = null;
-        error = null;
-        connectTime = new Date();
-	appData = null;
-	remoteVersion = 0;
-	remoteVersionKnown = false;
-        remoteVersionTrack = false;
+	init();
     }
 
     /**
@@ -126,18 +118,27 @@ public class LocalStringConnection
 
         in = peer.out;
         out = peer.in;
+        peer.ourPeer = this;
+        this.ourPeer = peer;	
+	init();
+    }
+
+    /**
+     * Constructor common-fields initialization
+     */
+    private void init()
+    {
         in_reachedEOF = false;
         out_setEOF = false;
         accepted = false;
         data = null;
         ourServer = null;
-        peer.ourPeer = this;
-        this.ourPeer = peer;
         error = null;
         connectTime = new Date();
 	appData = null;
 	remoteVersion = 0;
 	remoteVersionKnown = false;
+	remoteVersionTrack = false;
     }
 
     /**
@@ -434,8 +435,10 @@ public class LocalStringConnection
      * This is how the code knows it's on the server (not client) side.
      * If a server is set, its removeConnection method is called if our input reaches EOF,
      * and it's notified if our version changes.
+     * Call this before calling run().
      * 
      * @param srv The new server, or null
+     * @see #setVersionTracking(boolean)
      */
     public void setServer(Server srv)
     {
@@ -520,10 +523,10 @@ public class LocalStringConnection
         final int prevVers = remoteVersion;
         remoteVersion = version;
         remoteVersionKnown = isKnown;
-        if (remoteVersionTrack && (ourServ != null) && (prevVers != version))
+        if (remoteVersionTrack && (ourServer != null) && (prevVers != version))
         {
-            ourServ.clientVersionRem(prevVers);
-            ourServ.clientVersionAdd(version);
+            ourServer.clientVersionRem(prevVers);
+            ourServer.clientVersionAdd(version);
         }
     }
 
@@ -550,6 +553,16 @@ public class LocalStringConnection
     public void setVersionTracking(boolean doTracking)
     {
         remoteVersionTrack = doTracking;
+     }
+
+    /**
+     * Is input available now, without blocking?
+     * Same idea as {@link java.io.DataInputStream#available()}.
+     * @since 1.0.5
+     */
+    public boolean isInputAvailable()
+    {
+	return (! in_reachedEOF) && (0 < in.size());
     }
 
     /**
@@ -568,6 +581,13 @@ public class LocalStringConnection
 
         try
         {
+	    if (! in_reachedEOF)
+	    {
+		String firstMsg = readNext();
+		if (! ourServer.processFirstCommand(firstMsg, this))
+		    ourServer.treat(firstMsg, this);
+	    }
+
             while (! in_reachedEOF)
             {
                 ourServer.treat(readNext(), this);

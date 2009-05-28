@@ -536,20 +536,20 @@ public class SOCConnectOrPracticePanel extends Panel
         validate();
     }
 
-    /** Actually start a server, on port from {@link #conn_servport} */
+    /** Actually start a server, on port from {@link #run_servport} */
     private void clickRunStartserv()
     {
         // After clicking runserv, actually start a server
-        int cport = 0;
+        int srport = 0;
         try {
-            cport = Integer.parseInt(conn_servport.getText());
+            srport = Integer.parseInt(run_servport.getText());
         }
         catch (NumberFormatException e)
         {
             // TODO show error?
             return;
         }
-        cl.startLocalTCPServer(cport);        
+        cl.startLocalTCPServer(srport);        
     }
 
     /** Hide fields used to start a server */

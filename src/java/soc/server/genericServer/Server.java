@@ -33,6 +33,7 @@ import java.net.SocketException;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.TreeMap;
 import java.util.Vector;
 
 
@@ -46,7 +47,7 @@ import java.util.Vector;
  *  and are integrated into server data via {@link #addConnection(StringConnection)}
  *  called from that thread.
  *<P>
- *  The first message over the connection should be from the server to the client,
+ *  The first processed message over the connection will be from the server to the client,
  *  in {@link #newConnection1(StringConnection)} or {@link #newConnection2(StringConnection)}.
  *  You can send to client, but can't yet receive messages from them,
  *  until after newConnection2 returns.
@@ -56,7 +57,8 @@ import java.util.Vector;
  *  @version 1.5
  *  @author Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A> <br>
  *  Lots of mods by Robert S. Thomas and Jay Budzik <br>
- *  Local (StringConnection) network system by Jeremy D Monin <jeremy@nand.net>
+ *  Local (StringConnection) network system by Jeremy D Monin <jeremy@nand.net> <br>
+ *  Version-tracking system by Jeremy D Monin <jeremy@nand.net>
  */
 public abstract class Server extends Thread implements Serializable, Cloneable
 {
@@ -71,6 +73,12 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     protected int numberOfConnections;
 
+    /**
+     * total number of current connections
+     * @since 1.1.06
+     */
+    protected int numberCurrentConnections;
+
     /** the named connections */
     protected Hashtable conns = new Hashtable();
 
@@ -79,13 +87,13 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     protected Vector unnamedConns = new Vector();
 
-    /** in process of connecting */
+    /** clients in process of connecting */
     public Vector inQueue = new Vector();
 
     /**
      * Versions of currently connected clients, according to
      * {@link StringConnection#getVersion()}.
-     * Key = Integer(version). Value = ConnVersionSetMember.
+     * Key = Integer(version). Value = ConnVersionCounter.
      * Synchronized on {@link #unnamedConns}, like many other
      * client-related structures.
      * @see #clientVersionAdd()
@@ -133,6 +141,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         this.strSocketName = stringSocketName;
         numberOfConnections = 0;
         cliVersionsConnected = new TreeMap();
+
         ss = new LocalStringServerSocket(stringSocketName);
         setName("server-localstring-" + stringSocketName);  // Thread name for debugging
     }
@@ -255,6 +264,21 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     abstract public void processCommand(String str, StringConnection con);
 
+    /**
+     * Callback to process the client's first message command specially.
+     * This default implementation does nothing and returns false;
+     * override it in your app if needed.
+     *
+     * @param str Contents of first message from the client
+     * @param con Connection (client) sending this message
+     * @return true if processed here, false if this message should be
+     *         queued up and processed by the normal {@link #processCommand(String, StringConnection)}.
+     */
+    public boolean processFirstCommand(String str, StringConnection con)
+    {
+	return false;
+    }
+
     /** placeholder for doing things when server gets down */
     protected void serverDown() {}
 
@@ -263,9 +287,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * decide whether to accept.
      * Unless you override this method, always returns true.
      *<P>
-     * If the connection is accepted in newConnection1, it's added to a list
-     * ({@link #unnamedConns} or {@link #conns}),
-     * and also added to the version collection.
+     * If the connection is accepted, it's added to a list ({@link #unnamedConns}
+     * or {@link #conns}), and also added to the version collection.
      *<P>
      * This method is called within a per-client thread.
      * You can send to client, but can't yet receive messages from them.
@@ -304,8 +327,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /** placeholder for doing things when a connection is closed.
      *  called after connection is removed from conns collection
-     *  and version collection,
-     *  and after c.disconnect() has been called.
+     *  and version collection, and after c.disconnect() has been called.
      *<P>
      * This method is called within a per-client thread.
      */
@@ -364,6 +386,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
         c.disconnect();
         leaveConnection(c);
+        --numberCurrentConnections;
         D.ebugPrintln(c.host() + " left (" + connectionCount() + ")  " + (new Date()).toString() + ((c.getError() != null) ? (": " + c.getError().toString()) : ""));
     }
 
@@ -374,13 +397,14 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * Add a connection to the system.
      * Called within a per-client thread.
      * c.connect() is called at the start of this method.
-     * Synchronized on unnamedConns, although named conns (getData not null) are
-     * added to conns, not unnamedConns.
      *<P>
      * App-specific work should be done by overriding
      * {@link #newConnection1(StringConnection)} and
      * {@link #newConnection2(StringConnection)}.
-     * The connection naming and version is checked here after newConnection1.
+     * The connection naming and version is checked here (after newConnection1).
+     *<P>
+     * <b>Locking:</b> Synchronized on unnamedConns, although
+     * named conns (getData not null) are added to conns, not unnamedConns.
      *
      * @param c Connecting client; its key data ({@link StringConnection#getData()}) must not be null.
      * @see #nameConnection(StringConnection)
@@ -403,7 +427,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                     else
                         unnamedConns.add(c);
 
-                    clientVersionAdd(c.getVersion());  // Note the cli's version
+                    clientVersionAdd(c.getVersion());  // Count one more client with that version
                     c.setVersionTracking(true);
                 }
                 else
@@ -419,6 +443,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         if (connAccepted)
         {
             numberOfConnections++;
+            numberCurrentConnections++;
             D.ebugPrintln(c.host() + " came (" + connectionCount() + ")  " + (new Date()).toString());
             newConnection2(c);  // <-- App-specific #2 --
         } else {
@@ -460,7 +485,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
     }
 
-    /**
+     /**
      * Add 1 client, with this version, to {@linkplain #cliVersionsConnected}.
      * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
      * @see #clientVersionRem(int)
@@ -470,17 +495,19 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     public void clientVersionAdd(final int cvers)
     {
         Integer cvkey = new Integer(cvers);
-        ConnVersionSetMember cv = cliVersionsConnected.get(cvkey);
+        ConnVersionCounter cv = (ConnVersionCounter) cliVersionsConnected.get(cvkey);
         if (cv == null)
         {
-            cv = new ConnVersionSetMember(cvers);
-            cliVersionsConnected.put (cvkey, cv);
+            cv = new ConnVersionCounter(cvers);
+            cliVersionsConnected.put (cvkey, cv);  // with cliCount == 1
+        } else {
+	        cv.cliCount++;
+	    	return;  // <---- Early return: We already have this version ----
         }
-        cv.cliCount++;
 
-        if (0 == numberOfConnections)
+        if (1 == cliVersionsConnected.size())
         {
-            // This will be the first connection.
+            // This is the first connection.
             // Use its version# as the min/max.
             cliVersionMin = cvers;
             cliVersionMax = cvers;
@@ -502,7 +529,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     public void clientVersionRem(final int cvers)
     {
         Integer cvkey = new Integer(cvers);
-        ConnVersionSetMember cv = cliVersionsConnected.get(cvkey);
+        ConnVersionCounter cv = (ConnVersionCounter) cliVersionsConnected.get(cvkey);
         if (cv == null)
         {
             // TODO not found - must rebuild
@@ -562,6 +589,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * Broadcast a SOCmessage to all connected clients, named and unnamed.
      *
      * @param m SOCmessage string, generated by {@link soc.message.SOCMessage#toCmd()}
+     * @see #broadcastToVers(String, int, int)
      */
     protected synchronized void broadcast(String m)
     {
@@ -574,6 +602,35 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             ((StringConnection) e.nextElement()).put(m);
         }
     }
+
+    /**
+     * Broadcast a SOCmessage to all connected clients (named and
+     * unnamed) within a certain version range.
+     *
+     * @param m SOCmessage string, generated by {@link soc.message.SOCMessage#toCmd()}
+     * @param vmin Minimum version, as returned by {@link StringConnection#getVersion()},
+     *             or {@link Integer#MIN_VALUE}
+     * @param vmax Maximum version, or {@link Integer#MAX_VALUE}
+     * @since 1.1.06
+     * @see #broadcast(String)
+     */
+    protected synchronized void broadcastToVers(String m, final int vmin, final int vmax)
+    {
+        for (Enumeration e = getConnections(); e.hasMoreElements();)
+        {
+	    StringConnection c = (StringConnection) e.nextElement();
+	    int cvers = c.getVersion();
+	    if ((cvers >= vmin) && (cvers <= vmax))
+		c.put(m);
+        }
+        for (Enumeration e = unnamedConns.elements(); e.hasMoreElements();)
+        {
+            StringConnection c = (StringConnection) e.nextElement();
+	    int cvers = c.getVersion();
+	    if ((cvers >= vmin) && (cvers <= vmax))
+		c.put(m);
+         }
+     }
 
     class Command
     {
@@ -676,33 +733,33 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     }
 
     /**
-     * Hold info about 1 version of connected clients; for use in TreeMap
+     * Hold info about 1 version of connected clients; for use in {@link #cliVersionsConnected} TreeMap.
      *
      * @since 1.1.06
      */
-    protected static class ConnVersionSetMember implements Comparable
+    protected static class ConnVersionCounter implements Comparable
     {
         public final int vers;
         public int cliCount;
 
-        public ConnVersionSetMember(final int version)
+        public ConnVersionCounter(final int version)
         {
             vers = version;
-            cliCount = 0;
+            cliCount = 1;
         }
 
-        public int equals(Object o)
+        public boolean equals(Object o)
         {
-            return (o instanceof ConnVersionSetMember)
-                && (this.vers == o.vers);
+            return (o instanceof ConnVersionCounter)
+                && (this.vers == ((ConnVersionCounter) o).vers);
         }
 
         public int compareTo(Object o)
             throws ClassCastException
         {
-            return (this.vers - ((ConnVersionSetMember) o).vers);
+            return (this.vers - ((ConnVersionCounter) o).vers);
         }
 
     }  // ConnVersionSetMember
 
-}
+}  // Server
