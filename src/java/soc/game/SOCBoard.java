@@ -31,6 +31,8 @@ import java.util.Vector;
 
 /**
  * This is a representation of the board in Settlers of Catan.
+ * Board initialization is done in {@link #makeNewBoard()}; that method
+ * has some internal comments on structures, coordinates, layout and values.
  *<P>
  * Other methods to examine the board: {@link SOCGame#getPlayersOnHex(int)},
  * {@link SOCGame#putPiece(SOCPlayingPiece)}, etc.
@@ -46,10 +48,12 @@ import java.util.Vector;
  * Having six sides, hexes run in a straight line west to east, separated by vertical edges;
  * both coordinates increase along a west-to-east line.
  *<P>
+ * Current coordinate encoding: ({@linkplain #BOARD_ENCODING_ORIGINAL})
+ *<BR>
  * All coordinates are encoded as two-digit hex integers, one digit per axis (thus 00 to FF).
- * Unfortunately this means the board can't be expanded without changing this
- * encoding.
- * The center hex is encoded as 77; see the dissertation appendix PDF for diagrams.
+ * The center hex is encoded as 77; see the dissertation PDF's appendix for diagrams.
+ * Unfortunately this format means the board can't be expanded without changing its
+ * encoding, which is used across the network.
  *<P>
  * @author Robert S Thomas
  */
@@ -94,37 +98,82 @@ public class SOCBoard implements Serializable, Cloneable
     public static final int MAX_ROBBER_HEX = WOOD_HEX;
 
     /**
-     * largest coordinate value for a hex
+     * Board Encoding fields begin here
+     * ------------------------------------------------------------------------------------
+     */
+
+    /**
+     * Original format (1) for {@link #getBoardEncodingFormat()}:
+     * Hexadecimal 0x00 to 0xFF.
+     * Coordinate range is 0 to 15: <pre>
+     *   Hexes: 11 to DD
+     *   Nodes: 01 or 10, to FE or EF
+     *   Edges: 00 to EE </pre>
+     *<P>
+     * See the Dissertation PDF for details.
+     * @since 1.1.06
+     */
+    public static final int BOARD_ENCODING_ORIGINAL = 1;
+
+    /**
+     * Size of board in coordinates (not in number of hexes across).
+     * Default size per BOARD_ENCODING_ORIGINAL is: <pre>
+     *   Hexes: 11 to DD
+     *   Nodes: 01 or 10, to FE or EF
+     *   Edges: 00 to EE </pre>
+     * @since 1.1.06
+     */
+    private int boardWidth, boardHeight;
+
+    /**
+     * The encoding format of board coordinates,
+     * or {@link #BOARD_ENCODING_ORIGINAL} (default, original).
+     * The board size determines the required encoding format.
+     *<UL>
+     *<LI> 1 - Original format: hexadecimal 0x00 to 0xFF.
+     *       Coordinate range is 0 to 15 (in decimal).
+     *</UL>
+     * @since 1.1.06
+     */
+    private int boardEncodingFormat;
+
+    /**
+     * Board Encoding fields end here
+     * ------------------------------------------------------------------------------------
+     */
+
+    /**
+     * largest coordinate value for a hex, in the current encoding
      */
     public static final int MAXHEX = 0xDD;
 
     /**
-     * smallest coordinate value for a hex
+     * smallest coordinate value for a hex, in the current encoding
      */
     public static final int MINHEX = 0x11;
 
     /**
-     * largest coordinate value for an edge
+     * largest coordinate value for an edge, in the current encoding
      */
     public static final int MAXEDGE = 0xCC;
 
     /**
-     * smallest coordinate value for an edge
+     * smallest coordinate value for an edge, in the current encoding
      */
     public static final int MINEDGE = 0x22;
 
     /**
-     * largest coordinate value for a node
+     * largest coordinate value for a node, in the current encoding
      */
     public static final int MAXNODE = 0xDC;
 
     /**
-     * smallest coordinate value for a node
+     * smallest coordinate value for a node, in the current encoding
      */
     public static final int MINNODE = 0x23;
 
     /**
-     * largest coordinate value for a node plus one
+     * largest coordinate value for a node plus one, in the current encoding
      */
     public static final int MAXNODEPLUSONE = MAXNODE + 1;
 
@@ -156,7 +205,8 @@ public class SOCBoard implements Serializable, Cloneable
         4 : wheat  {@link #WHEAT_PORT}
         5 : wood   {@link #WOOD_PORT}
         </pre>
-        port facing: Which edge of the port's hex contains 2 nodes where can build a possible port settlement/city.<pre>
+        port facing: Which edge of the port's hex contains 2 nodes where
+        player can build a possible port settlement/city. <pre>
         6___    ___1
             \/\/
             /  \
@@ -301,6 +351,10 @@ public class SOCBoard implements Serializable, Cloneable
      */
     public SOCBoard()
     {
+        boardWidth = 0xFF;
+        boardHeight = 0xFF;
+        boardEncodingFormat = BOARD_ENCODING_ORIGINAL;  // See javadoc of boardEncodingFormat
+
         robberHex = -1;  // Soon placed on desert
 
         /**
@@ -847,6 +901,37 @@ public class SOCBoard implements Serializable, Cloneable
     {
         return cities;
     }
+
+    /**
+     * Width of this board in coordinates (not in number of hexes across.)
+     * For the default size, see {@link #BOARD_ENCODING_ORIGINAL}.
+     * @since 1.1.06
+     */
+    public int getBoardWidth()
+    {
+        return boardWidth;
+    }
+
+    /**
+     * Height of this board in coordinates (not in number of hexes across.)
+     * For the default size, see {@link #BOARD_ENCODING_ORIGINAL}.
+     * @since 1.1.06
+     */
+    public int getBoardHeight()
+    {
+        return boardHeight;
+    }
+
+    /**
+     * Get the encoding format of this board (for coordinates, etc).
+     * See the encoding constants' javadocs for more documentation.
+     * @return board coordinate-encoding format, such as {@link #BOARD_ENCODING_ORIGINAL}
+     * @since 1.1.06
+     */
+    public int getBoardEncodingFormat()
+    {
+        return boardEncodingFormat;
+     }
 
     /**
      * @return the nodes that touch this edge, as a Vector of Integer coordinates

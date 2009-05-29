@@ -268,38 +268,6 @@ public class SOCGame implements Serializable, Cloneable
     public int clientVersionMinRequired;
 
     /**
-     * Size of board in coordinates (not in number of hexes across).
-     * Default size per BOARD_ENCODING_ORIGINAL is:
-	 *   Hexes: 11 to DD
-	 *   Nodes: 01 or 10, to FE or EF
-     *   Edges: 00 to EE
-     */
-    public int boardWidth, boardHeight;
-
-    /**
-     * Original format (1) for {@link #boardEncodingFormat}:
-     * Hexadecimal 0x00 to 0xFF.
-     * Coordinate range is 0 to 15:
-	 *   Hexes: 11 to DD
-	 *   Nodes: 01 or 10, to FE or EF
-     *   Edges: 00 to EE
-     *<P>
-     * See the Dissertation PDF for details.
-     */
-    public static final int BOARD_ENCODING_ORIGINAL = 1;
-
-    /**
-     * For use at server; encoding format of board coordinates,
-     * or {@link #BOARD_ENCODING_ORIGINAL} (default, original).
-     * The board size determines the required encoding format.
-     *<UL>
-     *<LI> 1 - Original format: hexadecimal 0x00 to 0xFF.
-     *       Coordinate range is 0 to 15.
-     *</UL>
-     */
-    public int boardEncodingFormat;
-
-    /**
      * true if the game came from a board reset
      */
     private boolean isFromBoardReset;
@@ -512,10 +480,7 @@ public class SOCGame implements Serializable, Cloneable
         forcingEndTurn = false;
         placingRobberForKnightCard = false;
         oldPlayerWithLongestRoad = new Stack();
-		clientVersionMinRequired = -1;
-		boardWidth = 0xFF;
-		boardHeight = 0xFF;
-		boardEncodingFormat = BOARD_ENCODING_ORIGINAL;  // See javadoc of boardEncodingFormat
+        clientVersionMinRequired = -1;
         if (active)
             startTime = new Date();
     }
@@ -3305,7 +3270,7 @@ public class SOCGame implements Serializable, Cloneable
      *        each player. 0 for players with nothing taken.
      *        0 for the current player (playing the monopoly card).
      */
-    public int[] doMonopolyAction(int rtype)
+    public int[] doMonopolyAction(final int rtype)
     {
         int sum = 0;
 	int[] monoResult = new int[MAXPLAYERS];
@@ -3551,6 +3516,8 @@ public class SOCGame implements Serializable, Cloneable
         oldGameState = gameState;  // for getResetOldGameState()
         active = false;
         gameState = RESET_OLD;
+
+        // Most fields are NOT copied since this is a "reset", not an identical-state game.
 
 	// Game features
 	cp.clientVersionMinRequired = clientVersionMinRequired;
