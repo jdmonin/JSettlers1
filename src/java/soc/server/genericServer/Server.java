@@ -22,6 +22,7 @@
 package soc.server.genericServer;
 
 import soc.debug.D; // JM
+import soc.server.SOCServer;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -33,6 +34,9 @@ import java.net.SocketException;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.Vector;
 
@@ -45,14 +49,23 @@ import java.util.Vector;
  *  Newly connecting clients arrive in {@link #run()},
  *  start a thread for the server side of their Connection or LocalStringConnection,
  *  and are integrated into server data via {@link #addConnection(StringConnection)}
- *  called from that thread.
+ *  called from that thread.  If the client's connection is accepted in
+ *  {@link #newConnection1(StringConnection)},
+ *  the per-client thread enters a while-loop and calls {@link treat(String, StringConnection)}
+ *  to handle messages from the client.  Treat places them in a server-wide {@link #inQueue},
+ *  which is processed in a server-wide single thread called the "treater".
  *<P>
  *  The first processed message over the connection will be from the server to the client,
  *  in {@link #newConnection1(StringConnection)} or {@link #newConnection2(StringConnection)}.
- *  You can send to client, but can't yet receive messages from them,
+ *  You can send out to the client there, but can't yet receive messages from it,
  *  until after newConnection2 returns.
  *  The client should ideally be named and versioned in newConnection1, but this
  *  can also be done later.
+ *<P>
+ *  Although this generic client/server will track client versions once they are set,
+ *  its basic protocol has no standardized way to inform server/client of each other's
+ *  version.  You must send this in an app-specific way, during the initial exchange
+ *  when a client connects.
  *<P>
  *  @version 1.5
  *  @author Original author: <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A> <br>
@@ -69,15 +82,28 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     protected String strSocketName;  // null for network mode
 
     /**
-     * total number of connections made
+     * Consistency-check the {@link #cliVersionsConnected} set every so often (33 minutes).
+     * @since 1.1.06
      */
-    protected int numberOfConnections;
+    public static final int CLI_VERSION_SET_CONSIS_CHECK_MINUTES = 33;
+
+    /**
+     * Do this many quick consistency-checks of {@link #cliVersionsConnected}
+     * before doing a full check.
+     * @since 1.1.06
+     */
+    public static final int CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT = 5;
+
+    /**
+     * total number of connections made since startup
+     */
+    protected int numberOfConnections = 0;
 
     /**
      * total number of current connections
      * @since 1.1.06
      */
-    protected int numberCurrentConnections;
+    protected int numberCurrentConnections = 0;
 
     /** the named connections */
     protected Hashtable conns = new Hashtable();
@@ -100,8 +126,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * @see #clientVersionRem()
      * @since 1.1.06
      */
-    private TreeMap cliVersionsConnected;
-
+    private TreeMap cliVersionsConnected = new TreeMap();
+ 
     /**
      * Minimum and maximum client version currently connected.
      * Meaningless if {@linkplain #numberOfConnections} is 0.
@@ -110,13 +136,24 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     private int cliVersionMin, cliVersionMax;
 
+    /**
+     * For {@link #cliVersionsConnected}, the
+     * count of "quick" consistency-checks since the last full check.
+     * @since 1.1.06
+     */
+    private int cliVersionsConnectedQuickCheckCount = 0;
+
+    /**
+     * Timer for scheduling timed/recurring tasks.
+     * @since 1.1.06
+     */
+    public Timer utilTimer = new Timer(true);  // use daemon thread
+
     /** start listening to the given port */
     public Server(int port)
     {
         this.port = port;
         this.strSocketName = null;
-        numberOfConnections = 0;
-        cliVersionsConnected = new TreeMap();
 
         try
         {
@@ -129,6 +166,10 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
 
         setName("server-" + port);  // Thread name for debugging
+
+        initMisc();
+        
+        // Most other fields are set by initializers in their declaration.
     }
 
     /** start listening to the given local string port (practice game) */
@@ -139,11 +180,24 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
         this.port = -1;
         this.strSocketName = stringSocketName;
-        numberOfConnections = 0;
-        cliVersionsConnected = new TreeMap();
 
         ss = new LocalStringServerSocket(stringSocketName);
         setName("server-localstring-" + stringSocketName);  // Thread name for debugging
+
+        initMisc();
+
+        // Most other fields are set by initializers in their declaration.
+    }
+
+    /**
+     * Minor init tasks from both constructors.
+     * Set up the recurring schedule of {@link #cliVersionsConnected} here.
+     */
+    private void initMisc()
+    {
+    	// recurring schedule the version set's consistency-chk
+    	ConnVersionSetCheckerTask cvChkTask = new ConnVersionSetCheckerTask (this);
+    	utilTimer.schedule(cvChkTask, 0L, SOCServer.CLI_VERSION_SET_CONSIS_CHECK_MINUTES * 60 * 1000);
     }
 
     /**
@@ -182,10 +236,14 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         return up;
     }
 
-    /** run method for Server */
+    /**
+     * Run method for Server:
+     * Start a single "treater" thread for processing inbound messages,
+     * wait for new connections, and set them up in their own threads.
+     */
     public void run()
     {
-        Treater treater = new Treater(this);
+        Treater treater = new Treater();  // inner class - constructor is given "this" server
 
         if (error != null)
         {
@@ -193,7 +251,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
 
         up = true;
-        
+
         treater.start();  // Set "up" before starting treater (race condition)
 
         while (isUp())
@@ -243,7 +301,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
     }
 
-    /** treat a request from the given connection */
+    /** treat a request from the given connection, by adding to {@link #inQueue} */
     public void treat(String s, StringConnection c)
     {
         // D.ebugPrintln("IN got: " + s);
@@ -286,6 +344,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      * placeholder for doing things when a new connection comes, part 1 -
      * decide whether to accept.
      * Unless you override this method, always returns true.
+     * This is called within {@link #addConnection(StringConnection)}.
      *<P>
      * If the connection is accepted, it's added to a list ({@link #unnamedConns}
      * or {@link #conns}), and also added to the version collection.
@@ -319,9 +378,10 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      *  has been accepted and added to a connection list.
      *  Unlike {@link #newConnection1(StringConnection)},
      *  no connection-list locks are held when this method is called.
+     *  This is called within {@link #addConnection(StringConnection)}.
      *<P>
-     * This method is called within a per-client thread.
-     * You can send to client, but can't yet receive messages from them.
+     *  This method is called within a per-client thread.
+     *  You can send to client, but can't yet receive messages from them.
      */
     protected void newConnection2(StringConnection c) {}
 
@@ -396,7 +456,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /**
      * Add a connection to the system.
      * Called within a per-client thread.
-     * c.connect() is called at the start of this method.
+     * {@link StringConnection#connect()} is called at the start of this method.
      *<P>
      * App-specific work should be done by overriding
      * {@link #newConnection1(StringConnection)} and
@@ -586,6 +646,134 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     }
 
     /**
+     * Build a fresh TreeMap of the client versions connected,
+     * to check consistency of {@link #cliVersionsConnected}.
+     * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     * @see #clientVersionCheckMap(TreeMap)
+     */
+    protected TreeMap clientVersionBuildMap()
+    {
+        int cvers;
+        int lastVers = 0;  // =0 needed to satisfy compiler; first iter will set a value.
+        Integer cvkey = null;
+        ConnVersionCounter cvc = null;
+
+        TreeMap cvmap = new TreeMap();
+
+        // same enums as broadcast()
+
+        for (Enumeration e = getConnections(); e.hasMoreElements();)
+        {
+            cvers = ((StringConnection) e.nextElement()).getVersion();
+
+            if ((cvkey == null) || (cvers != lastVers))
+            {
+                cvkey = new Integer(cvers);
+                cvc = (ConnVersionCounter) cvmap.get(cvkey);
+                if (cvc == null)
+                {
+                    cvc = new ConnVersionCounter(cvers);
+                    cvmap.put (cvkey, cvc);  // with cliCount == 1
+                    cvc.cliCount--;  // -- now, since we'll ++ it just below
+                }
+            }
+            cvc.cliCount++;
+            lastVers = cvers;
+        }
+
+        for (Enumeration e = unnamedConns.elements(); e.hasMoreElements();)
+        {
+            cvers = ((StringConnection) e.nextElement()).getVersion();
+
+            if ((cvkey == null) || (cvers != lastVers))
+            {
+                cvkey = new Integer(cvers);
+                cvc = (ConnVersionCounter) cvmap.get(cvkey);
+                if (cvc == null)
+                {
+                    cvc = new ConnVersionCounter(cvers);
+                    cvmap.put (cvkey, cvc);  // with cliCount == 1
+                    cvc.cliCount--;  // -- now, since we'll ++ it just below
+                }
+            }
+            cvc.cliCount++;
+            lastVers = cvers;
+        }
+
+        return cvmap;
+    }
+
+    /**
+     * Perform a quick or full consistency-check of {@link #cliVersionsConnected}. 
+     * <b>Quick check:</b>
+     *   Check the number of connected clients, versus the number in {@link #cliVersionsConnected}.
+     * <br>
+     * <b>Full check:</b>
+     *   Build a second tree, compare it to the current tree {@link #cliVersionsConnected}.
+     *<P>
+     * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     * @param tree2     A tree to check, or null to generate a new one
+     *                  here by calling {@link #clientVersionBuildMap()}.
+     *                  Not used in the quick check.
+     * @param fullCheck True for the full check, false for the quick check.
+     *
+     * @return True if consistent, false if any problems were found.
+     */
+    protected boolean clientVersionCheckMap(TreeMap tree2, final boolean fullCheck)
+    {
+        if (fullCheck)
+        {
+        	if (tree2 == null) 
+        		tree2 = clientVersionBuildMap();
+
+	        if (tree2.size() != cliVersionsConnected.size())
+	        	return false;
+        }
+
+        // FULL CHECK:
+        // Since they're both ordered, and should be identical,
+        // iterate through one, and check the other as we go.
+        //
+        // QUICK CHECK:
+        // Iterate through tree and count the # of clients. 
+
+        try
+        {
+        	int cliCount = 0;  // quick only
+	        Iterator cve1 = cliVersionsConnected.values().iterator();  // quick, full
+	        Iterator cve2 = (fullCheck ? tree2.values().iterator() : null);  // full only
+
+	        while (cve1.hasNext())
+	        {
+	        	ConnVersionCounter cvc1 = (ConnVersionCounter) cve1.next();
+	        	if (fullCheck)
+	        	{
+		        	ConnVersionCounter cvc2 = (ConnVersionCounter) cve2.next();
+		        	if ((cvc1.vers != cvc2.vers) || (cvc1.cliCount != cvc2.cliCount))
+		        	{
+		        		return false;
+		        	}
+	        	} else {
+	        		cliCount += cvc1.cliCount;
+	        	}
+	        }
+	        if (fullCheck)
+	        {
+	        	if (cve2.hasNext())
+	        		return false;
+	        } else {
+	        	return (cliCount == numberCurrentConnections);
+	        }
+        }
+        catch (Throwable t)
+        {
+        	return false;  // obj mismatch, iterator failure, other problem
+        }
+
+        return true;
+    }
+
+    /**
      * Broadcast a SOCmessage to all connected clients, named and unnamed.
      *
      * @param m SOCmessage string, generated by {@link soc.message.SOCMessage#toCmd()}
@@ -629,10 +817,18 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 	    int cvers = c.getVersion();
 	    if ((cvers >= vmin) && (cvers <= vmax))
 		c.put(m);
-         }
-     }
+        }
+    }
 
-    class Command
+    /**
+     * Subclasses begin here
+     * --------------------------------------------------------
+     */
+
+    /**
+     * Holds one message from client, for {@link Server#inQueue}.
+     */
+    static class Command
     {
         public String str;
         public StringConnection con;
@@ -642,21 +838,21 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             str = s;
             con = c;
         }
-    }
+    }  // Command
 
+    /**
+     * Single-threaded reader of {@link Server#inQueue}
+     */
     class Treater extends Thread
     {
-        Server svr;
-
-        public Treater(Server s)
+        public Treater()  // Server parameter is also passed in, since this is an inner class
         {
-            svr = s;
             setName("treater");  // Thread name for debug
         }
 
         public void run()
         {
-            while (svr.isUp())
+            while (isUp())
             {
                 //D.ebugPrintln("treater server is up");
                 Command c = null;
@@ -675,7 +871,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 {
                     if (c != null)
                     {
-                        svr.processCommand(c.str, c.con);
+                        processCommand(c.str, c.con);
                     }
                 }
                 catch (Exception e)
@@ -704,7 +900,8 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
             // D.ebugPrintln("treater returning; server not up");
         }
-    }
+
+    }  // Treater
 
     /**
      * Uses ServerSocket to implement StringServerSocket over a network.
@@ -730,14 +927,15 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         {
             implServSocket.close();
         }
-    }
+
+    }  // NetStringServerSocket
 
     /**
-     * Hold info about 1 version of connected clients; for use in {@link #cliVersionsConnected} TreeMap.
+     * Hold info about 1 version of connected clients; for use in {@link #cliVersionsConnected}.
      *
      * @since 1.1.06
      */
-    protected static class ConnVersionCounter implements Comparable
+    private static class ConnVersionCounter implements Comparable
     {
         public final int vers;
         public int cliCount;
@@ -761,5 +959,49 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         }
 
     }  // ConnVersionSetMember
+
+    /**
+     * Perform the periodic consistency-check of {@link #cliVersionsConnected}.
+     * Most checks are very quick (check size vs. # of clients).
+     * Scheduled by {@linkplain Server#initMisc()}.
+     *
+     * @see Server#clientVersionCheckMap(TreeMap, boolean)
+     * @see Server#CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT
+     * @since 1.1.06
+     */
+    private static class ConnVersionSetCheckerTask extends TimerTask
+    {
+    	private Server srv;
+
+    	public ConnVersionSetCheckerTask(Server s)
+    	{
+    		srv = s;
+    	}
+
+    	/**
+	     * Called when timer fires. See class description for action taken.
+	     */
+	    public void run()
+	    {
+	    	boolean wantsFull = (srv.cliVersionsConnectedQuickCheckCount
+	    		>= CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT);
+	    	TreeMap tree2 = (wantsFull ? srv.clientVersionBuildMap() : null);
+
+	    	boolean checkPassed = srv.clientVersionCheckMap(tree2, wantsFull);
+	    	if (! checkPassed)
+	    	{
+	    		// TODO really really need locking here
+	    		srv.cliVersionsConnected = tree2;
+	    		srv.cliVersionsConnectedQuickCheckCount = 0;
+	    	} else
+	    	{
+		    	if (wantsFull)
+		    		srv.cliVersionsConnectedQuickCheckCount = 0;
+		    	else
+		    		srv.cliVersionsConnectedQuickCheckCount++;
+	    	}
+	    }
+
+    }  // ConnVersionSetCheckerTask
 
 }  // Server

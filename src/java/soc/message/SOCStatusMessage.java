@@ -27,6 +27,7 @@ package soc.message;
  * Used for "welcome" message at initial connect to game (follows JOINAUTH).
  *<P>
  * <b>Added in Version 1.1.06:</b>
+ * Status value parameter (nonnegative integer).
  * For backwards compatibility, the status value (integer {@link #getStatusValue()} ) is not sent
  * as a parameter, if it is 0.  (In JSettlers older than 1.1.06, it
  * is always 0.)  Earlier versions simply printed the entire message as text,
@@ -36,49 +37,66 @@ package soc.message;
  */
 public class SOCStatusMessage extends SOCMessage
 {
-	/**
-	 * Status value constants. SV_OK = 0 : Welcome, OK to connect.
-	 * If any are added, do not change or remove the numeric values of earlier ones.
-	 * @since 1.1.06
-	 */
-	public static final int SV_OK = 0;
+    /**
+     * Status value constants. SV_OK = 0 : Welcome, OK to connect.
+     * SV_NOT_OK_GENERIC = 1 : Generic "not OK" status value.
+     * Other specific status value constants are given here.
+     * If any are added, do not change or remove the numeric values of earlier ones.
+     * @since 1.1.06
+     */
+    public static final int SV_OK = 0;
 
-	/**
-	 * Name not found in server's accounts
-	 * @since 1.1.06
-	 */
-	public static final int SV_NAME_NOT_FOUND = 1;
+    /**
+     * SV_NOT_OK_GENERIC = 1 : Generic "not OK" status value.
+     * This is given to the client if a more specific value does not apply,
+     * or if the client's version is older than the version where the more specific
+     * value was introduced.
+     * @since 1.1.06
+     */
+    public static final int SV_NOT_OK_GENERIC = 1;
 
-	/**
-	 * Incorrect password
-	 * @since 1.1.06
-	 */
-	public static final int SV_PW_WRONG = 2;
+    /**
+     * Name not found in server's accounts = 2
+     * @since 1.1.06
+     */
+    public static final int SV_NAME_NOT_FOUND = 2;
 
-	/**
-	 * This name is already logged in
-	 * @since 1.1.06
-	 */
-	public static final int SV_NAME_IN_USE = 3;
+    /**
+     * Incorrect password = 3
+     * @since 1.1.06
+     */
+    public static final int SV_PW_WRONG = 3;
 
-	/**
-	 * Cannot log in due to a database problem
-	 * @since 1.1.06
-	 */
-	public static final int SV_PROBLEM_WITH_DB = 4;
+    /**
+     * This name is already logged in = 4
+     * @since 1.1.06
+     */
+    public static final int SV_NAME_IN_USE = 4;
 
-	/**
-	 * For account creation, new account was created successfully.
-	 * @since 1.1.06
-	 */
-	public static final int SV_ACCT_CREATED_OK = 5;
+    /**
+     * This game version is too new for your client's version to join = 5
+     * @since 1.1.06
+     */
+    public static final int SV_CANT_JOIN_GAME_VERSION = 5;
 
-	/**
-	 * For account creation, an error prevented the account from
-	 * being created.
-	 * @since 1.1.06
-	 */
-	public static final int SV_ACCT_NOT_CREATED_ERR = 6;
+    /**
+     * Cannot log in due to a database problem = 6
+     * @since 1.1.06
+     */
+    public static final int SV_PROBLEM_WITH_DB = 6;
+
+    /**
+     * For account creation, new account was created successfully = 7
+     * @since 1.1.06
+     */
+    public static final int SV_ACCT_CREATED_OK = 7;
+
+    /**
+     * For account creation, an error prevented the account from
+     * being created = 8
+     * @since 1.1.06
+     */
+    public static final int SV_ACCT_NOT_CREATED_ERR = 8;
 
     /**
      * Status message
@@ -138,7 +156,7 @@ public class SOCStatusMessage extends SOCMessage
      */
     public String toCmd()
     {
-		return toCmd(svalue, status);
+	return toCmd(svalue, status);
     }
 
     /**
@@ -156,8 +174,8 @@ public class SOCStatusMessage extends SOCMessage
     	sb.append(sep);
     	if (sv > 0)
     	{
-    		sb.append(sv);
-    		sb.append(sep2);
+	    sb.append(sv);
+	    sb.append(sep2);
     	}
     	sb.append(st);
     	return sb.toString();
@@ -175,22 +193,25 @@ public class SOCStatusMessage extends SOCMessage
     	int i = s.indexOf(sep2);
     	if (i != -1)
     	{
-    		if (i > 0)
-    		{
-	    		try
-	    		{
-	    			sv = Integer.parseInt(s.substring(0, i - 1));
-	    			if (sv < 0)
-	    				sv = 0;
-	    		}
-	    		catch (NumberFormatException e)
-	    		{}
-    		} else {
-    			return null;   // Garbled: Started with sep2
-    		}
-    		s = s.substring(i + 1);
+	    if (i > 0)
+	    {
+		try
+		{
+		    sv = Integer.parseInt(s.substring(0, i));
+		    if (sv < 0)
+			sv = 0;
+		}
+		catch (NumberFormatException e)
+		{
+			// continue with sv=0, don't strip the string
+			i = -1;
+		}
+	    } else {
+		return null;   // Garbled: Started with sep2
+	    }
+	    s = s.substring(i + 1);
     	}
-		return new SOCStatusMessage(sv, s);
+	return new SOCStatusMessage(sv, s);
     }
 
     /**
@@ -201,12 +222,13 @@ public class SOCStatusMessage extends SOCMessage
     	StringBuffer sb = new StringBuffer("SOCStatusMessage:");
     	if (svalue > 0)
     	{
-    		sb.append("sv=");
-    		sb.append(svalue);
-    		sb.append(sep2);
+	    sb.append("sv=");
+	    sb.append(svalue);
+	    sb.append(sep2);
     	}
     	sb.append("status=");
     	sb.append(status);
     	return sb.toString();
     }
+
 }

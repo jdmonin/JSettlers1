@@ -132,7 +132,7 @@ public class SOCClientData
     public void setVersionTimer(SOCServer sr, StringConnection con)
     {
 	cliVersionTask = new SOCCDCliVersionTask (sr, this, con);
-	sr.cliConnectTimer.schedule(cliVersionTask, SOCServer.CLI_VERSION_TIMER_FIRE_MS);
+	sr.utilTimer.schedule(cliVersionTask, SOCServer.CLI_VERSION_TIMER_FIRE_MS);
     }
 
     /** Cancel the version timer, don't fire it */
@@ -147,6 +147,9 @@ public class SOCClientData
 
 
     /**
+     * TimerTask at client connect, to receive client version
+     * before we assume it's too old to tell us.
+     *<P>
      * When timer fires, assume client's version will not be sent.
      * Set it to {@link SOCServer#CLI_VERSION_ASSUMED_GUESS}.
      * (Don't set the version if cliConn.isVersionKnown() at that point.)

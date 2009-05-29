@@ -55,7 +55,6 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Random;
 import java.util.StringTokenizer;
-import java.util.Timer;
 import java.util.Vector;
 
 /**
@@ -73,6 +72,7 @@ import java.util.Vector;
  * channels and games ({@link SOCChannels}, {@link SOCGames}).
  * See {@link SOCMessage} for details of the client/server protocol.
  * See {@link Server} for details of the server threading and processing.
+ * The version check timer is set in {@link SOCClientData#setVersionTimer(SOCServer, StringConnection)}.
  *<P>
  * Before 1.1.06, the server's response was first,
  * and version was sent in reply to server's version.
@@ -102,6 +102,7 @@ public class SOCServer extends Server
     /**
      * If client never tells us their version, assume they are version 1.0.0 (1000).
      * @see #CLI_VERSION_TIMER_FIRE_MS
+     * @since 1.1.06
      */
     public static final int CLI_VERSION_ASSUMED_GUESS = 1000;
 
@@ -109,6 +110,7 @@ public class SOCServer extends Server
      * Client version is guessed after this many milliseconds (1200) if the client
      * hasn't yet sent it to us.
      * @see #CLI_VERSION_ASSUMED_GUESS
+     * @since 1.1.06
      */
     public static final int CLI_VERSION_TIMER_FIRE_MS = 1200;
 
@@ -243,12 +245,6 @@ public class SOCServer extends Server
     String databasePassword;
 
     /**
-     * Timer at client connect, to receive client version
-     * before we assume it's too old to tell us.
-     */
-    Timer cliConnectTimer;  // package access, for SOCClientData's use
-
-    /**
      * Create a Settlers of Catan server listening on port p.
      * You must start its thread yourself.
      *
@@ -322,7 +318,6 @@ public class SOCServer extends Server
         gameTimeoutChecker.start();
         this.databaseUserName = databaseUserName;
         this.databasePassword = databasePassword;
-	cliConnectTimer = new Timer(true);  // use daemon thread
     }
 
     /**
@@ -409,15 +404,21 @@ public class SOCServer extends Server
     }
 
     /**
-     * Adds a connection to a game.  If the game doesn't yet exist, create it,
+     * Adds a connection to a game, unless they're already a member.
+     * If the game doesn't yet exist, create it,
      * and announce the new game to all clients.
      *
      * @param c    the Connection to be added; its name and version should already be set.
      * @param ga   the name of the game
      *
-     * @return     true if c was not a member of ch before
+     * @return     true if c was not a member of ch before,
+     *             false if c was already in this game
+     *
+     * @throws IllegalArgumentException if client's version is too low to join
+     *        (this was added in 1.1.06).
      */
-    public boolean connectToGame(StringConnection c, String ga)
+    public boolean connectToGame(StringConnection c, final String gaName)
+        throws IllegalArgumentException
     {
         boolean result = false;
 
@@ -428,7 +429,7 @@ public class SOCServer extends Server
 
             try
             {
-                gameExists = gameList.isGame(ga);
+                gameExists = gameList.isGame(gaName);
             }
             catch (Exception e)
             {
@@ -439,26 +440,37 @@ public class SOCServer extends Server
 
             if (gameExists)
             {
-                gameList.takeMonitorForGame(ga);
+                gameList.takeMonitorForGame(gaName);
+                SOCGame ga = gameList.getGameData(gaName);
 
                 try
                 {
-                    if (gameList.isMember(c, ga))
+                    if (gameList.isMember(c, gaName))
                     {
                         result = false;
                     }
                     else
                     {
-                        gameList.addMember(c, ga);
-                        result = true;
+                        if (ga.clientVersionMinRequired <= c.getVersion())
+                        {
+			    gameList.addMember(c, gaName);
+			    result = true;
+			} else {
+                            gameList.releaseMonitorForGame(gaName);
+                            throw new IllegalArgumentException("Client version");
+			}
                     }
+                }
+                catch (IllegalArgumentException iae)
+                {
+                	throw iae;  // Pass to caller: Is reporting bad client version
                 }
                 catch (Exception e)
                 {
                     D.ebugPrintStackTrace(e, "Exception in connectToGame (isMember)");
                 }
 
-                gameList.releaseMonitorForGame(ga);
+                gameList.releaseMonitorForGame(gaName);
             }
             else
             {
@@ -472,8 +484,8 @@ public class SOCServer extends Server
                 try
                 {
 		    // Create new game, expiring in SOCGameList.GAME_EXPIRE_MINUTES .
-                    SOCGame ng = gameList.createGame(ga);  
-                    gameList.addMember(c, ga);
+                    SOCGame ng = gameList.createGame(gaName);  
+                    gameList.addMember(c, gaName);
 
                     // must release monitor before we broadcast
                     gameList.releaseMonitor();
@@ -482,7 +494,7 @@ public class SOCServer extends Server
                     result = true;
 
 		    // check version before we broadcast
-		    final String newGameMsg = SOCNewGame.toCmd(ga);
+		    final String newGameMsg = SOCNewGame.toCmd(gaName);
 		    final int gvers = ng.clientVersionMinRequired;
 		    final int cversMin = getMinConnectedCliVersion();
 		    if (gvers <= cversMin)
@@ -493,7 +505,7 @@ public class SOCServer extends Server
 
 			StringBuffer sb = new StringBuffer();
 			sb.append(SOCGames.MARKER_THIS_GAME_UNJOINABLE);
-			sb.append(ga);
+			sb.append(gaName);
 			broadcastToVers(sb.toString(), SOCGames.VERSION_FOR_UNJOINABLE, gvers-1);
 		    }
                 }
@@ -2856,6 +2868,7 @@ public class SOCServer extends Server
      * Handle the "join a game" message: Join or create a game.
      * Will join the game, or return a STATUSMESSAGE if nickname is not OK.
      * If client hasn't yet sent its version, assume is version 1.0.00, disconnect if too low.
+     * If the client is too old to join a specific game, return a STATUSMESSAGE. (since 1.1.06)
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2913,23 +2926,37 @@ public class SOCServer extends Server
              */
 
             /**
-             * Tell the client that everything is good to go;
-             * if game doesn't yet exist, it's created here.
+             * Try to add player to game, and tell the client that everything is ready;
+             * if game doesn't yet exist, it's created in connectToGame.
+             * If client's version is too low, connectToGame will throw an exception;
+             * tell the client if that happens.
              */
-            if (connectToGame(c, mes.getGame()))
-            {
-                String gameName = mes.getGame();
+		final String gameName = mes.getGame();
+	    try
+	    {
+		if (connectToGame(c, gameName))
+		{
+		    /**
+		     * send the entire state of the game to client,
+		     * send client join event to other players
+		     */
+		    SOCGame gameData = gameList.getGameData(gameName);
 
-                /**
-                 * send the entire state of the game to client,
-                 * send client join event to other players
-                 */
+		    if (gameData != null)
+		    {
+			joinGame(gameData, c, false);
+		    }
+		}
+	    } catch (IllegalArgumentException e)
+            {
+                // Let them know they can't join; include the game's version.
                 SOCGame gameData = gameList.getGameData(gameName);
 
-                if (gameData != null)
-                {
-                    joinGame(gameData, c, false);
-                }
+                c.put(SOCStatusMessage.toCmd
+                    (SOCStatusMessage.SV_CANT_JOIN_GAME_VERSION,
+                     "Cannot join game, requires version "
+                     + Integer.toString(gameData.clientVersionMinRequired)
+                     + ": " + gameName));
             }
         }
     }
