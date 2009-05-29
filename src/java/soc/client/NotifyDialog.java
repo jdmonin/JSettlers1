@@ -27,11 +27,12 @@ import soc.game.SOCGame;
 
 /**
  * This is a generic dialog to popup a message to the player, and wait for
- * them to hit its button.  (TODO) does not currently actually wait...
+ * them to hit its button.  (TODO) other code does not currently actually wait...
  * asynchronously returns, and then the dialog sticks around not affecting
  * anything, until the user dismisses it.  At that point it only disappears.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
+ * @since 1.1.06
  */
 class NotifyDialog extends AskDialog
 {
@@ -52,7 +53,6 @@ class NotifyDialog extends AskDialog
 	    (cli, gamePI, promptText, btnText, hasDefault);
         nd.show();      
     }
-    
 
     /**
      * Creates a new NotifyDialog.

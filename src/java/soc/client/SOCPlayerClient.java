@@ -132,7 +132,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected Button pg;  // practice game (local)
     protected Label messageLabel;  // error message for messagepanel
     protected Label messageLabel_top;   // secondary message
-    protected Label localTCPPortLabel;   // shows port number in mainpanel, if running localTCPServer
+    protected Label versionOrlocalTCPPortLabel;   // shows port number in mainpanel, if running localTCPServer;
+                                         // shows remote version# when connected to a remote server
     protected Button pgm;  // practice game on messagepanel
     protected AppletContext ac;
 
@@ -256,8 +257,18 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * the game names on this server which we can't join due to limitations of
      * the client.
      * Both key and value are the game name, without the UNJOINABLE prefix.
+     * @since 1.1.06
      */
     protected Hashtable gamesUnjoinable = new Hashtable();
+
+    /**
+     * the game names from {@link #gamesUnjoinable} that player has asked to join,
+     * and been told they can't.  If they click again, try to connect.
+     * (This is a failsafe against bugs in server or client version-recognition.)
+     * Both key and value are the game name, without the UNJOINABLE prefix.
+     * @since 1.1.06
+     */
+    protected Hashtable gamesUnjoinableOverride = new Hashtable();
 
     /**
      * the player interfaces for the games
@@ -477,12 +488,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         gbl.setConstraints(l, c);
         mainPane.add(l);
 
-        // Row 5 (join channel, practice, join game)
+        // Row 5 (version/port# label, join channel btn, practice btn, join game btn)
 
-        localTCPPortLabel = new Label();
+        versionOrlocalTCPPortLabel = new Label();
         c.gridwidth = 1;
-        gbl.setConstraints(localTCPPortLabel, c);
-        mainPane.add(localTCPPortLabel);
+        gbl.setConstraints(versionOrlocalTCPPortLabel, c);
+        mainPane.add(versionOrlocalTCPPortLabel);
 
         c.gridwidth = 1;
         gbl.setConstraints(jc, c);
@@ -955,10 +966,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 		            return true;
 		        }
 		    }
-		    
-		    if (gm.startsWith(GAMENAME_PREFIX_CANNOT_JOIN))
+
+		    boolean unjoinablePrefix = gm.startsWith(GAMENAME_PREFIX_CANNOT_JOIN);
+		    if (unjoinablePrefix || gamesUnjoinable.containsKey(gm))
 		    {
-		    	return false;
+		    	// Game is marked as un-joinable by this client.
+
+		    	if (unjoinablePrefix)
+		    		gm = gm.substring(GAMENAME_PREFIX_CANNOT_JOIN.length());
+		    	if (! gamesUnjoinableOverride.containsKey(gm))
+    			{
+			    	gamesUnjoinableOverride.put(gm, gm);  // Next click will try override
+			    	return false;
+    			}
+
+		    	// Attempt to join anyway.
+		    	// Continue to process the game name, without prefix.
 		    }
 		}
 		else if (target == game)
@@ -986,8 +1009,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 		// Can we not join that game?
 		if (gamesUnjoinable.containsKey(gm))
 		{
-			return false;
-	   }
+	    	if (! gamesUnjoinableOverride.containsKey(gm))
+			{
+		    	gamesUnjoinableOverride.put(gm, gm);  // Next click will try override
+		    	return false;
+			}
+        }
 
 		// Are we already in a game with that name?
 		SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gm);
@@ -1779,13 +1806,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             // (If so, want to display its listening port# instead)
             if (null == localTCPServer)
             {
-		        localTCPPortLabel.setForeground(new Color(252, 251, 243)); // off-white
-			    localTCPPortLabel.setText("v " + mes.getVersionString());
+            	versionOrlocalTCPPortLabel.setForeground(new Color(252, 251, 243)); // off-white
+            	versionOrlocalTCPPortLabel.setText("v " + mes.getVersionString());
 			    new AWTToolTip ("Server version is " + mes.getVersionString()
 					    + " build " + mes.getBuild()
 		                            + "; client is " + Version.version()
 					    + " bld " + Version.buildnum(),
-					    localTCPPortLabel);
+					    versionOrlocalTCPPortLabel);
             }
 	}
 
@@ -3988,7 +4015,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * Setup for locally hosting a TCP server.
      * If needed, a local server and robots are started, and client connects to it.
      * If parent is a Frame, set titlebar to show "server" and port#.
-     * Show port number in {@link #localTCPPortLabel}. 
+     * Show port number in {@link #versionOrlocalTCPPortLabel}. 
      * If the {@link #localTCPServer} is already created, does nothing.
      * If {@link #connected} already, does nothing.
      *
@@ -4024,8 +4051,8 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         setupLocalRobots(tport);
 
         // Set label
-        localTCPPortLabel.setText("Port: " + tport);
-        new AWTToolTip ("You are running a server on TCP port " + tport + ".", localTCPPortLabel);
+        versionOrlocalTCPPortLabel.setText("Port: " + tport);
+        new AWTToolTip ("You are running a server on TCP port " + tport + ".", versionOrlocalTCPPortLabel);
 
         // Set titlebar, if present
         {
