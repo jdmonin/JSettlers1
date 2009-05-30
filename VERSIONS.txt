@@ -10,6 +10,7 @@ Unless otherwise indicated, versions are hosted at http://nand.net/jsettlers/dev
 - Fewer debug messages from robots during idle hours
 - Monopoly reports (privately) number of resources stolen from each victim
 - Reset practice game, at end of game: New randomly-selected robots, instead of same robots each time
+- STATUSMESSAGE can now carry an integer status value
 - Many javadocs added
 - Fix harmless NullPointerException in SOCBoardPanel.setHoverText for getFontMetrics
 - Bugfix: After disconnect/rejoin, trade offer panel overlays your controls
