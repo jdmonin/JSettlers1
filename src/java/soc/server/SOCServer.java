@@ -696,35 +696,7 @@ public class SOCServer extends Server
                         boolean nameMatch = false;
                         StringConnection robotConn = null;
 
-                        ///
-                        /// shuffle the indexes to distribute load
-                        ///
-                        int[] robotIndexes = new int[robots.size()];
-
-                        for (int i = 0; i < robots.size(); i++)
-                        {
-                            robotIndexes[i] = i;
-                        }
-
-                        for (int j = 0; j < 3; j++)
-                        {
-                            for (int i = 0; i < robotIndexes.length; i++) //
-                            {
-                                // Swap a random card below the ith robot with the ith robot
-                                int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
-                                int tmp = robotIndexes[idx];
-                                robotIndexes[idx] = robotIndexes[i];
-                                robotIndexes[i] = tmp;
-                            }
-                        }
-
-                        if (D.ebugOn)
-                        {
-                            for (int i = 0; i < robots.size(); i++)
-                            {
-                                D.ebugPrintln("^^^ robotIndexes[" + i + "]=" + robotIndexes[i]);
-                            }
-                        }
+                        final int[] robotIndexes = robotShuffleForJoin();  // Shuffle to distribute load
 
                         Vector requests = (Vector) robotJoinRequests.get(gm);
 
@@ -930,6 +902,34 @@ public class SOCServer extends Server
         //D.ebugPrintln("*** gameDestroyed = "+gameDestroyed+" for "+gm);
         return gameDestroyed;
     }
+
+    /**
+     * shuffle the indexes to distribute load among {@link #robots}
+     * @return a shuffled array of robot indexes, from 0 to ({#link {@link #robots}}.size() - 1
+     * @since 1.1.06
+     */
+	private int[] robotShuffleForJoin()
+	{
+		int[] robotIndexes = new int[robots.size()];
+
+		for (int i = 0; i < robots.size(); i++)
+		{
+		    robotIndexes[i] = i;
+		}
+
+		for (int j = 0; j < 3; j++)
+		{
+		    for (int i = 0; i < robotIndexes.length; i++)
+		    {
+		        // Swap a random robot, below the ith robot, with the ith robot
+		        int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
+		        int tmp = robotIndexes[idx];
+		        robotIndexes[idx] = robotIndexes[i];
+		        robotIndexes[i] = tmp;
+		    }
+		}
+		return robotIndexes;
+	}
 
     /**
      * Force this player (not current player) to discard, and report resources to all players.
@@ -3575,35 +3575,8 @@ public class SOCServer extends Server
         int[] robotIndexes = null;
         if (robotSeats == null)
         {
-            ///
-            /// shuffle the indexes to distribute load
-            ///
-            robotIndexes = new int[robots.size()];
-    
-            for (int i = 0; i < robots.size(); i++)
-            {
-                robotIndexes[i] = i;
-            }
-    
-            for (int j = 0; j < 3; j++)
-            {
-                for (int i = 0; i < robotIndexes.length; i++)
-                {
-                    int idx = Math.abs(rand.nextInt() % (robotIndexes.length - i));
-                    int tmp = robotIndexes[idx];
-                    robotIndexes[idx] = robotIndexes[i];
-                    robotIndexes[i] = tmp;
-                }
-            }
-    
-            if (D.ebugOn)
-            {
-                for (int i = 0; i < robots.size();
-                        i++)
-                {
-                    D.ebugPrintln("^^^ robotIndexes[" + i + "]=" + robotIndexes[i]);
-                }
-            }
+            // shuffle the indexes to distribute load
+            robotIndexes = robotShuffleForJoin();
         }
         else
         {

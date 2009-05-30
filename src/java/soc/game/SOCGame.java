@@ -3455,19 +3455,8 @@ public class SOCGame implements Serializable, Cloneable
             System.err.println("DEBUG: Set playerWithWin = " + pn
                 + " -- in thread: " + Thread.currentThread().getName() + " --");
 
-            // force a stack trace, because this is called from several places
-            {
-                int x = 10;
-                int y = 0;
-                try {
-                    gameState = x / y;
-                }
-                catch (Throwable th)
-                {
-                    th.printStackTrace();
-                    System.err.println("-- end playerWithWin locator stacktrace --");
-                }
-            }
+            // JM temp; will turn this debug-print off later.
+            //    Also displayed a locator stacktrace, from 2008-06-15 until 1.1.06 (removed 2009-05-29).
         }
     }
 
