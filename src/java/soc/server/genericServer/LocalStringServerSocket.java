@@ -32,8 +32,6 @@ import java.util.Vector;
  * 
  * Clients who want to connect, call connectTo and are queued. (Thread.wait is used internally)
  * Server-side calls accept to retrieve them.
- * 
- * @author Jeremy D. Monin <jeremy@nand.net>
  *
  *<PRE>
  *  1.0.0 - 2007-11-18 - initial release
@@ -41,6 +39,9 @@ import java.util.Vector;
  *  1.0.4 - 2008-09-04 - no change in this file
  *  1.0.5 - 2009-05-30 - no change in this file
  *</PRE>
+ * 
+ * @author Jeremy D. Monin <jeremy@nand.net>
+ * @version 1.0.5
  */
 public class LocalStringServerSocket implements StringServerSocket
 {

@@ -31,11 +31,9 @@ import soc.disableDebug.D;
 /**
  * Symmetric buffered connection sending strings between two local peers.
  * Uses vectors and thread synchronization, no actual network traffic.
- *
+ *<P>
  * This class has a run method, but you must start the thread yourself.
  * Constructors will not create or start a thread.
- *
- * @author Jeremy D. Monin <jeremy@nand.net>
  *
  *<PRE>
  *  1.0.0 - 2007-11-18 - initial release
@@ -47,6 +45,9 @@ import soc.disableDebug.D;
  *                       isInputAvailable, callback to processFirstCommand;
  *                       common constructor code moved to init().
  *</PRE>
+ *
+ * @author Jeremy D. Monin <jeremy@nand.net>
+ * @version 1.0.5
  */
 public class LocalStringConnection
     implements StringConnection, Runnable
@@ -503,6 +504,10 @@ public class LocalStringConnection
     /**
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
+     *<P>
+     * <b>Locking:</b> If we're on server side, and {@link #setVersionTracking(boolean)} is true,
+     *  caller should synchronize on {@link Server#unnamedConns}.
+     *
      * @param version Version number, or 0 if unknown.
      *                If version is greater than 0, future calls to {@link #isVersionKnown()}
      *                should return true.
@@ -515,6 +520,10 @@ public class LocalStringConnection
     /**
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
+     *<P>
+     * <b>Locking:</b> If we're on server side, and {@link #setVersionTracking(boolean)} is true,
+     *  caller should synchronize on {@link Server#unnamedConns}.
+     *
      * @param version Version number, or 0 if unknown.
      * @param isKnown Should this version be considered confirmed/known by {@link #isVersionKnown()}?
      */

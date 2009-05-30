@@ -428,6 +428,10 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     /**
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
+     *<P>
+     * <b>Locking:</b> If we're on server side, and {@link #setVersionTracking(boolean)} is true,
+     *  caller should synchronize on {@link Server#unnamedConns}.
+     *
      * @param version Version number, or 0 if unknown.
      *                If version is greater than 0, future calls to {@link #isVersionKnown()}
      *                should return true.
@@ -440,6 +444,10 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     /**
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
+     *<P>
+     * <b>Locking:</b> If we're on server side, and {@link #setVersionTracking(boolean)} is true,
+     *  caller should synchronize on {@link Server#unnamedConns}.
+     *
      * @param version Version number, or 0 if unknown.
      * @param isKnown Should this version be considered confirmed/known by {@link #isVersionKnown()}?
      */

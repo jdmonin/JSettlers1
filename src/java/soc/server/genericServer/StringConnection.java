@@ -27,8 +27,6 @@ import java.util.Date;
  * StringConnection allows clients and servers to communicate,
  * with no difference between local and actual networked traffic.
  * 
- * @author Jeremy D Monin <jeremy@nand.net>
- *
  *<PRE>
  *  1.0.0 - 2007-11-18 - initial release
  *  1.0.1 - 2008-06-28 - add getConnectTime
@@ -38,6 +36,9 @@ import java.util.Date;
  *  1.0.5 - 2009-05-30 - add isVersionKnown, setVersion(int,bool),
  *                       setVersionTracking, isInputAvailable
  *</PRE>
+ *
+ * @author Jeremy D Monin <jeremy@nand.net>
+ * @version 1.0.5
  */
 public interface StringConnection
 {
@@ -70,7 +71,7 @@ public interface StringConnection
      */    
     public abstract boolean connect(); 
 
-    /** Close the socket, set EOF */
+    /** Close the socket, set EOF; called after conn is removed from server structures */
     public abstract void disconnect();
 
     /**
@@ -147,6 +148,10 @@ public interface StringConnection
     /**
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
+     *<P>
+     * <b>Locking:</b> If we're on server side, and {@link #setVersionTracking(boolean)} is true,
+     *  caller should synchronize on {@link Server#unnamedConns}.
+     *
      * @param version Version number, or 0 if unknown.
      *                If version is greater than 0, future calls to {@link #isVersionKnown()}
      *                should return true.
@@ -156,6 +161,10 @@ public interface StringConnection
     /**
      * Set the version number of the remote end of this connection.
      * The meaning of this number is application-defined.
+     *<P>
+     * <b>Locking:</b> If we're on server side, and {@link #setVersionTracking(boolean)} is true,
+     *  caller should synchronize on {@link Server#unnamedConns}.
+     *
      * @param version Version number, or 0 if unknown.
      * @param isKnown Should this version be considered confirmed/known by {@link #isVersionKnown()}?
      * @since 1.0.5
