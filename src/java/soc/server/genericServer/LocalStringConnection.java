@@ -43,7 +43,7 @@ import soc.disableDebug.D;
  *  1.0.2 - 2008-07-30 - check if s already null in disconnect
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-26 - add isVersionKnown, setVersion(int,bool), setVersionTracking,
+ *  1.0.5 - 2009-05-30 - add isVersionKnown, setVersion(int,bool), setVersionTracking,
  *                       isInputAvailable, callback to processFirstCommand;
  *                       common constructor code moved to init().
  *</PRE>
@@ -534,6 +534,7 @@ public class LocalStringConnection
      * Is the version known of the remote end of this connection?
      * We may have just assumed it, or taken a default.
      * @return True if we've confirmed the version, false if it's assumed or default.
+     * @since 1.0.5
      */
     public boolean isVersionKnown()
     {
@@ -553,7 +554,7 @@ public class LocalStringConnection
     public void setVersionTracking(boolean doTracking)
     {
         remoteVersionTrack = doTracking;
-     }
+    }
 
     /**
      * Is input available now, without blocking?

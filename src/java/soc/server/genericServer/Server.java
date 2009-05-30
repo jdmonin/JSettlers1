@@ -109,7 +109,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     protected Hashtable conns = new Hashtable();
 
     /** the newly connected, unnamed connections.
-     *  Adding/removing/naming connections synchronizes on this Vector.
+     *  Adding/removing/naming/versioning of connections synchronizes on this Vector.
      */
     protected Vector unnamedConns = new Vector();
 
@@ -196,7 +196,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     private void initMisc()
     {
     	// recurring schedule the version set's consistency-chk
-    	ConnVersionSetCheckerTask cvChkTask = new ConnVersionSetCheckerTask (this);
+    	ConnVersionSetCheckerTask cvChkTask = new ConnVersionSetCheckerTask(this);
     	utilTimer.schedule(cvChkTask, 0L, SOCServer.CLI_VERSION_SET_CONSIS_CHECK_MINUTES * 60 * 1000);
     }
 
@@ -540,17 +540,20 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             }
             else
             {
-                throw new IllegalArgumentException("was not connected and unnamed");
+                throw new IllegalArgumentException("was not both connected and unnamed");
             }
         }
     }
 
      /**
      * Add 1 client, with this version, to {@linkplain #cliVersionsConnected}.
+     *<P>
      * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     *
      * @see #clientVersionRem(int)
      * @see #getMinConnectedCliVersion()
      * @see #getMaxConnectedCliVersion()
+     * @since 1.1.06
      */
     public void clientVersionAdd(final int cvers)
     {
@@ -559,10 +562,10 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         if (cv == null)
         {
             cv = new ConnVersionCounter(cvers);
-            cliVersionsConnected.put (cvkey, cv);  // with cliCount == 1
+            cliVersionsConnected.put(cvkey, cv);  // with cliCount == 1
         } else {
-	        cv.cliCount++;
-	    	return;  // <---- Early return: We already have this version ----
+            cv.cliCount++;
+            return;  // <---- Early return: We already have this version ----
         }
 
         if (1 == cliVersionsConnected.size())
@@ -581,10 +584,13 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     /**
      * Remove 1 client, with this version, from {@linkplain #cliVersionsConnected}.
+     *<P>
      * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     *
      * @see #clientVersionAdd(int)
      * @see #getMinConnectedCliVersion()
      * @see #getMaxConnectedCliVersion()
+     * @since 1.1.06
      */
     public void clientVersionRem(final int cvers)
     {
@@ -592,7 +598,9 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         ConnVersionCounter cv = (ConnVersionCounter) cliVersionsConnected.get(cvkey);
         if (cv == null)
         {
-            // TODO not found - must rebuild
+            // not found - must rebuild
+            clientVersionRebuildMap(null);
+            return;  // <---- Early return: Had to rebuild ----
         } else {
             cv.cliCount--;
             if (cv.cliCount > 0)
@@ -602,7 +610,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
             // We've removed the last client of a particular version.
             // Update min/max if needed.
-            // (If there are not any clients connected, doesn't matter.)
+            // (If there aren't any clients connected, doesn't matter.)
 
             cliVersionsConnected.remove(cvkey);
         }
@@ -610,6 +618,13 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         if (cliVersionsConnected.size() == 0)
         {
             return;  // <---- Early return: No other clients ----
+        }
+
+        if (cv.cliCount < 0)
+        {
+            // must rebuild - got below 0 somehow
+            clientVersionRebuildMap(null);
+            return;  // <---- Early return: Had to rebuild ----
         }
 
         if (cvers == cliVersionMin)
@@ -621,15 +636,12 @@ public abstract class Server extends Thread implements Serializable, Cloneable
             cliVersionMax = ((Integer) cliVersionsConnected.lastKey()).intValue();
         }
 
-        if (cv.cliCount < 0)
-        {
-            // TODO must rebuild - got below 0 somehow
-        }
     }
 
     /**
      * @return the version number of the oldest-version client
      *         that is currently connected
+     * @since 1.1.06
      */
     public int getMinConnectedCliVersion()
     {
@@ -639,6 +651,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /**
      * @return the version number of the newest-version client
      *         that is currently connected
+     * @since 1.1.06
      */
     public int getMaxConnectedCliVersion()
     {
@@ -648,10 +661,14 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     /**
      * Build a fresh TreeMap of the client versions connected,
      * to check consistency of {@link #cliVersionsConnected}.
+     *<P>
      * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     *
      * @see #clientVersionCheckMap(TreeMap)
+     * @see #clientVersionRebuildMap()
+     * @since 1.1.06
      */
-    protected TreeMap clientVersionBuildMap()
+    private TreeMap clientVersionBuildMap()
     {
         int cvers;
         int lastVers = 0;  // =0 needed to satisfy compiler; first iter will set a value.
@@ -673,7 +690,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 if (cvc == null)
                 {
                     cvc = new ConnVersionCounter(cvers);
-                    cvmap.put (cvkey, cvc);  // with cliCount == 1
+                    cvmap.put(cvkey, cvc);  // with cliCount == 1
                     cvc.cliCount--;  // -- now, since we'll ++ it just below
                 }
             }
@@ -692,7 +709,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
                 if (cvc == null)
                 {
                     cvc = new ConnVersionCounter(cvers);
-                    cvmap.put (cvkey, cvc);  // with cliCount == 1
+                    cvmap.put(cvkey, cvc);  // with cliCount == 1
                     cvc.cliCount--;  // -- now, since we'll ++ it just below
                 }
             }
@@ -712,22 +729,26 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      *   Build a second tree, compare it to the current tree {@link #cliVersionsConnected}.
      *<P>
      * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     *
      * @param tree2     A tree to check, or null to generate a new one
      *                  here by calling {@link #clientVersionBuildMap()}.
      *                  Not used in the quick check.
      * @param fullCheck True for the full check, false for the quick check.
      *
      * @return True if consistent, false if any problems were found.
+     *
+     * @see #clientVersionRebuildMap(TreeMap)
+     * @since 1.1.06
      */
-    protected boolean clientVersionCheckMap(TreeMap tree2, final boolean fullCheck)
+    private boolean clientVersionCheckMap(TreeMap tree2, final boolean fullCheck)
     {
         if (fullCheck)
         {
-        	if (tree2 == null) 
-        		tree2 = clientVersionBuildMap();
+            if (tree2 == null) 
+                tree2 = clientVersionBuildMap();
 
-	        if (tree2.size() != cliVersionsConnected.size())
-	        	return false;
+            if (tree2.size() != cliVersionsConnected.size())
+                return false;
         }
 
         // FULL CHECK:
@@ -739,38 +760,75 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
         try
         {
-        	int cliCount = 0;  // quick only
-	        Iterator cve1 = cliVersionsConnected.values().iterator();  // quick, full
-	        Iterator cve2 = (fullCheck ? tree2.values().iterator() : null);  // full only
+            int cliCount = 0;  // quick only
+            Iterator cve1 = cliVersionsConnected.values().iterator();  // quick, full
+            Iterator cve2 = (fullCheck ? tree2.values().iterator() : null);  // full only
 
-	        while (cve1.hasNext())
-	        {
-	        	ConnVersionCounter cvc1 = (ConnVersionCounter) cve1.next();
-	        	if (fullCheck)
-	        	{
-		        	ConnVersionCounter cvc2 = (ConnVersionCounter) cve2.next();
-		        	if ((cvc1.vers != cvc2.vers) || (cvc1.cliCount != cvc2.cliCount))
-		        	{
-		        		return false;
-		        	}
-	        	} else {
-	        		cliCount += cvc1.cliCount;
-	        	}
-	        }
-	        if (fullCheck)
-	        {
-	        	if (cve2.hasNext())
-	        		return false;
-	        } else {
-	        	return (cliCount == numberCurrentConnections);
-	        }
+            while (cve1.hasNext())
+            {
+                ConnVersionCounter cvc1 = (ConnVersionCounter) cve1.next();
+                if (fullCheck)
+                {
+                    ConnVersionCounter cvc2 = (ConnVersionCounter) cve2.next();
+                    if ((cvc1.vers != cvc2.vers) || (cvc1.cliCount != cvc2.cliCount))
+                    {
+                        return false;
+                    }
+                } else {
+                    cliCount += cvc1.cliCount;
+                }
+            }
+
+            if (fullCheck)
+            {
+                if (cve2.hasNext())
+                    return false;
+            } else {
+                return (cliCount == numberCurrentConnections);
+            }
         }
         catch (Throwable t)
         {
-        	return false;  // obj mismatch, iterator failure, other problem
+            return false;  // obj mismatch, iterator failure, other problem
         }
 
         return true;
+    }
+
+    /**
+     * Replace the current client-version map with a consistent new one,
+     * and update related fields such as minimum/maximum connected version.
+     *<P>
+     * <b>Locks:</b> Caller should synchronize on {@linkplain #unnamedConns}.
+     * 
+     * @param newTree Newly built version treemap as generated by
+     *                {@link #clientVersionBuildMap()}, or null to
+     *                generate here.
+     * @see #clientVersionCheckMap(TreeMap, boolean)
+     * @since 1.1.06
+     */
+    private void clientVersionRebuildMap(TreeMap newTree)
+    {
+        // TODO locking
+
+        if (newTree == null) 
+            newTree = clientVersionBuildMap();
+
+        cliVersionsConnected = newTree;
+        cliVersionsConnectedQuickCheckCount = 0;
+        
+        final int treeSize = cliVersionsConnected.size();
+        if (treeSize == 0)
+            return;  // <---- Early return: Min/max version fields not needed ----
+
+        final int cvers = ((Integer) cliVersionsConnected.firstKey()).intValue();
+        cliVersionMin = cvers;
+        if (1 == treeSize)
+        {
+            cliVersionMax = cvers;
+        } else {
+            cliVersionMax = ((Integer) cliVersionsConnected.lastKey()).intValue();
+        }
     }
 
     /**
@@ -975,32 +1033,31 @@ public abstract class Server extends Thread implements Serializable, Cloneable
 
     	public ConnVersionSetCheckerTask(Server s)
     	{
-    		srv = s;
+    	    srv = s;
     	}
 
     	/**
-	     * Called when timer fires. See class description for action taken.
-	     */
-	    public void run()
-	    {
-	    	boolean wantsFull = (srv.cliVersionsConnectedQuickCheckCount
-	    		>= CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT);
-	    	TreeMap tree2 = (wantsFull ? srv.clientVersionBuildMap() : null);
+    	 * Called when timer fires. See class description for action taken.
+    	 */
+    	public void run()
+    	{
+    	    boolean wantsFull = (srv.cliVersionsConnectedQuickCheckCount
+    	            >= CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT);
+    	    TreeMap tree2 = (wantsFull ? srv.clientVersionBuildMap() : null);
 
-	    	boolean checkPassed = srv.clientVersionCheckMap(tree2, wantsFull);
-	    	if (! checkPassed)
-	    	{
-	    		// TODO really really need locking here
-	    		srv.cliVersionsConnected = tree2;
-	    		srv.cliVersionsConnectedQuickCheckCount = 0;
-	    	} else
-	    	{
-		    	if (wantsFull)
-		    		srv.cliVersionsConnectedQuickCheckCount = 0;
-		    	else
-		    		srv.cliVersionsConnectedQuickCheckCount++;
-	    	}
-	    }
+    	    boolean checkPassed = srv.clientVersionCheckMap(tree2, wantsFull);
+    	    if (! checkPassed)
+    	    {
+    	        // TODO really really need locking here
+    	        srv.clientVersionRebuildMap(tree2);
+    	    } else
+    	    {
+    	        if (wantsFull)
+    	            srv.cliVersionsConnectedQuickCheckCount = 0;
+    	        else
+    	            srv.cliVersionsConnectedQuickCheckCount++;
+    	    }
+    	}
 
     }  // ConnVersionSetCheckerTask
 

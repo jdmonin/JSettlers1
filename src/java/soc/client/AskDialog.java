@@ -44,7 +44,8 @@ import java.awt.event.WindowListener;
 
 
 /**
- * This is the generic dialog to ask players a two- or three-choice question.
+ * This is the generic dialog to ask players a two- or three-choice question;
+ * to present a one-button message, see {@link NotifyDialog}. 
  *<P>
  * To react to button presses, override the abstract methods
  * {@link #button1Chosen()}, {@link #button2Chosen()}, 
@@ -52,7 +53,6 @@ import java.awt.event.WindowListener;
  * question) override {@link #button3Chosen()}.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
- * @see NotifyDialog
  */
 public abstract class AskDialog extends Dialog
     implements ActionListener, WindowListener, KeyListener, MouseListener
@@ -251,17 +251,17 @@ public abstract class AskDialog extends Dialog
         setFont(new Font("Dialog", Font.PLAIN, 12));
 
         choice1But = new Button(choice1);
-		if (choice2 != null)
-		{
-		    choice2But = new Button(choice2);
-		    if (choice3 != null)
-		    	choice3But = new Button(choice3);
-		    else
-		    	choice3But = null;
-		} else {
-		    choice2But = null;
-		    choice3But = null;
-		}
+        if (choice2 != null)
+        {
+            choice2But = new Button(choice2);
+            if (choice3 != null)
+                choice3But = new Button(choice3);
+            else
+                choice3But = null;
+        } else {
+            choice2But = null;
+            choice3But = null;
+        }
         choiceDefault = defaultChoice;
         setLayout (new BorderLayout());
 
