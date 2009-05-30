@@ -88,20 +88,21 @@ public class SOCServer extends Server
      * Minimum required client version, to connect and play a game.
      * Same format as {@link soc.util.Version#versionNumber()}.
      * Currently there is no enforced minimum (0000).
-     * @see #setClientVersionOrReject(StringConnection, int)
+     * @see #setClientVersionOrReject(StringConnection, int, boolean)
      */
     public static final int CLI_VERSION_MIN = 0000;
 
     /**
      * Minimum required client version, in "display" form, like "1.0.00".
      * Currently there is no minimum.
-     * @see #setClientVersionOrReject(StringConnection, int)
+     * @see #setClientVersionOrReject(StringConnection, int, boolean)
      */
     public static final String CLI_VERSION_MIN_DISPLAY = "0.0.00";
 
     /**
      * If client never tells us their version, assume they are version 1.0.0 (1000).
      * @see #CLI_VERSION_TIMER_FIRE_MS
+     * @see #handleJOINGAME(StringConnection, SOCJoinGame)
      * @since 1.1.06
      */
     public static final int CLI_VERSION_ASSUMED_GUESS = 1000;
@@ -451,7 +452,7 @@ public class SOCServer extends Server
                     }
                     else
                     {
-                        if (ga.clientVersionMinRequired <= c.getVersion())
+                        if (ga.getClientVersionMinRequired() <= c.getVersion())
                         {
 			    gameList.addMember(c, gaName);
 			    result = true;
@@ -495,7 +496,7 @@ public class SOCServer extends Server
 
 		    // check version before we broadcast
 		    final String newGameMsg = SOCNewGame.toCmd(gaName);
-		    final int gvers = ng.clientVersionMinRequired;
+		    final int gvers = ng.getClientVersionMinRequired();
 		    final int cversMin = getMinConnectedCliVersion();
 		    if (gvers <= cversMin)
 		    {
@@ -506,7 +507,8 @@ public class SOCServer extends Server
 			StringBuffer sb = new StringBuffer();
 			sb.append(SOCGames.MARKER_THIS_GAME_UNJOINABLE);
 			sb.append(gaName);
-			broadcastToVers(sb.toString(), SOCGames.VERSION_FOR_UNJOINABLE, gvers-1);
+			broadcastToVers
+			    (SOCNewGame.toCmd(sb.toString()), SOCGames.VERSION_FOR_UNJOINABLE, gvers-1);
 		    }
                 }
                 catch (Exception e)
@@ -676,7 +678,9 @@ public class SOCServer extends Server
                 if (isPlayer && (gameHasHumanPlayer || gameHasObserver) && (cg != null) && (!cg.getPlayer(playerNumber).isRobot()) && (cg.getGameState() < SOCGame.OVER) && !(cg.getGameState() < SOCGame.START1A))
                 {
                     /**
-                     * get a robot to replace this player
+                     * get a robot to replace this player;
+                     * just like at new-game, check game-version vs robots-version,
+                     * just in case. (same as readyGameAskRobotsJoin)
                      */
                     boolean foundNoRobots = false;
 
@@ -686,6 +690,13 @@ public class SOCServer extends Server
                     {
                         messageToGameWithMon(gm, new SOCGameTextMsg(gm, SERVERNAME, "Sorry, no robots on this server."));
                         foundNoRobots = true;
+                    }
+                    else if (cg.getClientVersionMinRequired() > Version.versionNumber())
+                    {
+                        messageToGameWithMon(gm, new SOCGameTextMsg
+                                (gm, SERVERNAME, "Sorry, the robots can't join this game; its version somehow newer than server and robots, it's "
+                                        + cg.getClientVersionMinRequired()));
+                        foundNoRobots = true;                        
                     }
                     else
                     {
@@ -1709,7 +1720,7 @@ public class SOCServer extends Server
 	    while (gaEnum.hasMoreElements())
 	    {
 	        g = (SOCGame) gaEnum.nextElement();
-		int gameVers = g.clientVersionMinRequired;
+		int gameVers = g.getClientVersionMinRequired();
 
 		if (cliVersionChange && (prevVers >= gameVers))
 		{
@@ -2583,6 +2594,7 @@ public class SOCServer extends Server
      * Handle the "version" message, client's version report.
      * May ask to disconnect, if version is too old.
      * If we've already sent the game list, send changes based on true version.
+     * If they send another VERSION later, with a different version, disconnect the client.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2593,7 +2605,7 @@ public class SOCServer extends Server
             return;
 
 	((SOCClientData) c.getAppData()).clearVersionTimer();
-        setClientVersionOrReject(c, mes.getVersionNumber());
+	setClientVersionOrReject(c, mes.getVersionNumber(), true);
     }
 
     /**
@@ -2601,28 +2613,56 @@ public class SOCServer extends Server
      * If version is too low, send {@link SOCRejectConnection}.
      * If we haven't yet sent the game list, send now.
      * If we've already sent the game list, send changes based on true version.
-     * 
+     *<P>
+     *<b>Locks:</b> To set the version, will synchronize briefly on {@link Server#unnamedConns unnamedConns}.
+     * If {@link StringConnection#getVersion() c.getVersion()} is already == cvers,
+     * don't bother to lock and set it.
+     *
      * @param c     Client's connection
-     * @param cvers Version reported by client, or assumed if no report
+     * @param cvers Version reported by client, or assumed version if no report
      * @return True if OK, false if rejected
      */
-    private boolean setClientVersionOrReject(StringConnection c, int cvers)
+    private boolean setClientVersionOrReject(StringConnection c, final int cvers, final boolean isKnown)
     {
 	final int prevVers = c.getVersion();
+	final boolean wasKnown = c.isVersionKnown();
 
-        c.setVersion(cvers);
-        if (cvers < CLI_VERSION_MIN)
+	if (prevVers != cvers)
+	{
+	    synchronized (unnamedConns)
+	    {
+	        c.setVersion(cvers, isKnown);
+	    }
+	} else if (wasKnown)
+	{
+	    return true;  // <--- Early return: Already knew it ----
+	}
+
+	String rejectMsg = null;
+	String rejectLogMsg = null;
+
+	if (cvers < CLI_VERSION_MIN)
         {
-            String rejectMsg;
             if (cvers > 0)
                 rejectMsg = "Sorry, your client version number " + cvers + " is too old, version ";
             else
                 rejectMsg = "Sorry, your client version is too old, version number ";
             rejectMsg += Integer.toString(CLI_VERSION_MIN)
                 + " (" + CLI_VERSION_MIN_DISPLAY + ") or above is required.";
+            rejectLogMsg = "Rejected client: Version " + cvers + " too old";
+        }
+	if (wasKnown && isKnown && (cvers != prevVers))
+	{
+	    rejectMsg = "Sorry, cannot report two different versions.";
+	    rejectLogMsg = "Rejected client: Already gave VERSION(" + prevVers
+	        + "), now says VERSION(" + cvers + ")";
+	}
+
+	if (rejectMsg != null)
+	{
             c.put(new SOCRejectConnection(rejectMsg).toCmd());
             c.disconnectSoft();
-            System.out.println("Rejected client: Version " + cvers + " too old");
+            System.out.println(rejectLogMsg);
             return false;
         }
 
@@ -2637,7 +2677,8 @@ public class SOCServer extends Server
 
     /**
      * Handle the "join a channel" message.
-     * If client hasn't yet sent its version, assume is version 1.0.00, disconnect if too low.
+     * If client hasn't yet sent its version, assume is
+     * version 1.0.00 ({@link #CLI_VERSION_ASSUMED_GUESS}), disconnect if too low.
      *
      * @param c  the connection that sent the message
      * @param mes  the messsage
@@ -2653,7 +2694,7 @@ public class SOCServer extends Server
              */
             if (c.getVersion() == -1)
             {
-                if (! setClientVersionOrReject(c, 1000))
+                if (! setClientVersionOrReject(c, CLI_VERSION_ASSUMED_GUESS, false))
                     return;  // <--- Discon and Early return: Client too old ---
             }
 
@@ -2867,7 +2908,7 @@ public class SOCServer extends Server
     /**
      * Handle the "join a game" message: Join or create a game.
      * Will join the game, or return a STATUSMESSAGE if nickname is not OK.
-     * If client hasn't yet sent its version, assume is version 1.0.00, disconnect if too low.
+     * If client hasn't yet sent its version, assume is version 1.0.00 ({@link #CLI_VERSION_ASSUMED_GUESS}), disconnect if too low.
      * If the client is too old to join a specific game, return a STATUSMESSAGE. (since 1.1.06)
      *
      * @param c  the connection that sent the message
@@ -2880,11 +2921,11 @@ public class SOCServer extends Server
             D.ebugPrintln("handleJOINGAME: " + mes);
 
             /**
-             * Check the reported version; if none, assume 1000 (1.0.00)
+             * Check the client's reported version; if none, assume 1000 (1.0.00)
              */
             if (c.getVersion() == -1)
             {
-                if (! setClientVersionOrReject(c, 1000))
+                if (! setClientVersionOrReject(c, CLI_VERSION_ASSUMED_GUESS, false))
                     return;  // <--- Early return: Client too old ---
             }
 
@@ -2931,7 +2972,7 @@ public class SOCServer extends Server
              * If client's version is too low, connectToGame will throw an exception;
              * tell the client if that happens.
              */
-		final String gameName = mes.getGame();
+            final String gameName = mes.getGame();
 	    try
 	    {
 		if (connectToGame(c, gameName))
@@ -2955,7 +2996,7 @@ public class SOCServer extends Server
                 c.put(SOCStatusMessage.toCmd
                     (SOCStatusMessage.SV_CANT_JOIN_GAME_VERSION,
                      "Cannot join game, requires version "
-                     + Integer.toString(gameData.clientVersionMinRequired)
+                     + Integer.toString(gameData.getClientVersionMinRequired())
                      + ": " + gameName));
             }
         }
@@ -3518,7 +3559,16 @@ public class SOCServer extends Server
                                      * Build a Vector of StringConnections of robots asked
                                      * to join, and add it to the robotJoinRequests table.
                                      */
-                                    readyGameAskRobotsJoin(ga, null);
+                                    try
+                                    {
+                                        readyGameAskRobotsJoin(ga, null);
+                                    }
+                                    catch (IllegalStateException e)
+                                    {
+                                        String m = "Sorry, robots cannot join this game: " + e.getMessage();
+                                        messageToGame(gn, new SOCGameTextMsg(gn, SERVERNAME, m));
+                                        System.err.println("Robot-join problem in game " + gn + ": " + m);
+                                    }
                                 }
                             }
                         }
@@ -3533,7 +3583,7 @@ public class SOCServer extends Server
                         }
                     }
                 }
-                catch (Exception e)
+                catch (Throwable e)
                 {
                     D.ebugPrintStackTrace(e, "Exception caught");
                 }
@@ -3560,7 +3610,9 @@ public class SOCServer extends Server
      *                   is filled with the robot whose connection is robotSeats[i].
      *                   Other indexes should be null, and won't be used.
      *
-     * @throws IllegalStateException if ga.gamestate is not READY
+     * @throws IllegalStateException if {@link SOCGame#getGameState() ga.gamestate} is not READY,
+     *         or if {@link SOCGame#getClientVersionMinRequired() ga.version} is
+     *         somehow newer than server's version (which is robots' version).
      * @throws IllegalArgumentException if robotSeats is not null but wrong length,
      *           or if a robotSeat element is null but that seat wants a robot (vacant non-locked).
      */
@@ -3569,6 +3621,10 @@ public class SOCServer extends Server
     {
         if (ga.getGameState() != SOCGame.READY)
             throw new IllegalStateException("SOCGame state not READY: " + ga.getGameState());
+
+        if (ga.getClientVersionMinRequired() > Version.versionNumber())
+            throw new IllegalStateException("SOCGame version somehow newer than server and robots, it's "
+                    + ga.getClientVersionMinRequired());
 
         Vector robotRequests = null;
 

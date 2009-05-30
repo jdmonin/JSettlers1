@@ -263,9 +263,13 @@ public class SOCGame implements Serializable, Cloneable
     /**
      * For use at server; lowest version of client which can connect to
      * this game (based on game features added in a given version),
-     * or -1 if unknown
+     * or -1 if unknown.
+     * Format is same integer format as everywhere else, see {@link soc.util.Version#versionNumber()}.
+     *<P>
+     *<b>Reminder:</b> If you add new game features, please be sure that the
+     *   robot is also capable of understanding/using them.
      */
-    public int clientVersionMinRequired;
+    private int clientVersionMinRequired;
 
     /**
      * true if the game came from a board reset
@@ -481,6 +485,9 @@ public class SOCGame implements Serializable, Cloneable
         placingRobberForKnightCard = false;
         oldPlayerWithLongestRoad = new Stack();
         clientVersionMinRequired = -1;
+              // ** Reminder:** If you add new game features, please be sure that the
+              //    robot is also capable of understanding/using them.
+
         if (active)
             startTime = new Date();
     }
@@ -661,6 +668,22 @@ public class SOCGame implements Serializable, Cloneable
     public String getName()
     {
         return name;
+    }
+
+    /**
+     * For use at server; lowest version of client which can connect to
+     * this game (based on game features added in a given version),
+     * or -1 if unknown.
+     *<P>
+     *<b>Reminder:</b> If you add new game features, please be sure that the
+     *   robot is also capable of understanding/using them.
+     *
+     * @return game version, in same integer format as {@link soc.util.Version#versionNumber()}.
+     * @since 1.1.06
+     */
+    public int getClientVersionMinRequired()
+    {
+        return clientVersionMinRequired;
     }
 
     /**
