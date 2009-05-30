@@ -803,13 +803,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
         if (showPopupCannotJoin)
         {
-    		status.setText(STATUS_CANNOT_JOIN_THIS_GAME);
-    		// popup
-    		NotifyDialog.createAndShow(this, (SOCPlayerInterface) null,
-    		    STATUS_CANNOT_JOIN_THIS_GAME,
-    		    "Cancel", true);
+            status.setText(STATUS_CANNOT_JOIN_THIS_GAME);
+            // popup
+            NotifyDialog.createAndShow(this, (SOCPlayerInterface) null,
+                STATUS_CANNOT_JOIN_THIS_GAME,
+                "Cancel", true);
 
-    		return;
+            return;
         }
 
         if (target == nick)
@@ -825,309 +825,302 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * @param target Target as in actionPerformed
      * @return True if OK, false if caller needs to show popup "cannot join"
      */
-	private boolean guardedActionPerform_channels(Object target)
-	{
-		String ch;
+    private boolean guardedActionPerform_channels(Object target)
+    {
+        String ch;
 
-		if (target == jc) // "Join Channel" Button
-		{
-		    ch = channel.getText().trim();
+        if (target == jc) // "Join Channel" Button
+        {
+            ch = channel.getText().trim();
 
-		    if (ch.length() == 0)
-		    {
-		        try
-		        {
-		            ch = chlist.getSelectedItem().trim();
-		        }
-		        catch (NullPointerException ex)
-		        {
-		            return true;
-		        }
-		    }
-		}
-		else if (target == channel)
-		{
-		    ch = channel.getText().trim();
-		}
-		else
-		{
-		    try
-		    {
-		        ch = chlist.getSelectedItem().trim();
-		    }
-		    catch (NullPointerException ex)
-		    {
-		        return true;
-		    }
-		}
+            if (ch.length() == 0)
+            {
+                try
+                {
+                    ch = chlist.getSelectedItem().trim();
+                }
+                catch (NullPointerException ex)
+                {
+                    return true;
+                }
+            }
+        }
+        else if (target == channel)
+        {
+            ch = channel.getText().trim();
+        }
+        else
+        {
+            try
+            {
+                ch = chlist.getSelectedItem().trim();
+            }
+            catch (NullPointerException ex)
+            {
+                return true;
+            }
+        }
 
-		if (ch.length() == 0)
-		{
-		    return true;
-		}
+        if (ch.length() == 0)
+        {
+            return true;
+        }
 
-		if (ch.startsWith(GAMENAME_PREFIX_CANNOT_JOIN))
-		{
-			return false;
-		}
+        if (ch.startsWith(GAMENAME_PREFIX_CANNOT_JOIN))
+        {
+            return false;
+        }
 
-		ChannelFrame cf = (ChannelFrame) channels.get(ch);
+        ChannelFrame cf = (ChannelFrame) channels.get(ch);
 
-		if (cf == null)
-		{
-		    if (channels.isEmpty())
-		    {
-		        String n = nick.getText().trim();
+        if (cf == null)
+        {
+            if (channels.isEmpty())
+            {
+                String n = nick.getText().trim();
 
-		        if (n.length() == 0)
-		        {
-		            if (status.getText().equals(NEED_NICKNAME_BEFORE_JOIN))
-		                // Send stronger hint message
-		                status.setText(NEED_NICKNAME_BEFORE_JOIN_2);
-		            else
-		                // Send first hint message (or re-send first if they've seen _2)
-		                status.setText(NEED_NICKNAME_BEFORE_JOIN);
-		            return true;
-		        }
+                if (n.length() == 0)
+                {
+                    if (status.getText().equals(NEED_NICKNAME_BEFORE_JOIN))
+                        // Send stronger hint message
+                        status.setText(NEED_NICKNAME_BEFORE_JOIN_2);
+                    else
+                        // Send first hint message (or re-send first if they've seen _2)
+                        status.setText(NEED_NICKNAME_BEFORE_JOIN);
+                    return true;
+                }
 
-		        if (n.length() > 20)
-		        {
-		            nickname = n.substring(1, 20);
-		        }
-		        else
-		        {
-		            nickname = n;
-		        }
+                if (n.length() > 20)
+                {
+                    nickname = n.substring(1, 20);
+                }
+                else
+                {
+                    nickname = n;
+                }
 
-		        if (!gotPassword)
-		        {
-		            String p = pass.getText().trim();
+                if (!gotPassword)
+                {
+                    String p = pass.getText().trim();
 
-		            if (p.length() > 20)
-		            {
-		                password = p.substring(1, 20);
-		            }
-		            else
-		            {
-		                password = p;
-		            }
-		        }
-		    }
+                    if (p.length() > 20)
+                    {
+                        password = p.substring(1, 20);
+                    }
+                    else
+                    {
+                        password = p;
+                    }
+                }
+            }
 
-		    status.setText("Talking to server...");
-		    putNet(SOCJoin.toCmd(nickname, password, host, ch));
-		}
-		else
-		{
-		    cf.show();
-		}
+            status.setText("Talking to server...");
+            putNet(SOCJoin.toCmd(nickname, password, host, ch));
+        }
+        else
+        {
+            cf.show();
+        }
 
         channel.setText("");
         return true;
-	}
+    }
 
     /**
      * GuardedActionPerform when a games-related button or field is clicked
      * @param target Target as in actionPerformed
      * @return True if OK, false if caller needs to show popup "cannot join"
      */
-	private boolean guardedActionPerform_games(Object target)
-	{
-		String gm;
+    private boolean guardedActionPerform_games(Object target)
+    {
+        String gm;
 
-		if ((target == pg) || (target == pgm)) // "Practice Game" Buttons
-		{
-		    // If blank, fill in game and player names
+        if ((target == pg) || (target == pgm)) // "Practice Game" Buttons
+        {
+            // If blank, fill in game and player names
 
-		    gm = game.getText().trim();
-		    if (gm.length() == 0)
-		    {
-		        gm = DEFAULT_PRACTICE_GAMENAME;
-		        game.setText(gm);
-		    }
+            gm = game.getText().trim();
+            if (gm.length() == 0)
+            {
+                gm = DEFAULT_PRACTICE_GAMENAME;
+                game.setText(gm);
+            }
 
-		    if (0 == nick.getText().trim().length())
-		    {
-		        nick.setText(DEFAULT_PLAYER_NAME);
-		    }
-		}
-		else if (target == jg) // "Join Game" Button
-		{
-		    gm = game.getText().trim();
+            if (0 == nick.getText().trim().length())
+            {
+                nick.setText(DEFAULT_PLAYER_NAME);
+            }
+        }
+        else if (target == jg) // "Join Game" Button
+        {
+            gm = game.getText().trim();
 
-		    if (gm.length() == 0)
-		    {
-		        try
-		        {
-		            gm = gmlist.getSelectedItem().trim();
-		        }
-		        catch (NullPointerException ex)
-		        {
-		            return true;
-		        }
-		    }
-
-		    boolean unjoinablePrefix = gm.startsWith(GAMENAME_PREFIX_CANNOT_JOIN);
-		    if (unjoinablePrefix || gamesUnjoinable.containsKey(gm))
-		    {
-		    	// Game is marked as un-joinable by this client.
-
-		    	if (unjoinablePrefix)
-		    		gm = gm.substring(GAMENAME_PREFIX_CANNOT_JOIN.length());
-		    	if (! gamesUnjoinableOverride.containsKey(gm))
-    			{
-			    	gamesUnjoinableOverride.put(gm, gm);  // Next click will try override
-			    	return false;
-    			}
-
-		    	// Attempt to join anyway.
-		    	// Continue to process the game name, without prefix.
-		    }
-		}
-		else if (target == game)
-		{
-		    gm = game.getText().trim();
-		}
-		else
-		{
-		    try
-		    {
-		        gm = gmlist.getSelectedItem().trim();
-		    }
-		    catch (NullPointerException ex)
-		    {
-		        return true;
-		    }
-		}
-
-		// System.out.println("GM = |"+gm+"|");
-		if (gm.length() == 0)
-		{
-		    return true;
-		}
-
-		// Can we not join that game?
-		if (gamesUnjoinable.containsKey(gm))
-		{
-	    	if (! gamesUnjoinableOverride.containsKey(gm))
-			{
-		    	gamesUnjoinableOverride.put(gm, gm);  // Next click will try override
-		    	return false;
-			}
+            if (gm.length() == 0)
+            {
+                try
+                {
+                    gm = gmlist.getSelectedItem().trim();
+                }
+                catch (NullPointerException ex)
+                {
+                    return true;
+                }
+            }
+        }
+        else if (target == game)
+        {
+            gm = game.getText().trim();
+        }
+        else
+        {
+            // game list
+            try
+            {
+                gm = gmlist.getSelectedItem().trim();
+            }
+            catch (NullPointerException ex)
+            {
+                return true;
+            }
         }
 
-		// Are we already in a game with that name?
-		SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gm);
+        final boolean unjoinablePrefix = gm.startsWith(GAMENAME_PREFIX_CANNOT_JOIN);
+        if (unjoinablePrefix)
+        {
+            // Game is marked as un-joinable by this client. Remember that,
+            // then continue to process the game name, without prefix.
 
-		if ((pi == null)
-		    && ((target == pg) || (target == pgm))
-		    && (practiceServer != null)
-		    && (gm.equalsIgnoreCase(DEFAULT_PRACTICE_GAMENAME)))
-		{
-		    // Practice game requested, no game named "Practice" already exists.
-		    // Check for other active practice games. (Could be "Practice 2")
-		    pi = findAnyActiveGame(true);
-		}
+            gm = gm.substring(GAMENAME_PREFIX_CANNOT_JOIN.length());
+        }
 
-		if ((pi != null) && ((target == pg) || (target == pgm)))
-		{
-		    // Practice game requested, already exists.
-		    //
-		    // Ask the player if they want to join, or start a new game.
-		    // If we're from the error panel (pgm), there's no way to
-		    // enter a game name; make a name up if needed.
-		    // If we already have a game going, our nickname is not empty.
-		    // So, it's OK to not check that here or in the dialog.
+        // System.out.println("GM = |"+gm+"|");
+        if (gm.length() == 0)
+        {
+            return true;
+        }
 
-		    // Is the game over yet?
-		    if (pi.getGame().getGameState() == SOCGame.OVER)
-		    {
-		        // No point joining, just start a new one.
-		        startPracticeGame();
-		    }
-		    else
-		    {
-		        new SOCPracticeAskDialog(this, pi).show();
-		    }
+        // Can we not join that game?
+        if (unjoinablePrefix || gamesUnjoinable.containsKey(gm))
+        {
+            if (! gamesUnjoinableOverride.containsKey(gm))
+            {
+                gamesUnjoinableOverride.put(gm, gm);  // Next click will try override
+                return false;
+            }
+        }
 
-		    return true;
-		}
+        // Are we already in a game with that name?
+        SOCPlayerInterface pi = (SOCPlayerInterface) playerInterfaces.get(gm);
 
-		if (pi == null)
-		{
-		    if (games.isEmpty())
-		    {
-		        String n = nick.getText().trim();
+        if ((pi == null)
+                && ((target == pg) || (target == pgm))
+                && (practiceServer != null)
+                && (gm.equalsIgnoreCase(DEFAULT_PRACTICE_GAMENAME)))
+        {
+            // Practice game requested, no game named "Practice" already exists.
+            // Check for other active practice games. (Could be "Practice 2")
+            pi = findAnyActiveGame(true);
+        }
 
-		        if (n.length() == 0)
-		        {
-		            if (status.getText().equals(NEED_NICKNAME_BEFORE_JOIN))
-		                // Send stronger hint message
-		                status.setText(NEED_NICKNAME_BEFORE_JOIN_2);
-		            else
-		                // Send first hint message (or re-send first if they've seen _2)
-		                status.setText(NEED_NICKNAME_BEFORE_JOIN);
-		            return true;
-		        }
+        if ((pi != null) && ((target == pg) || (target == pgm)))
+        {
+            // Practice game requested, already exists.
+            //
+            // Ask the player if they want to join, or start a new game.
+            // If we're from the error panel (pgm), there's no way to
+            // enter a game name; make a name up if needed.
+            // If we already have a game going, our nickname is not empty.
+            // So, it's OK to not check that here or in the dialog.
 
-		        if (n.length() > 20)
-		        {
-		            nickname = n.substring(1, 20);
-		        }
-		        else
-		        {
-		            nickname = n;
-		        }
+            // Is the game over yet?
+            if (pi.getGame().getGameState() == SOCGame.OVER)
+            {
+                // No point joining, just start a new one.
+                startPracticeGame();
+            }
+            else
+            {
+                new SOCPracticeAskDialog(this, pi).show();
+            }
 
-		        if (!gotPassword)
-		        {
-		            String p = pass.getText().trim();
+            return true;
+        }
 
-		            if (p.length() > 20)
-		            {
-		                password = p.substring(1, 20);
-		            }
-		            else
-		            {
-		                password = p;
-		            }
-		        }
-		    }
+        if (pi == null)
+        {
+            if (games.isEmpty())
+            {
+                String n = nick.getText().trim();
 
-		    int endOfName = gm.indexOf(STATSPREFEX);
+                if (n.length() == 0)
+                {
+                    if (status.getText().equals(NEED_NICKNAME_BEFORE_JOIN))
+                        // Send stronger hint message
+                        status.setText(NEED_NICKNAME_BEFORE_JOIN_2);
+                    else
+                        // Send first hint message (or re-send first if they've seen _2)
+                        status.setText(NEED_NICKNAME_BEFORE_JOIN);
+                    return true;
+                }
 
-		    if (endOfName > 0)
-		    {
-		        gm = gm.substring(0, endOfName);
-		    }
+                if (n.length() > 20)
+                {
+                    nickname = n.substring(1, 20);
+                }
+                else
+                {
+                    nickname = n;
+                }
 
-		    if (((target == pg) || (target == pgm)) && (null == ex_L))
-		    {
-		        if (target == pg)
-		        {
-		            status.setText("Starting practice game setup...");
-		        }
-		        startPracticeGame(gm, true);  // Also sets WAIT_CURSOR
-		    }
-		    else
-		    {
-		        status.setText("Talking to server...");
-		        putNet(SOCJoinGame.toCmd(nickname, password, host, gm));
+                if (!gotPassword)
+                {
+                    String p = pass.getText().trim();
 
-		        // May take a while for server to start game.
-		        // The new-game window will clear this cursor
-		        // (SOCPlayerInterface constructor)
-		        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-		    }
-		}
-		else
-		{
-		    pi.show();
-		}
+                    if (p.length() > 20)
+                    {
+                        password = p.substring(1, 20);
+                    }
+                    else
+                    {
+                        password = p;
+                    }
+                }
+            }
 
-		game.setText("");
-		return true;
-	}
+            int endOfName = gm.indexOf(STATSPREFEX);
+
+            if (endOfName > 0)
+            {
+                gm = gm.substring(0, endOfName);
+            }
+
+            if (((target == pg) || (target == pgm)) && (null == ex_L))
+            {
+                if (target == pg)
+                {
+                    status.setText("Starting practice game setup...");
+                }
+                startPracticeGame(gm, true);  // Also sets WAIT_CURSOR
+            }
+            else
+            {
+                status.setText("Talking to server...");
+                putNet(SOCJoinGame.toCmd(nickname, password, host, gm));
+
+                // May take a while for server to start game.
+                // The new-game window will clear this cursor
+                // (SOCPlayerInterface constructor)
+                setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            }
+        }
+        else
+        {
+            pi.show();
+        }
+
+        game.setText("");
+        return true;
+    }
 
     /**
      * Look for active games that we're playing
@@ -2215,7 +2208,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             }
 
             /**
-             * update the hand panel
+             * update the hand panel's displayed values
              */
             final SOCHandPanel hp = pi.getPlayerHandPanel(mesPN);
             hp.updateValue(SOCHandPanel.ROADS);
