@@ -38,6 +38,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.Label;
 import java.awt.List;
 import java.awt.MenuItem;
@@ -55,8 +56,10 @@ import java.util.TimerTask;
  * This panel displays a player's information.
  * If the player is us, then more information is
  * displayed than in another player's hand panel.
- *
- * Custom layout: @see #doLayout()
+ *<P>
+ * Custom layout: see {@link #doLayout()}.
+ * When you move this around, please use {@link #setBounds(int, int, int, int)},
+ * because it is overridden to also update {@link #getBlankStandIn()}.
  */
 public class SOCHandPanel extends Panel implements ActionListener
 {
@@ -116,6 +119,15 @@ public class SOCHandPanel extends Panel implements ActionListener
     /** Player name background color when current player (foreground does not change) */
     protected Color pnameActiveBG;
 
+    /**
+     * Blank area which is normally hidden, except during addPlayer when handpanel is hidden.
+     * This prevents a big black area on the display (which looks like a crash).
+     * For perf/display-bugs during component layout (OSX firefox).
+     * Added to pi's layout by {@link SOCPlayerInterface#initInterfaceElements(boolean)}.
+     * @since 1.1.06
+     */
+    private ColorSquare blankStandIn;
+
     protected Button sitBut;
     protected Button robotBut;
     protected Button startBut;
@@ -148,6 +160,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Label sheepLab;
     protected Label wheatLab;
     protected Label woodLab;
+
     /**
      * For right-click resource to trade - If playerIsClient, track cost
      * of bank/port trade per resource. Index 0 unused; index 1 is
@@ -155,6 +168,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      * Null, unless playerIsClient and addPlayer has been called.
      */
     protected int[] resourceTradeCost;
+
     /**
      * For right-click resource to trade - If playerIsClient, popup menus
      * to bank/port trade resources. Index 0 unused; index 1 is
@@ -162,6 +176,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      * Null, unless playerIsClient and addPlayer has been called.
      */
     protected ResourceTradeTypeMenu[] resourceTradeMenu;
+
     protected ColorSquare settlementSq;
     protected ColorSquare citySq;
     protected ColorSquare roadSq;
@@ -181,6 +196,7 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected Label giveLab;
     protected Label getLab;
     protected Button sendBut;
+
     /**
      * Hint for "Offer" button; non-null only if interactive.
      * @see #SENDBUTTIP_DIS
@@ -206,19 +222,25 @@ public class SOCHandPanel extends Panel implements ActionListener
     protected boolean rollPromptInUse;
     protected TimerTask autoRollTimerTask;  // Created every turn when countdown needed
     protected Button rollBut;
+
     /** "Done" with turn during play; also "Restart" for board reset at end of game */
     protected Button doneBut;
+
     /** True when {@link #doneBut}'s label is Restart ({@link #DONE_RESTART}) */
     protected boolean doneButIsRestart; 
+
     protected Button quitBut;
     protected SOCPlayerInterface playerInterface;
     protected SOCPlayerClient client;
     protected SOCGame game;
     protected SOCPlayer player;
+
     /** Does this panel represent our client's own hand?  If true, implies {@link #interactive}. */
     protected boolean playerIsClient;
+
     /** Is this panel's player the game's current player?  Used for hilight - set in updateAtTurn() */
     protected boolean playerIsCurrent;
+
     /** Do we have any seated player? Set by {@link #addPlayer(String)}, cleared by {@link #removePlayer()}. */
     protected boolean inPlay;
 
@@ -288,7 +310,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
     /**
      * Stuff to do when a SOCHandPanel is created.
-     *   Calls removePlayer() as part of creation.
+     *   Calls {@link #removePlayer()} as part of creation.
      *
      * @param pi   player interface
      * @param pl   the player data
@@ -306,9 +328,14 @@ public class SOCHandPanel extends Panel implements ActionListener
 
         // Note no AWT layout is used - custom layout, see doLayout().
 
-        setBackground(playerInterface.getPlayerColor(player.getPlayerNumber()));
+        final Color pcolor = playerInterface.getPlayerColor(player.getPlayerNumber());
+        setBackground(pcolor);
         setForeground(COLOR_FOREGROUND);
         setFont(new Font("Helvetica", Font.PLAIN, 10));
+
+        blankStandIn = new ColorSquare(ColorSquare.CHECKBOX, false, pcolor);
+        blankStandIn.setVisible(false);
+        // playerinterface.initInterfaceElements will add blankStandIn to its layout, and set its size/position.
 
         faceImg = new SOCFaceButton(playerInterface, player.getPlayerNumber());
         add(faceImg);
@@ -327,7 +354,7 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(vpLab);
         vpSq = new ColorSquare(ColorSquare.GREY, 0);
         vpSq.setTooltipText("Total victory points for this opponent");
-        vpSq.setTooltipHighWarningLevel("Close to winning", 8);  // TODO assumes playing until 10 (hardcoded in SOCGame.checkForWinner) - SOCGame.VP_WINNER
+        vpSq.setTooltipHighWarningLevel("Close to winning", SOCGame.VP_WINNER - 2);  // (win checked in SOCGame.checkForWinner)
         add(vpSq);
 
         larmyLab = new Label("", Label.CENTER);
@@ -935,6 +962,10 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void removePlayer()
     {
+        if (blankStandIn != null)
+            blankStandIn.setVisible(true);
+        setVisible(false);
+
         //D.ebugPrintln("REMOVE PLAYER");
         //D.ebugPrintln("NAME = "+player.getName());
         vpLab.setVisible(false);
@@ -1040,6 +1071,9 @@ public class SOCHandPanel extends Panel implements ActionListener
         inPlay = false;
 
         validate();
+        if (blankStandIn != null)
+            blankStandIn.setVisible(false);
+        setVisible(true);
         repaint();
     }
 
@@ -1060,6 +1094,10 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void addPlayer(String name)
     {
+        if (blankStandIn != null)
+            blankStandIn.setVisible(true);
+        setVisible(false);
+
         /* This is visible for both our hand and opponent hands */
         if (! game.isBoardReset())
         {
@@ -1125,7 +1163,8 @@ public class SOCHandPanel extends Panel implements ActionListener
             resourceTradeCost = new int[6];
             if (resourceTradeMenu != null)
             {
-                // Forgot to call removePlayer
+                // Must have forgot to call removePlayer;
+                //   clean it up now
                 for (int i = 0; i < resourceTradeMenu.length; ++i)
                 {
                     if (resourceTradeMenu[i] != null)
@@ -1225,6 +1264,9 @@ public class SOCHandPanel extends Panel implements ActionListener
         inPlay = true;
 
         validate();
+        if (blankStandIn != null)
+            blankStandIn.setVisible(false);
+        setVisible(true);
         repaint();
     }
 
@@ -2082,6 +2124,26 @@ public class SOCHandPanel extends Panel implements ActionListener
     }
 
     /**
+     * For {@link SOCPlayerInterface}'s use, to set its size and position
+     * @return the stand-in blank colorsquare: not a subcomponent, but shows up when handpanel is hidden
+     * @see #setBounds(int, int, int, int)
+     */
+    public ColorSquare getBlankStandIn()
+    {
+        return blankStandIn;
+    }
+
+    /**
+     * Overriden to also update {@link #getBlankStandIn()} bounds.
+     */
+    public void setBounds(int x, int y, int width, int height)
+    {
+        super.setBounds(x, y, width, height);
+        if (blankStandIn != null)
+            blankStandIn.setBounds(x, y, width, height);
+    }
+
+    /**
      * Custom layout for player hand panel.
      */
     public void doLayout()
@@ -2132,15 +2194,15 @@ public class SOCHandPanel extends Panel implements ActionListener
                 // Always reposition everything
                 startBut.setBounds(inset + faceW + inset, inset + lineH + space, dim.width - (inset + faceW + inset + inset), lineH);
 
-                    int vpW = fm.stringWidth(vpLab.getText().replace(' ','_'));  //Bug in stringWidth
-                    vpLab.setBounds(inset + faceW + inset, (inset + faceW) - lineH, vpW, lineH);
-                    vpSq.setBounds(inset + faceW + inset + vpW + space, (inset + faceW) - lineH, ColorSquare.WIDTH, ColorSquare.WIDTH);
+                int vpW = fm.stringWidth(vpLab.getText().replace(' ','_'));  //Bug in stringWidth
+                vpLab.setBounds(inset + faceW + inset, (inset + faceW) - lineH, vpW, lineH);
+                vpSq.setBounds(inset + faceW + inset + vpW + space, (inset + faceW) - lineH, ColorSquare.WIDTH, ColorSquare.WIDTH);
 
-                    int topStuffW = inset + faceW + inset + vpW + space + ColorSquare.WIDTH + space;
+                int topStuffW = inset + faceW + inset + vpW + space + ColorSquare.WIDTH + space;
 
-                    // always position these: though they may not be visible
-                    larmyLab.setBounds(topStuffW, (inset + faceW) - lineH, (dim.width - (topStuffW + inset + space)) / 2, lineH);
-                    lroadLab.setBounds(topStuffW + ((dim.width - (topStuffW + inset + space)) / 2) + space, (inset + faceW) - lineH, (dim.width - (topStuffW + inset + space)) / 2, lineH);
+                // always position these: though they may not be visible
+                larmyLab.setBounds(topStuffW, (inset + faceW) - lineH, (dim.width - (topStuffW + inset + space)) / 2, lineH);
+                lroadLab.setBounds(topStuffW + ((dim.width - (topStuffW + inset + space)) / 2) + space, (inset + faceW) - lineH, (dim.width - (topStuffW + inset + space)) / 2, lineH);
 
                 giveLab.setBounds(inset, tradeY, giveW, lineH);
                 getLab.setBounds(inset, tradeY + ColorSquareLarger.HEIGHT_L, giveW, lineH);
@@ -2153,9 +2215,9 @@ public class SOCHandPanel extends Panel implements ActionListener
                 clearBut.setBounds(tbX, tbY + lineH + space, tbW, lineH);
                 bankBut.setBounds(tbX + tbW + space, tbY + lineH + space, tbW, lineH);
 
-                    playerSend[0].setBounds(tbX + tbW + space, tbY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
-                    playerSend[1].setBounds(tbX + tbW + space + ((tbW - ColorSquare.WIDTH) / 2), tbY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
-                    playerSend[2].setBounds((tbX + tbW + space + tbW) - ColorSquare.WIDTH, tbY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
+                playerSend[0].setBounds(tbX + tbW + space, tbY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
+                playerSend[1].setBounds(tbX + tbW + space + ((tbW - ColorSquare.WIDTH) / 2), tbY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
+                playerSend[2].setBounds((tbX + tbW + space + tbW) - ColorSquare.WIDTH, tbY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
 
                 knightsLab.setBounds(dim.width - inset - knightsW - ColorSquare.WIDTH - space, tradeY, knightsW, lineH);
                 knightsSq.setBounds(dim.width - inset - ColorSquare.WIDTH, tradeY, ColorSquare.WIDTH, ColorSquare.HEIGHT);
@@ -2422,7 +2484,8 @@ public class SOCHandPanel extends Panel implements ActionListener
             }
             return tname;
         }
-    }
+
+    }  // ResourceTradeMenuItem
 
     /**
      * Menu for right-click on resource square to trade with bank/port.

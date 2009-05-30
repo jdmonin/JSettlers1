@@ -167,7 +167,7 @@ public class ColorSquare extends Canvas implements MouseListener
      * A tooltip with the resource name is created if c is one of the
      * resource colors defined in ColorSquare (CLAY, WHEAT, etc).
      *
-     * @param k Kind: NUMBER, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
+     * @param k Kind: {@link #NUMBER}, YES_NO, CHECKBOX, BOUNDED_INC, BOUNDED_DEC
      * @param in interactive flag allowing user interaction
      * @param c background color
      * @see #ColorSquare(int, boolean, Color, int, int)
@@ -654,6 +654,21 @@ public class ColorSquare extends Canvas implements MouseListener
     public Dimension getMinimumSize()
     {
         return squareSize;
+    }
+
+    /**
+     * Set bounds (position and size).
+     */
+    public void setBounds(int x, int y, int w, int h)
+    {
+        squareW = w;
+        squareH = h;
+        if (squareSize != null)
+        {
+            squareSize.width = w;
+            squareSize.height = h;
+        }
+        super.setBounds(x, y, w, h);
     }
 
     /**
