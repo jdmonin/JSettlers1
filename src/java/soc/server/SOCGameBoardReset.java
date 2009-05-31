@@ -72,8 +72,8 @@ public class SOCGameBoardReset
      */
     public SOCGameBoardReset (SOCGame oldGame, Vector memberConns)
     {
-    	oldGameState = oldGame.getGameState();
-    	hadRobots = false;
+        oldGameState = oldGame.getGameState();
+        hadRobots = false;
         wasRobot = new boolean[SOCGame.MAXPLAYERS];
         for (int i = 0; i < SOCGame.MAXPLAYERS; ++i)
         {

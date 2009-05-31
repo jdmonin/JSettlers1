@@ -711,14 +711,14 @@ public class SOCRobotClient extends SOCDisplaylessPlayerClient
      */
     protected void handleSTATUSMESSAGE(SOCStatusMessage mes)
     {
-    	final int sv = mes.getStatusValue();
-    	if ((sv != 0) || ! printedInitialWelcome)
-    	{
-    		System.err.println("Robot " + getNickname() + ": Status "
-    				+ sv + " from server: " + mes.getStatus());
-    		if (sv == 0)
-    			printedInitialWelcome = true;
-    	}
+        final int sv = mes.getStatusValue();
+        if ((sv != 0) || ! printedInitialWelcome)
+        {
+            System.err.println("Robot " + getNickname() + ": Status "
+                + sv + " from server: " + mes.getStatus());
+            if (sv == 0)
+                printedInitialWelcome = true;
+        }
     }
 
     /**
