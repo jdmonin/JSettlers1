@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007,2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,7 +58,7 @@ import java.util.TimerTask;
  * displayed than in another player's hand panel.
  *<P>
  * Custom layout: see {@link #doLayout()}.
- * When you move this around, please use {@link #setBounds(int, int, int, int)},
+ * To set this panel's position or size, please use {@link #setBounds(int, int, int, int)},
  * because it is overridden to also update {@link #getBlankStandIn()}.
  */
 public class SOCHandPanel extends Panel implements ActionListener
@@ -354,7 +354,12 @@ public class SOCHandPanel extends Panel implements ActionListener
         add(vpLab);
         vpSq = new ColorSquare(ColorSquare.GREY, 0);
         vpSq.setTooltipText("Total victory points for this opponent");
-        vpSq.setTooltipHighWarningLevel("Close to winning", SOCGame.VP_WINNER - 2);  // (win checked in SOCGame.checkForWinner)
+        if (SOCGame.VP_WINNER <= 12)
+        {
+            vpSq.setTooltipHighWarningLevel("Close to winning", SOCGame.VP_WINNER - 2);  // (win checked in SOCGame.checkForWinner)
+        } else {
+            vpSq.setTooltipHighWarningLevel("Close to winning", SOCGame.VP_WINNER - 3);
+        }
         add(vpSq);
 
         larmyLab = new Label("", Label.CENTER);
@@ -1615,12 +1620,12 @@ public class SOCHandPanel extends Panel implements ActionListener
             {
                 if (! (offerIsResetMessage || offerIsDiscardMessage))
                 {
-                	if (! playerIsClient)
-                	{
+                    if (! playerIsClient)
+                    {
                         offer.setOffer(currentOffer);
-	                    offer.setVisible(true);
-	                    offer.repaint();
-                	}
+                        offer.setVisible(true);
+                        offer.repaint();
+                    }
                 }
                 else
                     offerIsMessageWasTrade = true;  // Will show after voting
@@ -1637,8 +1642,8 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     public void rejectOffer()
     {
-    	if (playerIsClient)
-    		return;
+        if (playerIsClient)
+            return;
         offer.setMessage("No thanks.");
         offer.setVisible(true);
         //validate();
@@ -1719,9 +1724,9 @@ public class SOCHandPanel extends Panel implements ActionListener
      */
     private void tradeSetMessage(String message)
     {
-    	if (playerIsClient)
-    		return;
-    	if (message != null)
+        if (playerIsClient)
+            return;
+        if (message != null)
         {
             offerIsMessageWasTrade = (offer.isVisible() && (offer.getMode() == TradeOfferPanel.OFFER_MODE));
             offer.setMessage(message);
@@ -2127,6 +2132,7 @@ public class SOCHandPanel extends Panel implements ActionListener
      * For {@link SOCPlayerInterface}'s use, to set its size and position
      * @return the stand-in blank colorsquare: not a subcomponent, but shows up when handpanel is hidden
      * @see #setBounds(int, int, int, int)
+     * @since 1.1.06
      */
     public ColorSquare getBlankStandIn()
     {
@@ -2135,6 +2141,7 @@ public class SOCHandPanel extends Panel implements ActionListener
 
     /**
      * Overriden to also update {@link #getBlankStandIn()} bounds.
+     * @since 1.1.06
      */
     public void setBounds(int x, int y, int width, int height)
     {
