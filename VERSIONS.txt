@@ -4,17 +4,17 @@ Unless otherwise indicated, versions are hosted at http://nand.net/jsettlers/dev
 
     > 1.1.06 (build 2009-06-??)
 - Based on 1.1.04's code
-- Bugfix: Hangs on mac osx 10.5 after a few minutes (SnippingTextArea)
 - Track and understand client version starting from connect time, not just from joingame time.
-- Can deny entry to game based on client's version (ex. client too old to understand a recent game feature, like 6 players)
+- Can deny entry to individual games based on client's version (ex. client too old to understand a recent game feature, like 6 players)
 - Fewer debug messages from robots during idle hours
 - Monopoly reports (privately) number of resources stolen from each victim
 - Reset practice game, at end of game: New randomly-selected robots, instead of same robots each time
 - STATUSMESSAGE can now carry an integer status value
 - Many javadocs added
-- Fix harmless NullPointerException in SOCBoardPanel.setHoverText for getFontMetrics
+- Bugfix: Hangs on mac osx 10.5 after a few minutes (SnippingTextArea)
 - Bugfix: After disconnect/rejoin, trade offer panel overlays your controls
-- Bugfix: "Start a local server" ignored port-number textfield, was always 8880
+- Bugfix: "Start a local server" ignored port-number textfield, was always default port
+- Bugfix: harmless NullPointerException in SOCBoardPanel.setHoverText for getFontMetrics
 
     > 1.1.05 (backed out)
 JSettlers 1.1.05 had been under development (2008-09-13) but its direction is being re-considered.
