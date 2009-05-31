@@ -21,12 +21,10 @@
  **/
 package soc.client;
 
-import java.applet.Applet;
 import java.awt.BorderLayout;
 import java.awt.Button;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -134,6 +132,7 @@ public abstract class AskDialog extends Dialog
      * Creates a new AskDialog with one button, not about a specific game.
      * For use by {@link NotifyDialog}.
      * parentFr cannot be null; use {@link #getParentFrame(Component)} to find it.
+     * @since 1.1.06
      */
     protected AskDialog(SOCPlayerClient cli, Frame parentFr,
         String titlebar, String prompt, String btnText,
@@ -235,13 +234,13 @@ public abstract class AskDialog extends Dialog
             throw new IllegalArgumentException("cli cannot be null");
         if (parentFr == null)
             throw new IllegalArgumentException("parentFr cannot be null");
-    	if (choice1 == null)
+        if (choice1 == null)
             throw new IllegalArgumentException("choice1 cannot be null");
         if ((defaultChoice < 0) || (defaultChoice > 3))
-            throw new IllegalArgumentException("defaultChoice out of range: " + defaultChoice);	
+            throw new IllegalArgumentException("defaultChoice out of range: " + defaultChoice);
         if ((choice3 == null) && (defaultChoice == 3))
             throw new IllegalArgumentException("defaultChoice cannot be 3 when choice3 null");
-		if ((choice2 == null) && (defaultChoice > 1))
+        if ((choice2 == null) && (defaultChoice > 1))
             throw new IllegalArgumentException("defaultChoice must be 1 when choice2 null");
 
         pcli = cli;
@@ -285,17 +284,17 @@ public abstract class AskDialog extends Dialog
         pBtns.add(choice1But);
         choice1But.addActionListener(this);
 
-	if (choice2But != null)
-	{
-	    pBtns.add(choice2But);
-	    choice2But.addActionListener(this);
+        if (choice2But != null)
+        {
+            pBtns.add(choice2But);
+            choice2But.addActionListener(this);
 
-	    if (choice3But != null)
-	    {
-		pBtns.add(choice3But);
-		choice3But.addActionListener(this);            
-	    }
-	}
+            if (choice3But != null)
+            {
+                pBtns.add(choice3But);
+                choice3But.addActionListener(this);            
+            }
+        }
 
         add(pBtns, BorderLayout.CENTER);
 
@@ -320,12 +319,12 @@ public abstract class AskDialog extends Dialog
         addMouseListener(this);   // for mouseEntered size-check
         addKeyListener(this);     // To handle Enter, Esc keys.
         choice1But.addKeyListener(this);  // (win32: Keyboard focus will be on these buttons)
-	if (choice2But != null)
-	{
-	    choice2But.addKeyListener(this);
-	    if (choice3But != null)
-		choice3But.addKeyListener(this);
-	}
+        if (choice2But != null)
+        {
+            choice2But.addKeyListener(this);
+            if (choice3But != null)
+                choice3But.addKeyListener(this);
+        }
     }
 
     /**
@@ -554,21 +553,29 @@ public abstract class AskDialog extends Dialog
      * Gets the top-level frame of c.
      * All windows and applets should have one.
      * @param c The Component.
-     * @return The parent-frame, or null.
+     * @return The parent-frame
      * @since 1.1.06
+     * @throws IllegalStateException if we find a null parent
+     *         before a Frame, or if any parent == itself
      */
-    public static Frame getParentFrame( Component c )
+    public static Frame getParentFrame(Component c)
+        throws IllegalStateException
     {
-      Component last;
-      while (! (c instanceof Frame))
-      {
-        last = c;
-        c = c.getParent();
-        if (c == null)
-          throw new IllegalStateException("Assert failed, parent should not be null; last: "
-                  + last.getClass().getName() + " " + last );
-      }
-      return (Frame) c;
+        String throwMsg = null;
+        Component last;
+        while (! (c instanceof Frame))
+        {
+            last = c;
+            c = c.getParent();
+            if (c == null)
+                throwMsg = "Assert failed, parent should not be null; last: ";
+            else if (c == last)
+                throwMsg = "Assert failed, parent == itself: ";
+            if (throwMsg != null)
+                throw new IllegalStateException
+                    (throwMsg + last.getClass().getName() + " " + last);
+        }
+        return (Frame) c;
     }
 
 }
