@@ -24,7 +24,11 @@ package soc.message;
 
 /**
  * This is a text message that shows in a status box on the client.
- * Used for "welcome" message at initial connect to game (follows JOINAUTH).
+ * Used for "welcome" message at initial connect to game (follows
+ * {@link SOCJoinAuth JOINAUTH} or {@link SOCJoinGameAuth JOINGAMEAUTH}),
+ * or rejection if client can't join that game (or channel).
+ * Also used in {@link soc.client.SOCAccountClient SOCAccountClient}
+ * to tell the user if their change was made successfully.
  *<P>
  * <b>Added in Version 1.1.06:</b>
  * Status value parameter (nonnegative integer).
@@ -116,7 +120,7 @@ public class SOCStatusMessage extends SOCMessage
      */
     public SOCStatusMessage(String st)
     {
-    	this (0, st);
+        this (0, st);
     }
 
     /**
@@ -146,7 +150,7 @@ public class SOCStatusMessage extends SOCMessage
      */
     public int getStatusValue()
     {
-    	return svalue;
+        return svalue;
     }
 
     /**
@@ -156,7 +160,7 @@ public class SOCStatusMessage extends SOCMessage
      */
     public String toCmd()
     {
-	return toCmd(svalue, status);
+        return toCmd(svalue, status);
     }
 
     /**
@@ -169,16 +173,16 @@ public class SOCStatusMessage extends SOCMessage
      */
     public static String toCmd(int sv, String st)
     {
-    	StringBuffer sb = new StringBuffer();
-    	sb.append(STATUSMESSAGE);
-    	sb.append(sep);
-    	if (sv > 0)
-    	{
-	    sb.append(sv);
-	    sb.append(sep2);
-    	}
-    	sb.append(st);
-    	return sb.toString();
+        StringBuffer sb = new StringBuffer();
+        sb.append(STATUSMESSAGE);
+        sb.append(sep);
+        if (sv > 0)
+        {
+            sb.append(sv);
+            sb.append(sep2);
+        }
+        sb.append(st);
+        return sb.toString();
     }
 
     /**
@@ -189,29 +193,29 @@ public class SOCStatusMessage extends SOCMessage
      */
     public static SOCStatusMessage parseDataStr(String s)
     {
-    	int sv = 0;
-    	int i = s.indexOf(sep2);
-    	if (i != -1)
-    	{
-	    if (i > 0)
-	    {
-		try
-		{
-		    sv = Integer.parseInt(s.substring(0, i));
-		    if (sv < 0)
-			sv = 0;
-		}
-		catch (NumberFormatException e)
-		{
-			// continue with sv=0, don't strip the string
-			i = -1;
-		}
-	    } else {
-		return null;   // Garbled: Started with sep2
-	    }
-	    s = s.substring(i + 1);
-    	}
-	return new SOCStatusMessage(sv, s);
+        int sv = 0;
+        int i = s.indexOf(sep2);
+        if (i != -1)
+        {
+            if (i > 0)
+            {
+                try
+                {
+                    sv = Integer.parseInt(s.substring(0, i));
+                    if (sv < 0)
+                        sv = 0;
+                }
+                catch (NumberFormatException e)
+                {
+                    // continue with sv=0, don't strip the string
+                    i = -1;
+                }
+            } else {
+                return null;   // Garbled: Started with sep2
+            }
+            s = s.substring(i + 1);
+        }
+        return new SOCStatusMessage(sv, s);
     }
 
     /**
@@ -219,16 +223,16 @@ public class SOCStatusMessage extends SOCMessage
      */
     public String toString()
     {
-    	StringBuffer sb = new StringBuffer("SOCStatusMessage:");
-    	if (svalue > 0)
-    	{
-	    sb.append("sv=");
-	    sb.append(svalue);
-	    sb.append(sep2);
-    	}
-    	sb.append("status=");
-    	sb.append(status);
-    	return sb.toString();
+        StringBuffer sb = new StringBuffer("SOCStatusMessage:");
+        if (svalue > 0)
+        {
+            sb.append("sv=");
+            sb.append(svalue);
+            sb.append(sep2);
+        }
+        sb.append("status=");
+        sb.append(status);
+        return sb.toString();
     }
 
 }

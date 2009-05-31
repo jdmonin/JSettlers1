@@ -1,7 +1,7 @@
 /**
  * Java Settlers - An online multiplayer version of the game Settlers of Catan
  * Copyright (C) 2003  Robert S. Thomas
- * Portions of this file Copyright (C) 2007-2008 Jeremy D. Monin <jeremy@nand.net>
+ * Portions of this file Copyright (C) 2007-2009 Jeremy D. Monin <jeremy@nand.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -332,7 +332,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
 
         /**
          * setup interface elements.
-         * PERF: hide window while doing so (TODO) osx only? what about test on linux?
+         * PERF: hide window while doing so (osx firefox)
          */
         final boolean didHideTemp = isShowing();
         if (didHideTemp)
@@ -857,8 +857,7 @@ public class SOCPlayerInterface extends Frame implements ActionListener
      */
     public void print(String s)
     {
-
-    	if (textDisplayRollExpected > 0)
+        if (textDisplayRollExpected > 0)
         {
             /*
              * Special case: Roll message.  Reduce clutter.

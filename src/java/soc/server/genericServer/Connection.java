@@ -149,12 +149,12 @@ public final class Connection extends Thread implements Runnable, Serializable, 
      */
     public boolean isInputAvailable()
     {
-    	try
-    	{
-    		return inputConnected && (0 < in.available());
-    	} catch (IOException e) {
-    		return false;
-    	}
+        try
+        {
+            return inputConnected && (0 < in.available());
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     /** continuously read from the net */
@@ -164,12 +164,12 @@ public final class Connection extends Thread implements Runnable, Serializable, 
 
         try
         {
-	    if (inputConnected)
-	    {
-		String firstMsg = in.readUTF();
-		if (! sv.processFirstCommand(firstMsg, this))
-		    sv.treat(firstMsg, this);
-	    }
+            if (inputConnected)
+            {
+                String firstMsg = in.readUTF();
+                if (! sv.processFirstCommand(firstMsg, this))
+                    sv.treat(firstMsg, this);
+            }
 
             while (inputConnected)
             {
@@ -317,8 +317,11 @@ public final class Connection extends Thread implements Runnable, Serializable, 
      *
      * This is anything your application wants to associate with the connection.
      * The StringConnection system uses this data to name the connection,
-     * so once set, it should not change.  After setting, call
-     * {@link Server#nameConnection(StringConnection)}.
+     * so it should not change once set.
+     *<P>
+     * If you call setData after {@link #newConnection1(StringConnection)},
+     * please call {@link Server#nameConnection(StringConnection)} afterwards
+     * to ensure the name is tracked properly at the server.
      *
      * @param data The new key data, or null
      * @see #setAppData(Object)
@@ -359,7 +362,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         return connectTime;
     }
 
-    /** close the socket, stop the reader */
+    /** close the socket, stop the reader; called after conn is removed from server structures */
     public void disconnect()
     {
         if (! connected)

@@ -48,7 +48,7 @@ import java.util.Vector;
  * Having six sides, hexes run in a straight line west to east, separated by vertical edges;
  * both coordinates increase along a west-to-east line.
  *<P>
- * Current coordinate encoding: ({@linkplain #BOARD_ENCODING_ORIGINAL})
+ * Current coordinate encoding: ({@link #BOARD_ENCODING_ORIGINAL})
  *<BR>
  * All coordinates are encoded as two-digit hex integers, one digit per axis (thus 00 to FF).
  * The center hex is encoded as 77; see the dissertation PDF's appendix for diagrams.
@@ -104,8 +104,8 @@ public class SOCBoard implements Serializable, Cloneable
 
     /**
      * Original format (1) for {@link #getBoardEncodingFormat()}:
-     * Hexadecimal 0x00 to 0xFF.
-     * Coordinate range is 0 to 15: <pre>
+     * Hexadecimal 0x00 to 0xFF along 2 diagonal axes.
+     * Coordinate range on each axis is 0 to 15 decimal. In hex:<pre>
      *   Hexes: 11 to DD
      *   Nodes: 01 or 10, to FE or EF
      *   Edges: 00 to EE </pre>
@@ -178,7 +178,8 @@ public class SOCBoard implements Serializable, Cloneable
     public static final int MAXNODEPLUSONE = MAXNODE + 1;
 
     /***************************************
-     * Each element's value encodes hex type and (if a port) facing. (Facing is defined just below)
+     * Each element's value encodes hex type and (if a
+     * port) facing. (Facing is defined just below).
        Key to the hexes[] values:
        <pre>
        0 : desert
@@ -205,8 +206,9 @@ public class SOCBoard implements Serializable, Cloneable
         4 : wheat  {@link #WHEAT_PORT}
         5 : wood   {@link #WOOD_PORT}
         </pre>
-        port facing: Which edge of the port's hex contains 2 nodes where
-        player can build a possible port settlement/city. <pre>
+        <em>port facing</em> is the edge of the port's hex
+        that contains 2 nodes where player can build a
+        port settlement/city. <pre>
         6___    ___1
             \/\/
             /  \
@@ -294,13 +296,13 @@ public class SOCBoard implements Serializable, Cloneable
     /**
      * offset to add to hex coord to get all node coords
      * -- see getAdjacent* methods instead
-    private int[] hexNodes = { 0x01, 0x12, 0x21, 0x10, -0x01, -0x10 };
+     * private int[] hexNodes = { 0x01, 0x12, 0x21, 0x10, -0x01, -0x10 };
      */
 
     /**
-     *  offset of all hexes adjacent to a node
-     *  @see #getAdjacentHexesToNode(int)
-    private int[] nodeToHex = { -0x21, 0x01, -0x01, -0x10, 0x10, -0x12 };
+     * offset of all hexes adjacent to a node
+     * -- @see #getAdjacentHexesToNode(int) instead
+     * private int[] nodeToHex = { -0x21, 0x01, -0x01, -0x10, 0x10, -0x12 };
      */
 
     /**
@@ -351,8 +353,8 @@ public class SOCBoard implements Serializable, Cloneable
      */
     public SOCBoard()
     {
-        boardWidth = 0xFF;
-        boardHeight = 0xFF;
+        boardWidth = 0x10;
+        boardHeight = 0x10;
         boardEncodingFormat = BOARD_ENCODING_ORIGINAL;  // See javadoc of boardEncodingFormat
 
         robberHex = -1;  // Soon placed on desert
@@ -719,10 +721,10 @@ public class SOCBoard implements Serializable, Cloneable
      */
     public int getNumberOnHexFromCoord(int hex)
     {
-    	if ((hex >= 0) && (hex < hexIDtoNum.length))
-    		return getNumberOnHexFromNumber(hexIDtoNum[hex]);
-    	else
-    		return 0;
+        if ((hex >= 0) && (hex < hexIDtoNum.length))
+            return getNumberOnHexFromNumber(hexIDtoNum[hex]);
+        else
+            return 0;
     }
 
     /**

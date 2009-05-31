@@ -93,7 +93,7 @@ public class LocalStringConnection
     {
         in = new Vector();
         out = new Vector();
-	init();
+        init();
     }
 
     /**
@@ -120,8 +120,8 @@ public class LocalStringConnection
         in = peer.out;
         out = peer.in;
         peer.ourPeer = this;
-        this.ourPeer = peer;	
-	init();
+        this.ourPeer = peer;
+        init();
     }
 
     /**
@@ -136,10 +136,10 @@ public class LocalStringConnection
         ourServer = null;
         error = null;
         connectTime = new Date();
-	appData = null;
-	remoteVersion = 0;
-	remoteVersionKnown = false;
-	remoteVersionTrack = false;
+        appData = null;
+        remoteVersion = 0;
+        remoteVersionKnown = false;
+        remoteVersionTrack = false;
     }
 
     /**
@@ -225,7 +225,10 @@ public class LocalStringConnection
         }
     }
 
-    /** close the socket, discard pending buffered data, set EOF. */
+    /**
+     * close the socket, discard pending buffered data, set EOF.
+     * Called after conn is removed from server structures.
+     */
     public void disconnect()
     {
         if (! accepted)
@@ -395,8 +398,11 @@ public class LocalStringConnection
      *
      * This is anything your application wants to associate with the connection.
      * The StringConnection system uses this data to name the connection,
-     * so once set, it should not change.  After setting, call
-     * {@link Server#nameConnection(StringConnection)}.
+     * so it should not change once set.
+     *<P>
+     * If you call setData after {@link #newConnection1(StringConnection)},
+     * please call {@link Server#nameConnection(StringConnection)} afterwards
+     * to ensure the name is tracked properly at the server.
      *
      * @param data The new key data, or null
      * @see #setAppData(Object)
@@ -572,7 +578,7 @@ public class LocalStringConnection
      */
     public boolean isInputAvailable()
     {
-	return (! in_reachedEOF) && (0 < in.size());
+        return (! in_reachedEOF) && (0 < in.size());
     }
 
     /**
@@ -591,12 +597,12 @@ public class LocalStringConnection
 
         try
         {
-	    if (! in_reachedEOF)
-	    {
-		String firstMsg = readNext();
-		if (! ourServer.processFirstCommand(firstMsg, this))
-		    ourServer.treat(firstMsg, this);
-	    }
+            if (! in_reachedEOF)
+            {
+                String firstMsg = readNext();
+                if (! ourServer.processFirstCommand(firstMsg, this))
+                    ourServer.treat(firstMsg, this);
+            }
 
             while (! in_reachedEOF)
             {

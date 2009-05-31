@@ -29,9 +29,9 @@ import java.util.StringTokenizer;
  * Version numbers are read via {@link soc.util.Version}.
  *<P>
  * Before 1.1.06, in SOCPlayerClient, was sent first from server to client, then client responds.
- * Robot clients always sent first (since 1.1.00).
+ * Robot clients always sent first (since introduction in 1.1.00 of client-server versioning (2008-08-07)).
  *
- * @version 1.10.0  Introduced 2008-08-07 to add client-server versioning
+ * @version 1.1.06
  * @since 1.1.00
  * @author Jeremy D. Monin <jeremy@nand.net>
  */

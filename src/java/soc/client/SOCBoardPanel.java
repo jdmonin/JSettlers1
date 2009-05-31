@@ -216,8 +216,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * hex size, in unscaled internal-pixels
      */
-    private final int HEXWIDTH = 55;
-    private final int HEXHEIGHT = 64;
+    private final int HEXWIDTH = 55, HEXHEIGHT = 64;
 
     /**
      * actual size on-screen, not internal-pixels size
@@ -280,10 +279,12 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
      * number pix (for hexes), original resolution.
      */
     private static Image[] numbers;
+
     /**
      * number pix (for hexes), current scaled resolution
      */
     private Image[] scaledNumbers;
+
     /**
      * If an element is true, scaling that number's image previously failed.
      * Don't re-try scaling to same size, instead use {@link #numbers}[i].
@@ -328,8 +329,7 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
     /**
      * Old pointer coords for interface
      */
-    private int ptrOldX;
-    private int ptrOldY;
+    private int ptrOldX, ptrOldY;
     
     /**
      * (tooltip) Hover text.  Its mode uses boardpanel mode
@@ -2856,26 +2856,37 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         
         /** Text to hover-display, or null if nothing to show */
         private String hoverText;
-        /** Uses board mode constants: Will be NONE, PLACE_ROAD, PLACE_SETTLEMENT,
+
+        /** Uses board mode constants: Will be {@link SOCBoardPanel#NONE NONE},
+         *  {@link SOCBoardPanel#PLACE_ROAD PLACE_ROAD}, PLACE_SETTLEMENT,
          *  PLACE_ROBBER for hex, or PLACE_INIT_SETTLEMENT for port.
          */
         private int hoverMode;
-        /** "ID" coord as returned by findNode, findEdge, findHex */
+
+        /** "ID" of coord as returned by {@link SOCBoardPanel#findNode(int, int) findNode}, findEdge, findHex */
         private int hoverID;
+
         /** Object last pointed at; null for hexes and ports */
         private SOCPlayingPiece hoverPiece;
+
         /** hover road ID, or 0. Readonly please from outside this inner class. Drawn in {@link #paint(Graphics)}. */
         int hoverRoadID;
+
         /** hover settlement or city node ID, or 0. Readonly please from outside this inner class. Drawn in {@link #paint(Graphics)}. */
         int hoverSettlementID, hoverCityID;
+
         /** is hover a port at coordinate hoverID? */
         boolean hoverIsPort;
+
         /** Mouse position */
         private int mouseX, mouseY;
+
         /** Our position (upper-left of tooltip box) */
         private int boxX, boxY;
+
         /** Requested X-offset from mouse pointer (used for robber placement) */
         private int offsetX;
+
         /** Our size.
          *  If boxw == 0, also indicates need fontmetrics - see setHoverText, paint.
          */
@@ -2951,7 +2962,14 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
         {
             offsetX = ofsX;
         }
-        
+
+        /**
+         * Set the hover text (tooltip) based on where the mouse is now,
+         * and repaint the board.
+         * @param t Hover text contents, or null to clear that text (but
+         *          not hovering pieces) and repaint
+         * @see #hideHoverAndPieces()
+         */
         public void setHoverText(String t)
         {
             hoverText = t;
@@ -2964,16 +2982,16 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
             final Font bpf = bpanel.getFont();
             if (bpf == null)
             {
-            	boxW = 0;  // Paint method will look it up
+                boxW = 0;  // Paint method will look it up
             } else {
-	            final FontMetrics fm = getFontMetrics(bpf);
-	            if (fm == null)
-	            {
-	            	boxW = 0;
-	            } else {
-		            boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
-		            boxH = fm.getHeight();
-	            }
+                final FontMetrics fm = getFontMetrics(bpf);
+                if (fm == null)
+                {
+                    boxW = 0;
+                } else {
+                    boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
+                    boxH = fm.getHeight();
+                }
             }
             positionToMouse(mouseX, mouseY);  // Also calls repaint
         }
@@ -3012,15 +3030,15 @@ public class SOCBoardPanel extends Canvas implements MouseListener, MouseMotionL
 
             if (boxW == 0)
             {
-            	// Deferred fontmetrics lookup from earlier setHoverText
+                // Deferred fontmetrics lookup from earlier setHoverText
                 final Font bpf = bpanel.getFont();
                 if (bpf == null)
-                	return;
-	            final FontMetrics fm = getFontMetrics(bpf);
-	            if (fm == null)
-	            	return;
-	            boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
-	            boxH = fm.getHeight();           	
+                    return;
+                final FontMetrics fm = getFontMetrics(bpf);
+                if (fm == null)
+                    return;
+                boxW = fm.stringWidth(hoverText) + PADDING_HORIZ;
+                boxH = fm.getHeight();
             }
             g.setColor(Color.WHITE);
             g.fillRect(boxX, boxY, boxW - 1, boxH - 1);

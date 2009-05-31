@@ -168,7 +168,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
         setName("server-" + port);  // Thread name for debugging
 
         initMisc();
-        
+
         // Most other fields are set by initializers in their declaration.
     }
 
@@ -195,13 +195,13 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     private void initMisc()
     {
-    	// recurring schedule the version set's consistency-chk
-    	ConnVersionSetCheckerTask cvChkTask = new ConnVersionSetCheckerTask(this);
-    	utilTimer.schedule(cvChkTask, 0L, SOCServer.CLI_VERSION_SET_CONSIS_CHECK_MINUTES * 60 * 1000);
+        // recurring schedule the version set's consistency-chk
+        ConnVersionSetCheckerTask cvChkTask = new ConnVersionSetCheckerTask(this);
+        utilTimer.schedule(cvChkTask, 0L, SOCServer.CLI_VERSION_SET_CONSIS_CHECK_MINUTES * 60 * 1000);
     }
 
     /**
-     * Given a key data, return the connected client.
+     * Given a connection's key, return the connected client.
      * @param connKey Object key data, as in {@link StringConnection#getData()}; if null, returns null
      * @return The connection with this key, or null if none
      */
@@ -334,7 +334,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     public boolean processFirstCommand(String str, StringConnection con)
     {
-	return false;
+        return false;
     }
 
     /** placeholder for doing things when server gets down */
@@ -354,7 +354,9 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      *<P>
      * Should send a message to the client in either {@link #newConnection1(StringConnection)}
      * or {@link #newConnection2(StringConnection)}.
-     * You may also name the connection here by calling c.setData, which will help add to conns or unnamedConns.
+     * You may also name the connection here by calling
+     * {@link StringConnection#setData(Object) c.setData},
+     * which will help add to conns or unnamedConns.
      * This is also where the version should be set.
      *<P>
      * Note that {@link #addConnection(StringConnection)} won't close the channel or
@@ -386,7 +388,7 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     protected void newConnection2(StringConnection c) {}
 
     /** placeholder for doing things when a connection is closed.
-     *  called after connection is removed from conns collection
+     *  Called after connection is removed from conns collection
      *  and version collection, and after c.disconnect() has been called.
      *<P>
      * This method is called within a per-client thread.
@@ -864,17 +866,17 @@ public abstract class Server extends Thread implements Serializable, Cloneable
     {
         for (Enumeration e = getConnections(); e.hasMoreElements();)
         {
-	    StringConnection c = (StringConnection) e.nextElement();
-	    int cvers = c.getVersion();
-	    if ((cvers >= vmin) && (cvers <= vmax))
-		c.put(m);
+            StringConnection c = (StringConnection) e.nextElement();
+            int cvers = c.getVersion();
+            if ((cvers >= vmin) && (cvers <= vmax))
+                c.put(m);
         }
         for (Enumeration e = unnamedConns.elements(); e.hasMoreElements();)
         {
             StringConnection c = (StringConnection) e.nextElement();
-	    int cvers = c.getVersion();
-	    if ((cvers >= vmin) && (cvers <= vmax))
-		c.put(m);
+            int cvers = c.getVersion();
+            if ((cvers >= vmin) && (cvers <= vmax))
+                c.put(m);
         }
     }
 
@@ -1030,39 +1032,39 @@ public abstract class Server extends Thread implements Serializable, Cloneable
      */
     private static class ConnVersionSetCheckerTask extends TimerTask
     {
-    	private Server srv;
+        private Server srv;
 
-    	public ConnVersionSetCheckerTask(Server s)
-    	{
-    	    srv = s;
-    	}
+        public ConnVersionSetCheckerTask(Server s)
+        {
+            srv = s;
+        }
 
-    	/**
-    	 * Called when timer fires. See class description for action taken.
-    	 * Synchronizes on {@link Server#unnamedConns}.
-    	 */
-    	public void run()
-    	{
-    	    final boolean wantsFull = (srv.cliVersionsConnectedQuickCheckCount
-    	            >= CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT);
+        /**
+         * Called when timer fires. See class description for action taken.
+         * Synchronizes on {@link Server#unnamedConns}.
+         */
+        public void run()
+        {
+            final boolean wantsFull = (srv.cliVersionsConnectedQuickCheckCount
+                    >= CLI_VERSION_SET_CONSIS_CHECK_QUICK_COUNT);
 
-    	    synchronized (srv.unnamedConns)
-    	    {
-    	        TreeMap tree2 = (wantsFull ? srv.clientVersionBuildMap() : null);
+            synchronized (srv.unnamedConns)
+            {
+                TreeMap tree2 = (wantsFull ? srv.clientVersionBuildMap() : null);
 
-    	        boolean checkPassed = srv.clientVersionCheckMap(tree2, wantsFull);
-    	        if (! checkPassed)
-    	        {
-    	            srv.clientVersionRebuildMap(tree2);
-    	        } else
-    	        {
-    	            if (wantsFull)
-    	                srv.cliVersionsConnectedQuickCheckCount = 0;
-    	            else
-    	                srv.cliVersionsConnectedQuickCheckCount++;
-    	        }
-    	    }
-    	}
+                boolean checkPassed = srv.clientVersionCheckMap(tree2, wantsFull);
+                if (! checkPassed)
+                {
+                    srv.clientVersionRebuildMap(tree2);
+                } else
+                {
+                    if (wantsFull)
+                        srv.cliVersionsConnectedQuickCheckCount = 0;
+                    else
+                        srv.cliVersionsConnectedQuickCheckCount++;
+                }
+            }
+        }
 
     }  // ConnVersionSetCheckerTask
 

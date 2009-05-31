@@ -264,7 +264,7 @@ public class SOCGame implements Serializable, Cloneable
      * For use at server; lowest version of client which can connect to
      * this game (based on game features added in a given version),
      * or -1 if unknown.
-     * Format is same integer format as everywhere else, see {@link soc.util.Version#versionNumber()}.
+     * Format is the internal integer format, see {@link soc.util.Version#versionNumber()}.
      *<P>
      *<b>Reminder:</b> If you add new game features, please be sure that the
      *   robot is also capable of understanding/using them.
@@ -440,7 +440,7 @@ public class SOCGame implements Serializable, Cloneable
      */
     public SOCGame(String n, boolean a)
     {
-	// For places to initialize fields, see also resetAsCopy().
+        // For places to initialize fields, see also resetAsCopy().
 
         active = a;
         inUse = false;
@@ -3223,27 +3223,27 @@ public class SOCGame implements Serializable, Cloneable
     public int[] doMonopolyAction(final int rtype)
     {
         int sum = 0;
-	int[] monoResult = new int[MAXPLAYERS];
+        int[] monoResult = new int[MAXPLAYERS];
 
         for (int i = 0; i < MAXPLAYERS; i++)
         {
             if ((i != currentPlayerNumber) && ! isSeatVacant(i))
             {
-		int playerHas = players[i].getResources().getAmount(rtype);
-		if (playerHas > 0)
-		{
-			sum += playerHas;
-			players[i].getResources().setAmount(0, rtype);
-		}
-		monoResult[i] = playerHas;
+                int playerHas = players[i].getResources().getAmount(rtype);
+                if (playerHas > 0)
+                {
+                    sum += playerHas;
+                    players[i].getResources().setAmount(0, rtype);
+                }
+                monoResult[i] = playerHas;
             } else {
-		monoResult[i] = 0;
-	    }
+                monoResult[i] = 0;
+            }
         }
 
         players[currentPlayerNumber].getResources().add(sum, rtype);
         gameState = oldGameState;
-	return monoResult;
+        return monoResult;
     }
 
     /**
@@ -3441,10 +3441,10 @@ public class SOCGame implements Serializable, Cloneable
 
         // Most fields are NOT copied since this is a "reset", not an identical-state game.
 
-	// Game features
-	cp.clientVersionMinRequired = clientVersionMinRequired;
+        // Game features
+        cp.clientVersionMinRequired = clientVersionMinRequired;
 
-	// Per-player state
+        // Per-player state
         for (int i = 0; i < MAXPLAYERS; i++)
         {
             boolean wasRobot = false;

@@ -114,6 +114,9 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /** connect-or-practice panel (if jar launch), in cardlayout */
     protected static final String CONNECT_OR_PRACTICE_PANEL = "connOrPractice";
 
+    /** text prefix to show games this client cannot join. "(cannot join) "
+     * @since 1.1.06
+     */
     protected static final String GAMENAME_PREFIX_CANNOT_JOIN = "(cannot join) ";
 
     /** Default tcp port number 8880 to listen, and to connect to remote server */
@@ -220,6 +223,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
 
     /**
      * Status text to indicate client cannot join a game.
+     * @since 1.1.06
      */
     public static String STATUS_CANNOT_JOIN_THIS_GAME = "Cannot join, this client is incompatible with features of this game.";
 
@@ -687,7 +691,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     /**
      * Attempts to connect to the server. See {@link #connected} for success or
      * failure. Once connected, starts a {@link #reader} thread.
-     * The first message over the connection is our version
+     * The first message over the connection is our version,
      * and the second is the server's response:
      * Either {@link SOCRejectConnection}, or the lists of
      * channels and games ({@link SOCChannels}, {@link SOCGames}).
@@ -789,7 +793,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      */
     private void guardedActionPerform(Object target)
     {
-    	boolean showPopupCannotJoin = false;
+        boolean showPopupCannotJoin = false;
 
         if ((target == jc) || (target == channel) || (target == chlist)) // Join channel stuff
         {
@@ -824,6 +828,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * GuardedActionPerform when a channels-related button or field is clicked
      * @param target Target as in actionPerformed
      * @return True if OK, false if caller needs to show popup "cannot join"
+     * @since 1.1.06
      */
     private boolean guardedActionPerform_channels(Object target)
     {
@@ -930,6 +935,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
      * GuardedActionPerform when a games-related button or field is clicked
      * @param target Target as in actionPerformed
      * @return True if OK, false if caller needs to show popup "cannot join"
+     * @since 1.1.06
      */
     private boolean guardedActionPerform_games(Object target)
     {
@@ -1792,22 +1798,22 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
         D.ebugPrintln("handleVERSION: " + mes);
         int vers = mes.getVersionNumber();
         if (! isLocal)
-	{
+        {
             sVersion = vers;
 
-	    // Display the version on main panel, unless we're running a server.
+            // Display the version on main panel, unless we're running a server.
             // (If so, want to display its listening port# instead)
             if (null == localTCPServer)
             {
-            	versionOrlocalTCPPortLabel.setForeground(new Color(252, 251, 243)); // off-white
-            	versionOrlocalTCPPortLabel.setText("v " + mes.getVersionString());
-			    new AWTToolTip ("Server version is " + mes.getVersionString()
-					    + " build " + mes.getBuild()
-		                            + "; client is " + Version.version()
-					    + " bld " + Version.buildnum(),
-					    versionOrlocalTCPPortLabel);
+                versionOrlocalTCPPortLabel.setForeground(new Color(252, 251, 243)); // off-white
+                versionOrlocalTCPPortLabel.setText("v " + mes.getVersionString());
+                new AWTToolTip ("Server version is " + mes.getVersionString()
+                                + " build " + mes.getBuild()
+                                + "; client is " + Version.version()
+                                + " bld " + Version.buildnum(),
+                                versionOrlocalTCPPortLabel);
             }
-	}
+        }
 
         // If we ever require a minimum server version, would check that here.
 
@@ -2085,7 +2091,7 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     protected void handleDELETEGAME(SOCDeleteGame mes)
     {
         if (! deleteFromGameList(mes.getGame()))
-	    deleteFromGameList(GAMENAME_PREFIX_CANNOT_JOIN + mes.getGame());
+            deleteFromGameList(GAMENAME_PREFIX_CANNOT_JOIN + mes.getGame());
     }
 
     /**
@@ -3118,13 +3124,13 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
     {
         // String gameName = thing + STATSPREFEX + "-- -- -- --]";
 
-	if (gameName.charAt(0) == SOCGames.MARKER_THIS_GAME_UNJOINABLE)
-	{
-	    // TODO TODO TODO color? "(cannot join) "
-	    gameName = gameName.substring(1);
-	    gamesUnjoinable.put(gameName, gameName);
-	    gameName = GAMENAME_PREFIX_CANNOT_JOIN + gameName;
-	}
+        if (gameName.charAt(0) == SOCGames.MARKER_THIS_GAME_UNJOINABLE)
+        {
+            // "(cannot join) "     TODO color would be nice
+            gameName = gameName.substring(1);
+            gamesUnjoinable.put(gameName, gameName);
+            gameName = GAMENAME_PREFIX_CANNOT_JOIN + gameName;
+        }
 
         if ((gmlist.countItems() > 0) && (gmlist.getItem(0).equals(" ")))
         {
@@ -3266,21 +3272,21 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             {
                 gmlist.replaceItem(" ", 0);
                 gmlist.deselect(0);
-		gamesUnjoinable.remove(gameName);  // may not be in there
-		return true;
+                gamesUnjoinable.remove(gameName);  // may not be in there
+                return true;
             }
 
             return false;
         }
 
-	boolean found = false;
+        boolean found = false;
 
         for (int i = gmlist.getItemCount() - 1; i >= 0; i--)
         {
             if (gmlist.getItem(i).startsWith(testString))
             {
                 gmlist.remove(i);
-		found = true;
+                found = true;
             }
         }
 
@@ -3289,12 +3295,12 @@ public class SOCPlayerClient extends Applet implements Runnable, ActionListener
             gmlist.select(gmlist.getItemCount() - 1);
         }
 
-	if (found)
-	{
-	    gamesUnjoinable.remove(gameName);  // may not be in there
-	}
+        if (found)
+        {
+            gamesUnjoinable.remove(gameName);  // may not be in there
+        }
 
-	return found;
+        return found;
     }
 
     /**

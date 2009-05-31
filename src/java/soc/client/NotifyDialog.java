@@ -21,15 +21,13 @@
  **/
 package soc.client;
 
-import soc.game.SOCGame;
-
 // TODO consider callback option; ActionListener
 
 /**
- * This is a generic dialog to popup a message to the player, and wait for
- * them to hit its button.  (TODO) other code does not currently actually wait...
- * asynchronously returns, and then the dialog sticks around not affecting
+ * This is a generic dialog to popup a message to the player, with one button.
+ * Asynchronously returns, and then the dialog sticks around not affecting
  * anything, until the user dismisses it.  At that point it only disappears.
+ * A callback can be added later if needed.
  *
  * @author Jeremy D Monin <jeremy@nand.net>
  * @since 1.1.06

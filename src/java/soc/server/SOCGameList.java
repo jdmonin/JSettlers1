@@ -356,24 +356,22 @@ public class SOCGameList
      */
     public synchronized SOCGame createGame(String gaName)
     {
-        if (!isGame(gaName))
-        {
-            MutexFlag mutex = new MutexFlag();
-            gameMutexes.put(gaName, mutex);
+        if (isGame(gaName))
+            return null;
 
-            Vector members = new Vector();
-            gameMembers.put(gaName, members);
+        MutexFlag mutex = new MutexFlag();
+        gameMutexes.put(gaName, mutex);
 
-            SOCGame game = new SOCGame(gaName);
+        Vector members = new Vector();
+        gameMembers.put(gaName, members);
 
-            // set the expiration to 90 min. from now
-            game.setExpiration(game.getStartTime().getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
-            gameData.put(gaName, game);
+        SOCGame game = new SOCGame(gaName);
 
-	    return game;
-        }
+        // set the expiration to 90 min. from now
+        game.setExpiration(game.getStartTime().getTime() + (60 * 1000 * GAME_EXPIRE_MINUTES));
+        gameData.put(gaName, game);
 
-        return null;
+        return game;
     }
 
     /**

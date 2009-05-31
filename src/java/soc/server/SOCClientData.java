@@ -58,7 +58,7 @@ public class SOCClientData
         winLossSync = new Object();
         wins = 0;
         losses = 0;
-	sentGameList = false;
+        sentGameList = false;
         cliVersionTask = null;
     }
 
@@ -109,7 +109,7 @@ public class SOCClientData
      */
     public boolean hasSentGameList()
     {
-	return sentGameList;
+        return sentGameList;
     }
 
     /**
@@ -119,7 +119,7 @@ public class SOCClientData
      */
     public void setSentGameList()
     {
-	sentGameList = true;
+        sentGameList = true;
     }
 
     /**
@@ -131,24 +131,27 @@ public class SOCClientData
      */
     public void setVersionTimer(SOCServer sr, StringConnection con)
     {
-	cliVersionTask = new SOCCDCliVersionTask (sr, this, con);
-	sr.utilTimer.schedule(cliVersionTask, SOCServer.CLI_VERSION_TIMER_FIRE_MS);
+        cliVersionTask = new SOCCDCliVersionTask (sr, this, con);
+        sr.utilTimer.schedule(cliVersionTask, SOCServer.CLI_VERSION_TIMER_FIRE_MS);
     }
 
-    /** Cancel the version timer, don't fire it */
+    /**
+     * Cancel the version timer, don't fire it.
+     * @since 1.1.06
+     */
     public void clearVersionTimer()
     {
-	if (cliVersionTask != null)
-	{
-	    cliVersionTask.cancel();
-	    cliVersionTask = null;
-	}
+        if (cliVersionTask != null)
+        {
+            cliVersionTask.cancel();
+            cliVersionTask = null;
+        }
     }
 
 
     /**
-     * TimerTask at client connect, to receive client version
-     * before we assume it's too old to tell us.
+     * TimerTask at client connect, to guess the client version
+     * if it isn't sent soon enough. (assume it's too old to tell us) 
      *<P>
      * When timer fires, assume client's version will not be sent.
      * Set it to {@link SOCServer#CLI_VERSION_ASSUMED_GUESS}.
@@ -159,15 +162,15 @@ public class SOCClientData
      */
     private static class SOCCDCliVersionTask extends TimerTask
     {
-	private SOCServer srv;
+        private SOCServer srv;
         private SOCClientData cliData;
-	private StringConnection cliConn;
+        private StringConnection cliConn;
 
         public SOCCDCliVersionTask (SOCServer sr, SOCClientData cd, StringConnection con)
         {
-	    srv = sr;
-	    cliData = cd;
-	    cliConn = con;
+            srv = sr;
+            cliData = cd;
+            cliConn = con;
         }
 
         /**
@@ -175,12 +178,12 @@ public class SOCClientData
          */
         public void run()
         {
-	    if (! cliConn.isVersionKnown())
-	    {
-		cliConn.setVersion(SOCServer.CLI_VERSION_ASSUMED_GUESS, false);
-	    }
-	    cliData.cliVersionTask = null;  // Clear reference to this soon-expired obj
-	    srv.sendGameList(cliConn, cliConn.getVersion());
+            if (! cliConn.isVersionKnown())
+            {
+                cliConn.setVersion(SOCServer.CLI_VERSION_ASSUMED_GUESS, false);
+            }
+            cliData.cliVersionTask = null;  // Clear reference to this soon-to-expire obj
+            srv.sendGameList(cliConn, cliConn.getVersion());
         }
 
     }  // SOCCDCliVersionTask
