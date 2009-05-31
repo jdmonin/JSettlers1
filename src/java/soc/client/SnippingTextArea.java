@@ -23,7 +23,6 @@
 package soc.client;
 
 import java.awt.TextArea;
-import java.util.StringTokenizer;
 
 /*
  * SnippingTextArea.java 
@@ -45,6 +44,7 @@ public class SnippingTextArea extends TextArea
      * will be short 1 char. To avoid we work on the text itself for 1.4.2. It
      * flickers, but works.
      * Added 2004-06-24 by Chad McHenry - JSettlers 1.1 CVS
+     * @since 1.1.06
      */
     static final boolean isJava142 =
         System.getProperty("java.version").startsWith("1.4.2");
@@ -52,15 +52,17 @@ public class SnippingTextArea extends TextArea
     /**
      * Bug in Mac OS X 10.5 java display: If multiple threads try to update display at once,
      * can hang the GUI (with rainbow "beach ball"). Non-display threads continue execution.
-     * We avoid this by not snipping our text area's length. - JDM 2009-05-21
+     * We avoid this by not snipping our text area's length. Also extending to 10.6 in case
+     * it isn't fixed yet by that version.  - JDM 2009-05-21
      * To identify osx from within java, see technote TN2110:
      * http://developer.apple.com/technotes/tn2002/tn2110.html
      *
      * @since 1.1.06
      */
     static final boolean isJavaOnOSX105 =
-    	(System.getProperty("os.name").toLowerCase().startsWith("mac os x"))
-    	&& (System.getProperty("os.version").startsWith("10.5."));
+        (System.getProperty("os.name").toLowerCase().startsWith("mac os x"))
+        && (System.getProperty("os.version").startsWith("10.5.")
+            || System.getProperty("os.version").startsWith("10.6."));
 
     int maximumLines = 100;
     int lines = 0;
@@ -90,7 +92,7 @@ public class SnippingTextArea extends TextArea
      * maxLines.
      */
     public SnippingTextArea(String text, int rows, int columns,
-                            int scrollbars, int maxLines)
+        int scrollbars, int maxLines)
     {
         super(text, rows, columns, scrollbars);
         maximumLines = maxLines;
@@ -161,7 +163,7 @@ public class SnippingTextArea extends TextArea
     {
         int lines = 0;
         int last = -1;
-        
+
         while ( (last = s.indexOf('\n', last+1)) > -1)
             lines++;
 
@@ -174,28 +176,29 @@ public class SnippingTextArea extends TextArea
      */
     public void snipText()
     {
-    	if (isJavaOnOSX105)
-    		return;
+        if (isJavaOnOSX105)
+            return;
 
         while (lines > maximumLines)
         {
             String s = getText();
             int nextLine = s.indexOf('\n') + 1;
-            
+
             if (isJava142) // see comment for isJava142
                 super.setText(s.substring(nextLine));
             else
                 super.replaceRange("", 0, nextLine);
-            
+
             lines--;
         }
         // java 1.2 deprecated getPeer, adding isDisplayable()
 
-		if (getPeer() != null)
+        if (getPeer() != null)
         {
             setCaretPosition(getText().length());
         }
-     }
+    }
+
 }
 
 
