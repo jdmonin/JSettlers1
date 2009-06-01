@@ -34,6 +34,11 @@ import soc.disableDebug.D;
  *<P>
  * This class has a run method, but you must start the thread yourself.
  * Constructors will not create or start a thread.
+ *<P>
+ * As used within JSettlers, the structure of this class has much in common
+ * with {@link Connection}, as they both implement the {@link StringConnection}
+ * interface.  If you add something to one class (or to StringConnection),
+ * you should probably add it to the other.
  *
  *<PRE>
  *  1.0.0 - 2007-11-18 - initial release
@@ -41,8 +46,9 @@ import soc.disableDebug.D;
  *  1.0.2 - 2008-07-30 - check if s already null in disconnect
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-30 - add isVersionKnown, setVersion(int,bool), setVersionTracking,
- *                       isInputAvailable, callback to processFirstCommand;
+ *  1.0.5 - 2009-05-31 - add isVersionKnown, setVersion(int,bool), setVersionTracking,
+ *                       isInputAvailable, callback to processFirstCommand,
+ *                       wantsHideTimeoutMessage, setHideTimeoutMessage;
  *                       common constructor code moved to init().
  *</PRE>
  *
@@ -67,6 +73,7 @@ public class LocalStringConnection
     protected int  remoteVersion;
     protected boolean remoteVersionKnown;
     protected boolean remoteVersionTrack;
+    protected boolean hideTimeoutMessage = false;
 
     /**
      * the arbitrary key data associated with this connection.
@@ -579,6 +586,31 @@ public class LocalStringConnection
     public boolean isInputAvailable()
     {
         return (! in_reachedEOF) && (0 < in.size());
+    }
+
+    /**
+     * If client connection times out at server, should the server not print a message to console?
+     * This would be desired, for instance, in automated clients, which would reconnect
+     * if they become disconnected.
+     * @see setHideTimeoutMessage(boolean)
+     * @since 1.0.5
+     */
+    public boolean wantsHideTimeoutMessage()
+    {
+        return hideTimeoutMessage;
+    }
+
+    /**
+     * If client connection times out at server, should the server not print a message to console?
+     * This would be desired, for instance, in automated clients, which would reconnect
+     * if they become disconnected.
+     * @param wantsHide true to hide, false to print, the log message on idle-disconnect
+     * @see wantsHideTimeoutMessage()
+     * @since 1.0.5
+     */
+    public void setHideTimeoutMessage(boolean wantsHide)
+    {
+        hideTimeoutMessage = wantsHide;
     }
 
     /**

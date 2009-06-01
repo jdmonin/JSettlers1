@@ -33,8 +33,9 @@ import java.util.Date;
  *  1.0.2 - 2008-07-30 - no change in this file
  *  1.0.3 - 2008-08-08 - add disconnectSoft, getVersion, setVersion
  *  1.0.4 - 2008-09-04 - add appData
- *  1.0.5 - 2009-05-30 - add isVersionKnown, setVersion(int,bool),
- *                       setVersionTracking, isInputAvailable
+ *  1.0.5 - 2009-05-31 - add isVersionKnown, setVersion(int,bool),
+ *                       setVersionTracking, isInputAvailable,
+ *                       wantsHideTimeoutMessage, setHideTimeoutMessage
  *</PRE>
  *
  * @author Jeremy D Monin <jeremy@nand.net>
@@ -198,5 +199,24 @@ public interface StringConnection
      * @since 1.0.5
      */
     public abstract boolean isInputAvailable();
+
+    /**
+     * If client connection times out at server, should the server not print a message to console?
+     * This would be desired, for instance, in automated clients, which would reconnect
+     * if they become disconnected.
+     * @see setHideTimeoutMessage(boolean)
+     * @since 1.0.5
+     */
+    public abstract boolean wantsHideTimeoutMessage();
+
+    /**
+     * If client connection times out at server, should the server not print a message to console?
+     * This would be desired, for instance, in automated clients, which would reconnect
+     * if they become disconnected.
+     * @param wantsHide true to hide, false to print, the log message on idle-disconnect
+     * @see wantsHideTimeoutMessage()
+     * @since 1.0.5
+     */
+    public abstract void setHideTimeoutMessage(boolean wantsHide);
 
 }

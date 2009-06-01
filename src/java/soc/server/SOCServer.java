@@ -2905,6 +2905,7 @@ public class SOCServer extends Server
             // add this connection to the robot list
             //
             c.setData(mes.getNickname());
+            c.setHideTimeoutMessage(true);
             robots.addElement(c);
             nameConnection(c);
         }

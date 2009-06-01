@@ -34,11 +34,16 @@ import java.util.Date;
 import java.util.Vector;
 
 
-/** A server connection.
- *  @version 1.0
+/** A client's connection at a server.
+ *  @version 1.1.06
  *  @author <A HREF="http://www.nada.kth.se/~cristi">Cristian Bogdan</A>
  *  Reads from the net, writes atomically to the net and
  *  holds the connection data
+ *<P>
+ * As used within JSettlers, the structure of this class has much in common
+ * with {@link LocalStringConnection}, as they both implement the {@link StringConnection}
+ * interface.  If you add something to one class (or to StringConnection),
+ * you should probably add it to the other.
  */
 public final class Connection extends Thread implements Runnable, Serializable, Cloneable, StringConnection
 {
@@ -67,6 +72,7 @@ public final class Connection extends Thread implements Runnable, Serializable, 
     protected int remoteVersion;
     protected boolean remoteVersionKnown;
     protected boolean remoteVersionTrack;
+    protected boolean hideTimeoutMessage = false;
 
     protected Exception error = null;
     protected Date connectTime = new Date();
@@ -157,6 +163,29 @@ public final class Connection extends Thread implements Runnable, Serializable, 
         }
     }
 
+    /**
+     * If client connection times out at server, should the server not print a message to console?
+     * This would be desired, for instance, in automated clients, which would reconnect
+     * if they become disconnected.
+     * @see setHideTimeoutMessage(boolean)
+     */
+    public boolean wantsHideTimeoutMessage()
+    {
+        return hideTimeoutMessage;
+    }
+
+    /**
+     * If client connection times out at server, should the server not print a message to console?
+     * This would be desired, for instance, in automated clients, which would reconnect
+     * if they become disconnected.
+     * @param wantsHide true to hide, false to print, the log message on idle-disconnect
+     * @see wantsHideTimeoutMessage()
+     */
+    public void setHideTimeoutMessage(boolean wantsHide)
+    {
+        hideTimeoutMessage = wantsHide;
+    }
+ 
     /** continuously read from the net */
     public void run()
     {
